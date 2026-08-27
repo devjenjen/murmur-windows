@@ -1,0 +1,44 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:localization="using:Murmur.App.Localization"
+             x:Class="Murmur.App.App"
+             RequestedThemeVariant="Default">
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://Murmur.App/Styles/MurmurTokens.axaml" />
+    </Application.Styles>
+
+    <TrayIcon.Icons>
+        <TrayIcons>
+            <TrayIcon Icon="avares://Murmur.App/Assets/icon.ico"
+                      ToolTipText="Murmur"
+                      IsVisible="True">
+                <TrayIcon.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="{x:Static localization:UiText.TrayReady}" CommandParameter="Murmur.Tray.status" IsEnabled="False" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="{x:Static localization:UiText.ProfileStandard}"
+                                        CommandParameter="Murmur.Profile.standard"
+                                        ToggleType="Radio"
+                                        IsChecked="True"
+                                        Click="OnProfileMenuItemClick" />
+                        <NativeMenuItem Header="{x:Static localization:UiText.ProfileMath}"
+                                        CommandParameter="Murmur.Profile.math"
+                                        ToggleType="Radio"
+                                        IsChecked="False"
+                                        Click="OnProfileMenuItemClick" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="{x:Static localization:UiText.TraySettings}" CommandParameter="Murmur.Tray.settings" Click="OnSettingsClick" />
+                        <NativeMenuItem Header="{x:Static localization:UiText.TrayOpenLogFolder}" CommandParameter="Murmur.Tray.open-log-folder" Click="OnOpenLogFolderClick" />
+                        <NativeMenuItem Header="{x:Static localization:UiText.TrayUpdateAvailable}" CommandParameter="Murmur.UpdateAvailable" IsEnabled="False" IsVisible="False" Click="OnUpdateAvailableClick" />
+                        <NativeMenuItem Header="{x:Static localization:UiText.TrayCheckForUpdates}" CommandParameter="Murmur.Tray.check-for-updates" Click="OnCheckForUpdatesClick" />
+                        <NativeMenuItem Header="{x:Static localization:UiText.TrayStartWithWindows}" ToggleType="CheckBox"
+                                        CommandParameter="Murmur.Tray.start-with-windows" Click="OnStartWithWindowsClick" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="{x:Static localization:UiText.TrayExit}" CommandParameter="Murmur.Tray.exit" Click="OnExitClick" />
+                    </NativeMenu>
+                </TrayIcon.Menu>
+            </TrayIcon>
+        </TrayIcons>
+    </TrayIcon.Icons>
+</Application>

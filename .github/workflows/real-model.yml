@@ -1,0 +1,57 @@
+name: Real-model smoke tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 2 * * *'
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  real-model:
+    name: Download and exercise speech models
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: windows/global.json
+
+      - name: Restore
+        run: dotnet restore windows/Murmur.sln --runtime win-x64
+
+      - name: Build
+        run: >
+          dotnet build windows/Murmur.sln
+          --no-restore
+          --configuration Release
+          --no-incremental
+          -warnaserror
+
+      - name: Run real-model tests
+        run: >
+          dotnet test windows/Murmur.sln
+          --no-build
+          --configuration Release
+          --filter "Category=RealModel"
+          --logger "trx;LogFileName=real-model-results.trx"
+          --logger "console;verbosity=normal"
+          --results-directory windows/artifacts/real-model-test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: real-model-test-results
+          path: windows/artifacts/real-model-test-results
+          if-no-files-found: error

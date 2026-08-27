@@ -1,0 +1,702 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:Murmur.App.Controls"
+        xmlns:converters="using:Murmur.App.Converters"
+        xmlns:dictionary="clr-namespace:Murmur.Dictionary;assembly=Murmur.Dictionary"
+        xmlns:history="clr-namespace:Murmur.Core.History;assembly=Murmur.Core"
+        xmlns:localization="using:Murmur.App.Localization"
+        x:Class="Murmur.App.Views.SettingsWindow"
+        Title="{x:Static localization:UiText.SettingsTitle}"
+        Width="{DynamicResource SettingsDefaultWidth}" Height="{DynamicResource SettingsDefaultHeight}"
+        MinWidth="{DynamicResource SettingsMinWidth}" MinHeight="{DynamicResource SettingsMinHeight}"
+        Background="Transparent"
+        TransparencyLevelHint="AcrylicBlur"
+        SystemDecorations="None"
+        CanResize="True"
+        WindowStartupLocation="CenterScreen"
+        KeyDown="OnWindowKeyDown">
+    <Window.Resources>
+        <converters:HistoryAudioDurationConverter x:Key="HistoryAudioDurationConverter" />
+        <converters:HistoryInferenceDurationConverter x:Key="HistoryInferenceDurationConverter" />
+    </Window.Resources>
+    <Panel>
+        <Border x:Name="SettingsSurface" Classes="lensWindow" ClipToBounds="True">
+            <Grid RowDefinitions="Auto,*">
+                <!-- Custom macOS Window Chrome -->
+                <Grid x:Name="WindowChrome"
+                      Grid.Row="0"
+                      Height="{DynamicResource SettingsWindowChromeHeight}"
+                      Background="Transparent"
+                      PointerPressed="OnTitleBarPointerPressed"
+                      ColumnDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
+                        <Button x:Name="CloseButton"
+                                Classes="lensTrafficLight close"
+                                AutomationProperties.Name="{x:Static localization:UiText.CloseWindow}"
+                                Click="OnCloseButtonClick" />
+                        <Button x:Name="MinimizeButton"
+                                Classes="lensTrafficLight minimize"
+                                AutomationProperties.Name="{x:Static localization:UiText.MinimizeWindow}"
+                                Click="OnMinimizeButtonClick" />
+                        <Button x:Name="MaximizeButton"
+                                Classes="lensTrafficLight maximize"
+                                AutomationProperties.Name="{x:Static localization:UiText.MaximizeWindow}"
+                                Click="OnMaximizeButtonClick" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="1"
+                               Text="{x:Static localization:UiText.SettingsTitle}"
+                               Classes="lensTitle"
+                               FontSize="13"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               IsHitTestVisible="False" />
+                    <Border Grid.Column="2" Width="70" IsHitTestVisible="False" />
+                </Grid>
+
+                <TabControl Grid.Row="1"
+                            Classes="lensTabs"
+                            AutomationProperties.Name="{x:Static localization:UiText.SettingsTabs}"
+                            Margin="{DynamicResource SpacingWindow}">
+                    <!-- TAB 1: SETUP -->
+                    <TabItem x:Name="SetupTab" Header="{x:Static localization:UiText.SetupTab}">
+                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="14" Margin="{DynamicResource SpacingWindow}">
+                                <!-- Readiness Strip -->
+                                <Border x:Name="ReadinessSurface" Classes="lensWell" Padding="10,8">
+                                    <StackPanel Spacing="6">
+                                        <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+                                            <Rectangle x:Name="StatusLamp"
+                                                       Width="8"
+                                                       Height="8"
+                                                       RadiusX="4"
+                                                       RadiusY="4"
+                                                       Fill="{DynamicResource LensMeterAmberBrush}"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{x:Static localization:UiText.SystemStatus}"
+                                                       Classes="lensNote"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2"
+                                                       x:Name="StatusText"
+                                                       Text="{x:Static localization:UiText.SetupIncomplete}"
+                                                       Classes="lensBody"
+                                                       Foreground="{DynamicResource LensInkPrimaryBrush}"
+                                                       TextWrapping="Wrap"
+                                                       AutomationProperties.Name="{x:Static localization:UiText.SystemStatus}"
+                                                       AutomationProperties.LiveSetting="Assertive" />
+                                            <Border Grid.Column="3" Classes="lensBadge" VerticalAlignment="Center">
+                                                <TextBlock x:Name="StatusCounterBadgeText"
+                                                           Text="0/3"
+                                                           Classes="lensCounter" />
+                                            </Border>
+                                        </Grid>
+                                        <WrapPanel x:Name="ReadinessDetails" Orientation="Horizontal" ItemSpacing="12" LineSpacing="4">
+                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <Ellipse x:Name="MicStatusDot" Width="6" Height="6" Fill="{DynamicResource LensMeterAmberBrush}" VerticalAlignment="Center" />
+                                                <TextBlock x:Name="MicReadinessText"
+                                                           Text="{x:Static localization:UiText.MicChecking}"
+                                                           Classes="lensNote"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           AutomationProperties.Name="{x:Static localization:UiText.Microphone}" />
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <Ellipse x:Name="ModelStatusDot" Width="6" Height="6" Fill="{DynamicResource LensMeterAmberBrush}" VerticalAlignment="Center" />
+                                                <TextBlock x:Name="ModelReadinessText"
+                                                           Text="{x:Static localization:UiText.ModelChecking}"
+                                                           Classes="lensNote"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           AutomationProperties.Name="{x:Static localization:UiText.ModelStatus}" />
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <Ellipse x:Name="HotkeyStatusDot" Width="6" Height="6" Fill="{DynamicResource LensMeterAmberBrush}" VerticalAlignment="Center" />
+                                                <TextBlock x:Name="HotkeyReadinessText"
+                                                           Text="{x:Static localization:UiText.HotkeyRightCtrl}"
+                                                           Classes="lensNote"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           AutomationProperties.Name="{x:Static localization:UiText.PushToTalkKeyAutomation}" />
+                                            </StackPanel>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Required Signal Path -->
+                                <Border Classes="lensCard" Padding="12">
+                                    <StackPanel Spacing="12">
+                                        <TextBlock Text="{x:Static localization:UiText.RequiredSignalPath}" Classes="lensSection" />
+
+                                        <!-- Microphone -->
+                                        <Grid RowDefinitions="Auto,6,Auto,6,Auto" ColumnDefinitions="*,8,Auto,8,Auto">
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static localization:UiText.Microphone}" Classes="lensBody" FontWeight="Medium" />
+
+                                            <ComboBox Grid.Row="2" Grid.Column="0"
+                                                      x:Name="MicrophoneComboBox"
+                                                      Classes="lensField"
+                                                      HorizontalAlignment="Stretch"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.Microphone}"
+                                                      SelectionChanged="OnMicrophoneSelectionChanged" />
+                                            <Button Grid.Row="2" Grid.Column="2"
+                                                    x:Name="RefreshButton"
+                                                    Content="{x:Static localization:UiText.Refresh}"
+                                                    Classes="lensSecondary"
+                                                    AutomationProperties.Name="{x:Static localization:UiText.RefreshMicrophone}"
+                                                    Click="OnRefreshClick" />
+                                            <Button Grid.Row="2" Grid.Column="4"
+                                                    x:Name="TestMicrophoneButton"
+                                                    Content="{x:Static localization:UiText.Test}"
+                                                    Classes="lensPrimary"
+                                                    AutomationProperties.Name="{x:Static localization:UiText.TestMicrophone}"
+                                                    Click="OnTestMicrophoneClick" />
+
+                                            <!-- 30 DIP VU Meter well & dB readout -->
+                                            <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="5"
+                                                    Classes="lensMeterWell"
+                                                    Height="{DynamicResource SettingsMeterHeight}"
+                                                    Margin="0,4,0,0">
+                                                <Grid ColumnDefinitions="*,8,Auto" VerticalAlignment="Center">
+                                                    <controls:VUMeterControl Grid.Column="0"
+                                                                             x:Name="MicrophoneVUMeter"
+                                                                             Height="{DynamicResource SettingsMeterHeight}"
+                                                                             HorizontalAlignment="Stretch"
+                                                                             UseHudPalette="False"
+                                                                             AutomationProperties.Name="{x:Static localization:UiText.MicrophoneLevel}" />
+                                                    <TextBlock Grid.Column="2"
+                                                               x:Name="MicrophoneDbText"
+                                                               Text="−∞ dB"
+                                                               Classes="lensCounter"
+                                                               MinWidth="48"
+                                                               TextAlignment="Right"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource LensInkSecondaryBrush}" />
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+
+                                        <Rectangle Classes="hairline" />
+
+                                        <!-- Speech Model -->
+                                        <Grid RowDefinitions="Auto,6,Auto,6,Auto,6,Auto" ColumnDefinitions="*,8,Auto,8,Auto">
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static localization:UiText.SpeechRecognitionModel}" Classes="lensBody" FontWeight="Medium" />
+
+                                            <ComboBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5"
+                                                      x:Name="SpeechModelComboBox"
+                                                      Classes="lensField"
+                                                      HorizontalAlignment="Stretch"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.SpeechRecognitionModelAutomation}"
+                                                      SelectionChanged="OnSpeechModelSelectionChanged" />
+
+                                            <TextBlock Grid.Row="4" Grid.Column="0"
+                                                       x:Name="ModelStatusText"
+                                                       Classes="lensNote"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       AutomationProperties.Name="{x:Static localization:UiText.ModelStatus}"
+                                                       AutomationProperties.LiveSetting="Polite" />
+                                            <Button Grid.Row="4" Grid.Column="2"
+                                                    x:Name="DownloadButton"
+                                                    Content="{x:Static localization:UiText.Download}"
+                                                    Classes="lensPrimary"
+                                                    AutomationProperties.Name="{x:Static localization:UiText.DownloadModel}"
+                                                    Click="OnDownloadClick" />
+                                            <Button Grid.Row="4" Grid.Column="4"
+                                                    x:Name="CancelDownloadButton"
+                                                    Content="{x:Static localization:UiText.Cancel}"
+                                                    Classes="lensSecondary"
+                                                    AutomationProperties.Name="{x:Static localization:UiText.CancelDownload}"
+                                                    IsVisible="False"
+                                                    Click="OnCancelDownloadClick" />
+
+                                            <ProgressBar Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="5"
+                                                         x:Name="ModelProgressBar"
+                                                         Classes="lensProgress"
+                                                         Minimum="0" Maximum="1" Value="0"
+                                                         Height="{DynamicResource ProgressBarHeight}"
+                                                         HorizontalAlignment="Stretch"
+                                                         AutomationProperties.Name="{x:Static localization:UiText.ModelProgress}"
+                                                         AutomationProperties.LiveSetting="Polite" />
+                                        </Grid>
+
+                                        <Rectangle Classes="hairline" />
+
+                                        <!-- Push to Talk -->
+                                        <Grid RowDefinitions="Auto,6,Auto,4,Auto" ColumnDefinitions="*,8,Auto">
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static localization:UiText.PushToTalkKey}" Classes="lensBody" FontWeight="Medium" />
+
+                                            <TextBox Grid.Row="2" Grid.Column="0"
+                                                     x:Name="HotkeyTextBox"
+                                                     Classes="lensField"
+                                                     IsReadOnly="True"
+                                                     FontFamily="Consolas, Cascadia Code, monospace"
+                                                     FontWeight="SemiBold"
+                                                     AutomationProperties.Name="{x:Static localization:UiText.PushToTalkKeyAutomation}" />
+                                            <Button Grid.Row="2" Grid.Column="2"
+                                                    x:Name="CaptureHotkeyButton"
+                                                    Content="{x:Static localization:UiText.Change}"
+                                                    Classes="lensSecondary"
+                                                    AutomationProperties.Name="{x:Static localization:UiText.ChangePushToTalk}"
+                                                    Click="OnCaptureHotkeyClick" />
+
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3"
+                                                       Text="{x:Static localization:UiText.KeyNote}"
+                                                       Classes="lensNote" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Preferences (Secondary, disabled until required setup is valid) -->
+                                <Border x:Name="PreferencesPanel" Classes="lensCard" Padding="12">
+                                    <StackPanel Spacing="12">
+                                        <TextBlock Text="{x:Static localization:UiText.Preferences}" Classes="lensSection" />
+
+                                        <Grid RowDefinitions="Auto,6,Auto,4,Auto" ColumnDefinitions="*">
+                                            <TextBlock Grid.Row="0" Text="{x:Static localization:UiText.Profile}" Classes="lensBody" FontWeight="Medium" />
+                                            <ComboBox Grid.Row="2"
+                                                      x:Name="ProfileComboBox"
+                                                      Classes="lensField"
+                                                      HorizontalAlignment="Stretch"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.Profile}"
+                                                      SelectionChanged="OnProfileSelectionChanged" />
+                                            <TextBlock Grid.Row="4"
+                                                       x:Name="ProfileDescriptionText"
+                                                       Classes="lensNote"
+                                                       TextWrapping="Wrap" />
+                                        </Grid>
+
+                                        <Grid RowDefinitions="Auto,6,Auto" ColumnDefinitions="*" x:Name="MathModePanel" IsVisible="False">
+                                            <TextBlock Grid.Row="0" Text="{x:Static localization:UiText.MathOutputMode}" Classes="lensBody" FontWeight="Medium" />
+                                            <ComboBox Grid.Row="2"
+                                                      x:Name="MathModeComboBox"
+                                                      Classes="lensField"
+                                                      HorizontalAlignment="Stretch"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.MathOutputMode}"
+                                                      SelectionChanged="OnMathModeSelectionChanged" />
+                                        </Grid>
+
+                                        <Grid RowDefinitions="Auto,6,Auto" ColumnDefinitions="*">
+                                            <TextBlock Grid.Row="0" Text="{x:Static localization:UiText.HudScreenPlacement}" Classes="lensBody" FontWeight="Medium" />
+                                            <ComboBox Grid.Row="2"
+                                                      x:Name="HudPlacementComboBox"
+                                                      Classes="lensField"
+                                                      HorizontalAlignment="Stretch"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.HudScreenPosition}" />
+                                        </Grid>
+
+                                        <Grid RowDefinitions="Auto,6,Auto" ColumnDefinitions="*">
+                                            <TextBlock Grid.Row="0" Text="{x:Static localization:UiText.InterfaceLanguage}" Classes="lensBody" FontWeight="Medium" />
+                                            <ComboBox Grid.Row="2"
+                                                      x:Name="LanguageComboBox"
+                                                      Classes="lensField"
+                                                      HorizontalAlignment="Stretch"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.LanguageAutomation}" />
+                                        </Grid>
+
+                                        <ToggleSwitch x:Name="RemoveFillersCheckBox"
+                                                      Content="{x:Static localization:UiText.RemoveFillers}"
+                                                      Classes="lensToggle"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.RemoveFillersAutomation}" />
+
+                                        <ToggleSwitch x:Name="AudioFeedbackCheckBox"
+                                                      Content="{x:Static localization:UiText.AudioFeedback}"
+                                                      Classes="lensToggle"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.AudioFeedbackAutomation}" />
+
+                                        <ToggleSwitch x:Name="StartWithWindowsCheckBox"
+                                                      Content="{x:Static localization:UiText.StartOnLogin}"
+                                                      Classes="lensToggle"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.StartOnLoginAutomation}" />
+
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Primary Action Footer -->
+                                <Border Classes="lensFooter" Margin="0,4,0,0">
+                                    <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Static localization:UiText.SetupNote}"
+                                                   Classes="lensNote"
+                                                   VerticalAlignment="Center" />
+                                        <Button Grid.Column="1"
+                                                x:Name="SaveButton"
+                                                Content="{x:Static localization:UiText.StartMurmur}"
+                                                Classes="lensPrimary"
+                                                FontWeight="SemiBold"
+                                                AutomationProperties.Name="{x:Static localization:UiText.SaveSettings}"
+                                                Click="OnSaveClick" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+        <!-- TAB 2: HISTORY -->
+        <TabItem x:Name="HistoryTab" Header="{x:Static localization:UiText.HistoryTab}">
+            <Grid Margin="{DynamicResource SpacingWindow}" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="10">
+                <!-- Search Bar -->
+                <Border Classes="lensWell" Padding="{DynamicResource SpacingReadout}">
+                    <TextBox x:Name="HistorySearchTextBox"
+                             Classes="lensField"
+                             Watermark="{x:Static localization:UiText.SearchTranscriptions}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Foreground="{DynamicResource LensInkPrimaryBrush}"
+                             AutomationProperties.Name="{x:Static localization:UiText.SearchTranscriptionsAutomation}"
+                             TextChanged="OnHistorySearchChanged" />
+                </Border>
+
+                <TextBlock Grid.Row="1"
+                           x:Name="HistoryErrorText"
+                           Foreground="{DynamicResource LensWarningBrush}"
+                           TextWrapping="Wrap"
+                           AutomationProperties.LiveSetting="Assertive"
+                           IsVisible="False" />
+
+                <Grid Grid.Row="2">
+                    <!-- Empty State -->
+                    <StackPanel x:Name="HistoryEmptyPanel"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Center"
+                                Spacing="10">
+                        <Border Classes="lensMeterWell"
+                                Width="140"
+                                Height="{DynamicResource SettingsEmptyMeterHeight}"
+                                HorizontalAlignment="Center"
+                                Padding="6,0">
+                            <controls:VUMeterControl x:Name="HistoryEmptyMeter"
+                                                     Height="{DynamicResource SettingsEmptyMeterHeight}"
+                                                     UseHudPalette="False"
+                                                     IsActive="False"
+                                                     Level="0" />
+                        </Border>
+                        <TextBlock x:Name="HistoryEmptyText"
+                                   Text="{x:Static localization:UiText.NoDictations}"
+                                   Classes="lensTitle"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock x:Name="HistoryEmptyHintText"
+                                   Text="{x:Static localization:UiText.HistoryEmptyInstruction}"
+                                   Classes="lensNote"
+                                   HorizontalAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   MaxWidth="360" />
+                        <TextBlock x:Name="HistoryStorageText"
+                                   Text="{x:Static localization:UiText.HistoryStoredLocally}"
+                                   Classes="lensNote"
+                                   HorizontalAlignment="Center"
+                                   Opacity="0.6" />
+                    </StackPanel>
+
+                    <!-- Populated History List -->
+                    <ListBox x:Name="HistoryListBox"
+                             Background="Transparent"
+                             AutomationProperties.Name="{x:Static localization:UiText.DictationHistory}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="history:DictationHistoryEntry">
+                                <Border Classes="lensCard" Margin="0,0,0,8" Padding="12">
+                                    <Grid RowDefinitions="Auto,6,Auto,6,Auto">
+                                        <!-- Header line -->
+                                        <WrapPanel Grid.Row="0"
+                                                   Orientation="Horizontal"
+                                                   ItemSpacing="8"
+                                                   LineSpacing="4">
+                                            <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:dd.MM.yyyy  HH:mm:ss}'}"
+                                                       Classes="lensCounter" />
+                                            <Border Classes="lensBadge">
+                                                <TextBlock Text="{Binding Engine}"
+                                                           Classes="lensCounter" />
+                                            </Border>
+                                            <TextBlock Text="{Binding AudioDurationMs, Converter={StaticResource HistoryAudioDurationConverter}}"
+                                                       Classes="lensCounter"
+                                                       Foreground="{DynamicResource LensInkSecondaryBrush}" />
+                                            <TextBlock Text="·" Foreground="{DynamicResource LensInkSecondaryBrush}" />
+                                            <TextBlock Text="{Binding InferenceDurationMs, Converter={StaticResource HistoryInferenceDurationConverter}}"
+                                                       Classes="lensCounter"
+                                                       Foreground="{DynamicResource LensInkSecondaryBrush}" />
+                                        </WrapPanel>
+
+                                        <!-- Transcript text -->
+                                        <SelectableTextBlock Grid.Row="2"
+                                                             Text="{Binding Text}"
+                                                             Classes="lensBody"
+                                                             TextWrapping="Wrap" />
+
+                                        <!-- Actions (Default + Inline Confirmation) -->
+                                        <Grid Grid.Row="4">
+                                            <StackPanel x:Name="DefaultActionPanel"
+                                                        Orientation="Horizontal"
+                                                        HorizontalAlignment="Right"
+                                                        Spacing="8">
+                                                <Button Content="{x:Static localization:UiText.Copy}"
+                                                        Classes="lensSecondary"
+                                                        Tag="{Binding}"
+                                                        AutomationProperties.Name="{x:Static localization:UiText.CopyTranscription}"
+                                                        ToolTip.Tip="{x:Static localization:UiText.CopyTranscriptionTip}"
+                                                        Click="OnCopyHistoryClick" />
+                                                <Button Content="{x:Static localization:UiText.Delete}"
+                                                        Classes="lensDestructive"
+                                                        Tag="{Binding}"
+                                                        AutomationProperties.Name="{x:Static localization:UiText.DeleteTranscription}"
+                                                        ToolTip.Tip="{x:Static localization:UiText.DeleteTranscriptionTip}"
+                                                        Click="OnDeleteHistoryRowClick" />
+                                            </StackPanel>
+
+                                            <!-- Inline Row Delete Confirmation -->
+                                            <Grid x:Name="InlineDeleteConfirmPanel"
+                                                  ColumnDefinitions="*,Auto,Auto"
+                                                  ColumnSpacing="8"
+                                                  IsVisible="False">
+                                                <TextBlock Text="{x:Static localization:UiText.DeleteEntryConfirm}"
+                                                           Classes="lensBody"
+                                                           VerticalAlignment="Center" />
+                                                <Button Grid.Column="1"
+                                                        Content="{x:Static localization:UiText.Cancel}"
+                                                        Classes="lensSecondary"
+                                                        Tag="{Binding}"
+                                                        AutomationProperties.Name="{x:Static localization:UiText.CancelDeleteEntry}"
+                                                        Click="OnCancelInlineDeleteClick" />
+                                                <Button Grid.Column="2"
+                                                        Content="{x:Static localization:UiText.Delete}"
+                                                        Classes="lensDestructive"
+                                                        Tag="{Binding}"
+                                                        AutomationProperties.Name="{x:Static localization:UiText.ConfirmDeleteEntry}"
+                                                        Click="OnConfirmInlineDeleteClick" />
+                                            </Grid>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+
+                <Grid Grid.Row="3" ColumnDefinitions="*,Auto">
+                    <TextBlock x:Name="HistoryCountText"
+                               Classes="lensCounter"
+                               VerticalAlignment="Center"
+                               Text="{x:Static localization:UiText.ZeroEntries}" />
+                    <Button Grid.Column="1"
+                            x:Name="DeleteAllHistoryButton"
+                            Content="{x:Static localization:UiText.ClearAllHistory}"
+                            Classes="lensDestructive"
+                            AutomationProperties.Name="{x:Static localization:UiText.DeleteAllHistory}"
+                            Click="OnDeleteAllHistoryClick" />
+                </Grid>
+
+                <Border Grid.Row="4"
+                        x:Name="DeleteAllConfirmationPanel"
+                        Classes="lensCard"
+                        BorderBrush="{DynamicResource LensWarningBrush}"
+                        IsVisible="False">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                        <TextBlock Text="{x:Static localization:UiText.ClearHistoryConfirm}"
+                                   Classes="lensBody"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                x:Name="CancelDeleteAllButton"
+                                Content="{x:Static localization:UiText.Cancel}"
+                                Classes="lensSecondary"
+                                AutomationProperties.Name="{x:Static localization:UiText.CancelDeleteHistory}"
+                                Click="OnCancelDeleteAllHistoryClick" />
+                        <Button Grid.Column="2"
+                                x:Name="ConfirmDeleteAllButton"
+                                Content="{x:Static localization:UiText.Confirm}"
+                                Classes="lensDestructive"
+                                AutomationProperties.Name="{x:Static localization:UiText.ConfirmDeleteHistory}"
+                                Click="OnConfirmDeleteAllHistoryClick" />
+                    </Grid>
+                </Border>
+            </Grid>
+        </TabItem>
+
+        <!-- TAB 3: DICTIONARY -->
+        <TabItem x:Name="DictionaryTab" Header="{x:Static localization:UiText.DictionaryTab}">
+            <Grid Margin="{DynamicResource SpacingWindow}"
+                  RowDefinitions="Auto,Auto,Auto,*,Auto"
+                  RowSpacing="10">
+                <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="{x:Static localization:UiText.Corrections}" Classes="lensSection" />
+                        <TextBlock Text="{x:Static localization:UiText.DictionaryDescription}"
+                                   Classes="lensNote" />
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            x:Name="AddDictionaryButton"
+                            Content="{x:Static localization:UiText.Add}"
+                            Classes="lensPrimary"
+                            AutomationProperties.Name="{x:Static localization:UiText.AddDictionary}"
+                            Click="OnAddDictionaryClick" />
+                </Grid>
+
+                <!-- Search Bar -->
+                <Border Grid.Row="1" Classes="lensWell" Padding="{DynamicResource SpacingReadout}">
+                    <TextBox x:Name="DictionarySearchTextBox"
+                             Classes="lensField"
+                             Watermark="{x:Static localization:UiText.SearchDictionary}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Foreground="{DynamicResource LensInkPrimaryBrush}"
+                             AutomationProperties.Name="{x:Static localization:UiText.SearchDictionaryAutomation}"
+                             TextChanged="OnDictionarySearchChanged" />
+                </Border>
+
+                <!-- Editor Panel -->
+                <Border Grid.Row="2"
+                        x:Name="DictionaryEditorPanel"
+                        Classes="lensCard"
+                        Padding="14"
+                        IsVisible="False">
+                    <StackPanel Spacing="10">
+                        <TextBlock x:Name="DictionaryEditorTitle"
+                                   Text="{x:Static localization:UiText.AddCorrection}"
+                                   Classes="lensTitle" />
+                        <ComboBox x:Name="DictionaryKindComboBox"
+                                  Classes="lensField"
+                                  HorizontalAlignment="Stretch"
+                                  SelectionChanged="OnDictionaryKindChanged"
+                                  AutomationProperties.Name="{x:Static localization:UiText.DictionaryEntryType}">
+                            <ComboBoxItem Content="{x:Static localization:UiText.Term}" />
+                            <ComboBoxItem Content="{x:Static localization:UiText.Correction}" />
+                        </ComboBox>
+
+                        <!-- Hear Field -->
+                        <StackPanel Spacing="4">
+                            <TextBlock x:Name="DictionaryHearLabel"
+                                       Text="{x:Static localization:UiText.MisheardPhrase}"
+                                       Classes="lensBody"
+                                       FontWeight="Medium" />
+                            <TextBox x:Name="DictionaryHearTextBox"
+                                     Classes="lensField"
+                                     Watermark="{x:Static localization:UiText.DictionaryTermExample}"
+                                     AutomationProperties.Name="{x:Static localization:UiText.MisheardPhraseAutomation}"
+                                     TextChanged="OnDictionaryTextChanged" />
+                            <TextBlock Text="{x:Static localization:UiText.DictionaryTermExample}"
+                                       Classes="lensNote" />
+                        </StackPanel>
+
+                        <!-- Write Field -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{x:Static localization:UiText.Write}"
+                                       Classes="lensBody"
+                                       FontWeight="Medium" />
+                            <TextBox x:Name="DictionaryWriteTextBox"
+                                     Classes="lensField"
+                                     Watermark="{x:Static localization:UiText.DictionaryCorrectionExample}"
+                                     AutomationProperties.Name="{x:Static localization:UiText.CorrectedPhraseAutomation}"
+                                     TextChanged="OnDictionaryTextChanged" />
+                            <TextBlock Text="{x:Static localization:UiText.DictionaryCorrectionExample}"
+                                       Classes="lensNote" />
+                        </StackPanel>
+
+                        <TextBlock x:Name="DictionaryWarningText"
+                                   Classes="lensNote"
+                                   Foreground="{DynamicResource LensMeterAmberBrush}"
+                                   TextWrapping="Wrap"
+                                   IsVisible="False" />
+                        <TextBlock x:Name="DictionaryErrorText"
+                                   Classes="lensNote"
+                                   Foreground="{DynamicResource LensWarningBrush}"
+                                   TextWrapping="Wrap"
+                                   AutomationProperties.LiveSetting="Assertive"
+                                   IsVisible="False" />
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                            <Button x:Name="CancelDictionaryEntryButton"
+                                    Content="{x:Static localization:UiText.Cancel}"
+                                    Classes="lensSecondary"
+                                    AutomationProperties.Name="{x:Static localization:UiText.Cancel}"
+                                    Click="OnCancelDictionaryClick" />
+                            <Button x:Name="SaveDictionaryEntryButton"
+                                    Content="{x:Static localization:UiText.Save}"
+                                    Classes="lensPrimary"
+                                    AutomationProperties.Name="{x:Static localization:UiText.Save}"
+                                    Click="OnSaveDictionaryClick" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Dictionary List & Empty State -->
+                <Grid Grid.Row="3">
+                    <TextBlock x:Name="DictionaryEmptyText"
+                               Text="{x:Static localization:UiText.DictionaryEmpty}"
+                               Classes="lensNote"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                    <ListBox x:Name="DictionaryListBox"
+                             Background="Transparent"
+                             AutomationProperties.Name="{x:Static localization:UiText.DictionaryEntries}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="dictionary:DictionaryEntry">
+                                <Border Classes="lensCard" Margin="0,0,0,6" Padding="10">
+                                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                                        <Ellipse Grid.Column="0"
+                                                 Width="6"
+                                                 Height="6"
+                                                 Fill="{DynamicResource LensMeterGreenBrush}"
+                                                 VerticalAlignment="Center" />
+                                        <Border Grid.Column="1" Classes="lensBadge" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Kind}"
+                                                       Classes="lensCounter" />
+                                        </Border>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Hear}"
+                                                       Classes="lensNote"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Text="→"
+                                                       Classes="lensNote"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding Write}"
+                                                       Classes="lensBody"
+                                                       FontWeight="Medium"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <Button Grid.Column="3"
+                                                Content="{x:Static localization:UiText.Edit}"
+                                                Classes="lensSecondary"
+                                                Tag="{Binding}"
+                                                AutomationProperties.Name="{x:Static localization:UiText.Edit}"
+                                                Click="OnEditDictionaryClick" />
+                                        <Button Grid.Column="4"
+                                                Content="{x:Static localization:UiText.Toggle}"
+                                                Classes="lensSecondary"
+                                                Tag="{Binding}"
+                                                AutomationProperties.Name="{x:Static localization:UiText.Toggle}"
+                                                Click="OnToggleDictionaryClick" />
+                                        <Button Grid.Column="5"
+                                                Content="{x:Static localization:UiText.Delete}"
+                                                Classes="lensDestructive"
+                                                Tag="{Binding}"
+                                                AutomationProperties.Name="{x:Static localization:UiText.Delete}"
+                                                Click="OnDeleteDictionaryClick" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+
+                <!-- Footer -->
+                <Grid Grid.Row="4" ColumnDefinitions="*,Auto">
+                    <TextBlock x:Name="DictionaryCountText"
+                               Classes="lensCounter"
+                               VerticalAlignment="Center"
+                               Text="{x:Static localization:UiText.ZeroEntries}" />
+                    <TextBlock Grid.Column="1"
+                               Text="%LOCALAPPDATA%\Murmur\dictionary.txt"
+                               Classes="lensCounter"
+                               Foreground="{DynamicResource LensInkSecondaryBrush}"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Grid>
+        </TabItem>
+    </TabControl>
+</Grid>
+</Border>
+
+        <!-- Native resize hit regions for borderless window -->
+        <Border Height="6" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNorthSouth" PointerPressed="OnResizeNorth" />
+        <Border Height="6" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNorthSouth" PointerPressed="OnResizeSouth" />
+        <Border Width="6" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWestEast" PointerPressed="OnResizeWest" />
+        <Border Width="6" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeWestEast" PointerPressed="OnResizeEast" />
+        <Border Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" Cursor="TopLeftCorner" PointerPressed="OnResizeNorthWest" />
+        <Border Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" Background="Transparent" Cursor="TopRightCorner" PointerPressed="OnResizeNorthEast" />
+        <Border Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Bottom" Background="Transparent" Cursor="BottomLeftCorner" PointerPressed="OnResizeSouthWest" />
+        <Border Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Transparent" Cursor="BottomRightCorner" PointerPressed="OnResizeSouthEast" />
+    </Panel>
+</Window>

@@ -1,0 +1,99 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:localization="using:Murmur.App.Localization"
+        xmlns:controls="using:Murmur.App.Controls"
+        x:Class="Murmur.App.Views.HudWindow"
+        Title="Murmur HUD"
+        SizeToContent="WidthAndHeight"
+        SystemDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="AcrylicBlur"
+        Topmost="True"
+        ShowActivated="False"
+        ShowInTaskbar="False"
+        CanResize="False"
+        WindowStartupLocation="Manual">
+
+    <Grid x:Name="HudViewport"
+          Width="{DynamicResource HudViewportWidth}"
+          Height="{DynamicResource HudViewportHeight}">
+        <Border x:Name="HudSurface"
+                Classes="hudSurface"
+                Width="{DynamicResource HudOrbDiameter}"
+                Height="{DynamicResource HudOrbDiameter}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{DynamicResource HudChassisBrush}"
+                BorderBrush="{DynamicResource HudHairlineBrush}"
+                BorderThickness="{DynamicResource HudBorderThickness}"
+                CornerRadius="{DynamicResource HudOrbRadius}"
+                RenderTransformOrigin="50%,50%" />
+
+        <Border x:Name="HudContentSurface"
+                Classes="hudContentSurface"
+                Width="{DynamicResource HudArmedWidth}"
+                Height="{DynamicResource HudArmedHeight}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="Transparent"
+                Padding="{DynamicResource HudPadding}"
+                Opacity="0"
+                IsHitTestVisible="False">
+            <Grid ColumnDefinitions="Auto,Auto,*"
+                  ColumnSpacing="{DynamicResource HudColumnSpacing}">
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            Spacing="{DynamicResource HudLampBadgeSpacing}"
+                            VerticalAlignment="Center">
+                    <Ellipse x:Name="RecordLamp"
+                             Width="{DynamicResource LampDiameter}"
+                             Height="{DynamicResource LampDiameter}"
+                             Fill="{DynamicResource HudIdleLampBrush}"
+                             VerticalAlignment="Center" />
+                    <TextBlock x:Name="TelemetryBadge"
+                               Text="{x:Static localization:UiText.HudArm}"
+                               Classes="silkscreen"
+                               VerticalAlignment="Center" />
+                    <TextBlock x:Name="ProfileBadge"
+                               Text="STD"
+                               Classes="silkscreen"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <controls:VUMeterControl Grid.Column="1"
+                                         x:Name="HudMeter"
+                                         UseHudPalette="True"
+                                         Width="{DynamicResource HudMeterWidth}"
+                                         Height="{DynamicResource HudMeterHeight}"
+                                         VerticalAlignment="Center"
+                                         AutomationProperties.Name="{x:Static localization:UiText.HudRecordingLevel}" />
+
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            Spacing="{DynamicResource HudLampBadgeSpacing}"
+                            VerticalAlignment="Center">
+                    <TextBlock x:Name="TranscriptText"
+                               Classes="hudTranscript"
+                               Text="{x:Static localization:UiText.HudHoldToSpeak}"
+                               FontSize="{DynamicResource FontSizeSmall}"
+                               FontWeight="Medium"
+                               Foreground="{DynamicResource InkPrimaryBrush}"
+                               MaxWidth="{DynamicResource HudTranscriptMaxWidth}"
+                               MaxLines="2"
+                               TextWrapping="Wrap"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+
+                    <StackPanel x:Name="ProcessingDots"
+                                Orientation="Horizontal"
+                                Spacing="{DynamicResource HudProcessingDotSpacing}"
+                                IsVisible="False">
+                        <Ellipse x:Name="ProcessingDot1" Width="{DynamicResource HudProcessingDotSize}" Height="{DynamicResource HudProcessingDotSize}" Fill="{DynamicResource HudProcessingBrush}" />
+                        <Ellipse x:Name="ProcessingDot2" Width="{DynamicResource HudProcessingDotSize}" Height="{DynamicResource HudProcessingDotSize}" Fill="{DynamicResource HudProcessingBrush}" />
+                        <Ellipse x:Name="ProcessingDot3" Width="{DynamicResource HudProcessingDotSize}" Height="{DynamicResource HudProcessingDotSize}" Fill="{DynamicResource HudProcessingBrush}" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,45 @@
+<Project>
+  <!--
+    Strict by default, everywhere.
+
+    We cannot run this code on Windows before shipping it, so the compiler is the only
+    reviewer that sees every line. Anything it can be made to catch, it should catch.
+
+    Two of these are not merely tidiness:
+      * CA1304/CA1305/CA1311 (culture-sensitive string ops) catch the class of bug
+        that makes dictionary corrections vary with the current culture.
+      * CA1416 (platform compatibility) is what enforces the project layout — a project on
+        plain `net10.0` gets a build ERROR if it touches a Windows-only API, so the
+        platform-neutral core cannot silently acquire a Win32 dependency.
+  -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>false</InvariantGlobalization>
+
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningLevel>9999</WarningLevel>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
+
+    <!-- IL2xxx/IL3xxx diagnostics even though we don't publish AOT: they surface
+         reflection that would break single-file publishing. -->
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <Company>devjenjen</Company>
+    <Product>Murmur</Product>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <Copyright>Copyright © 2026 devjenjen</Copyright>
+  </PropertyGroup>
+</Project>

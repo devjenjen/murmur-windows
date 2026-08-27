@@ -1,0 +1,887 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:animation="using:Avalonia.Animation.Easings">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                    <!-- Faceplate & Surface Palette (1980s Hi-Fi Dark Face) -->
+                    <Color x:Key="FaceplateColor">#121110</Color>
+                    <Color x:Key="ChassisColor">#121110</Color>
+                    <Color x:Key="PanelColor">#242321</Color>
+                    <Color x:Key="PanelHighlightColor">#302E2A</Color>
+                    <Color x:Key="PanelShadeColor">#141311</Color>
+                    <Color x:Key="WellColor">#181715</Color>
+                    <Color x:Key="DeckColor">#151412</Color>
+                    <Color x:Key="CapColor">#2A2825</Color>
+                    <Color x:Key="HairlineColor">#33302B</Color>
+                    <Color x:Key="SeamColor">#22201D</Color>
+
+                    <!-- Text / Ink Palette -->
+                    <Color x:Key="InkPrimaryColor">#E4DED0</Color>
+                    <Color x:Key="InkSecondaryColor">#9A948A</Color>
+                    <Color x:Key="SilkscreenColor">#B0AA9E</Color>
+                    <Color x:Key="InkOnDeckColor">#D8D2C4</Color>
+                    <Color x:Key="InkLabelColor">#9A948A</Color>
+
+                    <!-- Instrumentation (Red ONLY for record lamp/meter peak; Amber/Green for signal telemetry) -->
+                    <Color x:Key="RecordLampColor">#C8342A</Color>
+                    <Color x:Key="RecordIdleLampColor">#4A2724</Color>
+                    <Color x:Key="MeterFaceColor">#D8CFB4</Color>
+                    <Color x:Key="MeterLampColor">#E8B860</Color>
+                    <Color x:Key="MeterGreenColor">#6F9E45</Color>
+                    <Color x:Key="MeterAmberColor">#D39A2E</Color>
+                    <Color x:Key="MeterPeakColor">#FFFF9F0A</Color>
+                    <Color x:Key="MeterRedColor">#C0392B</Color>
+
+                    <!-- Warning / Error Semantic Colors -->
+                    <Color x:Key="WarningColor">#FFFF9F0A</Color>
+                    <Color x:Key="WarningBgColor">#20FF9F0A</Color>
+                    <Color x:Key="WarningBorderColor">#60FF9F0A</Color>
+
+                    <!-- Selection, Hover & Focus -->
+                    <Color x:Key="SelectionColor">#33302B</Color>
+                    <Color x:Key="SelectionEdgeColor">#4A463F</Color>
+                    <Color x:Key="HoverColor">#2E2C29</Color>
+                    <Color x:Key="FocusColor">#E4DED0</Color>
+
+                    <!-- Brushes -->
+                    <SolidColorBrush x:Key="FaceplateBrush" Color="{StaticResource FaceplateColor}" />
+                    <SolidColorBrush x:Key="ChassisBrush" Color="{StaticResource ChassisColor}" />
+                    <SolidColorBrush x:Key="PanelBrush" Color="{StaticResource PanelColor}" />
+                    <SolidColorBrush x:Key="PanelHighlightBrush" Color="{StaticResource PanelHighlightColor}" />
+                    <SolidColorBrush x:Key="PanelShadeBrush" Color="{StaticResource PanelShadeColor}" />
+                    <SolidColorBrush x:Key="WellBrush" Color="{StaticResource WellColor}" />
+                    <SolidColorBrush x:Key="DeckBrush" Color="{StaticResource DeckColor}" />
+                    <SolidColorBrush x:Key="CapBrush" Color="{StaticResource CapColor}" />
+                    <SolidColorBrush x:Key="HairlineBrush" Color="{StaticResource HairlineColor}" />
+                    <SolidColorBrush x:Key="SeamBrush" Color="{StaticResource SeamColor}" />
+                    <SolidColorBrush x:Key="SpecularBrush" Color="#15FFFFFF" />
+
+                    <SolidColorBrush x:Key="InkPrimaryBrush" Color="{StaticResource InkPrimaryColor}" />
+                    <SolidColorBrush x:Key="InkSecondaryBrush" Color="{StaticResource InkSecondaryColor}" />
+                    <SolidColorBrush x:Key="SilkscreenBrush" Color="{StaticResource SilkscreenColor}" />
+                    <SolidColorBrush x:Key="InkOnDeckBrush" Color="{StaticResource InkOnDeckColor}" />
+                    <SolidColorBrush x:Key="InkLabelBrush" Color="{StaticResource InkLabelColor}" />
+
+                    <SolidColorBrush x:Key="RecordLampBrush" Color="{StaticResource RecordLampColor}" />
+                    <SolidColorBrush x:Key="RecordIdleLampBrush" Color="{StaticResource RecordIdleLampColor}" />
+                    <SolidColorBrush x:Key="MeterFaceBrush" Color="{StaticResource MeterFaceColor}" />
+                    <SolidColorBrush x:Key="MeterLampBrush" Color="{StaticResource MeterLampColor}" />
+                    <SolidColorBrush x:Key="MeterGreenBrush" Color="{StaticResource MeterGreenColor}" />
+                    <SolidColorBrush x:Key="MeterAmberBrush" Color="{StaticResource MeterAmberColor}" />
+                    <SolidColorBrush x:Key="MeterPeakBrush" Color="{StaticResource MeterPeakColor}" />
+                    <SolidColorBrush x:Key="MeterRedBrush" Color="{StaticResource MeterRedColor}" />
+
+                    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
+                    <SolidColorBrush x:Key="WarningBgBrush" Color="{StaticResource WarningBgColor}" />
+                    <SolidColorBrush x:Key="WarningBorderBrush" Color="{StaticResource WarningBorderColor}" />
+
+                    <SolidColorBrush x:Key="SelectionBrush" Color="{StaticResource SelectionColor}" />
+                    <SolidColorBrush x:Key="SelectionEdgeBrush" Color="{StaticResource SelectionEdgeColor}" />
+                    <SolidColorBrush x:Key="HoverBrush" Color="{StaticResource HoverColor}" />
+                    <SolidColorBrush x:Key="FocusBrush" Color="{StaticResource FocusColor}" />
+
+                    <!-- HUD Semantic Brushes -->
+                    <SolidColorBrush x:Key="HudChassisBrush" Color="#551C1C1E" />
+                    <SolidColorBrush x:Key="HudSolidFallbackBrush" Color="#FF1C1C1E" />
+                    <SolidColorBrush x:Key="HudHairlineBrush" Color="#40FFFFFF" />
+                    <SolidColorBrush x:Key="HudRecordingEdgeBrush" Color="#FFFF453A" />
+                    <SolidColorBrush x:Key="HudProcessingBrush" Color="#FF0A84FF" />
+                    <SolidColorBrush x:Key="HudErrorBrush" Color="#FFFF9F0A" />
+                    <SolidColorBrush x:Key="HudIdleLampBrush" Color="#3DFFFFFF" />
+                    <SolidColorBrush x:Key="HudMeterWellBrush" Color="#001C1C1E" />
+                    <SolidColorBrush x:Key="HudMeterUnlitBrush" Color="#1AFFFFFF" />
+                    <SolidColorBrush x:Key="HudMeterPeakBrush" Color="#FFFF9F0A" />
+
+                    <!-- Lens Palette (Dark) -->
+                    <SolidColorBrush x:Key="LensChassisBrush" Color="#9E1C1C1E" />
+                    <SolidColorBrush x:Key="LensSolidFallbackBrush" Color="#FF1C1C1E" />
+                    <SolidColorBrush x:Key="LensPanelBrush" Color="#0DFFFFFF" />
+                    <SolidColorBrush x:Key="LensFieldBrush" Color="#12FFFFFF" />
+                    <SolidColorBrush x:Key="LensWellBrush" Color="#12FFFFFF" />
+                    <SolidColorBrush x:Key="LensHairlineBrush" Color="#17FFFFFF" />
+                    <LinearGradientBrush x:Key="LensSpecularBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#1AFFFFFF" />
+                        <GradientStop Offset="1" Color="#0FFFFFFF" />
+                    </LinearGradientBrush>
+                    <SolidColorBrush x:Key="LensInkPrimaryBrush" Color="#FFF5F5F7" />
+                    <SolidColorBrush x:Key="LensInkSecondaryBrush" Color="#9EEBEBF5" />
+                    <SolidColorBrush x:Key="LensInkLabelBrush" Color="#6BEBEBF5" />
+                    <SolidColorBrush x:Key="LensSelectionBrush" Color="#E60A84FF" />
+                    <SolidColorBrush x:Key="LensFocusBrush" Color="#2E0A84FF" />
+                    <SolidColorBrush x:Key="LensRecordBrush" Color="#FFFF453A" />
+                    <SolidColorBrush x:Key="LensRecordIdleBrush" Color="#3DFF453A" />
+                    <SolidColorBrush x:Key="LensMeterUnlitBrush" Color="#1AFFFFFF" />
+                    <SolidColorBrush x:Key="LensMeterGreenBrush" Color="#FF30D158" />
+                    <SolidColorBrush x:Key="LensMeterAmberBrush" Color="#FFFFD60A" />
+                    <SolidColorBrush x:Key="LensMeterPeakBrush" Color="#FFFF9F0A" />
+                    <SolidColorBrush x:Key="LensWarningBrush" Color="#FFFF9F0A" />
+                    <LinearGradientBrush x:Key="LensPrimaryBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#FF0A84FF" />
+                        <GradientStop Offset="1" Color="#FF0069E0" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="LensProgressBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Offset="0" Color="#FF0A84FF" />
+                        <GradientStop Offset="1" Color="#FF5AC8FA" />
+                    </LinearGradientBrush>
+                </ResourceDictionary>
+
+                <ResourceDictionary x:Key="Light">
+                    <!-- Faceplate & Surface Palette (1980s Hi-Fi Silver/Pale Face) -->
+                    <Color x:Key="FaceplateColor">#E6E4DF</Color>
+                    <Color x:Key="ChassisColor">#E6E4DF</Color>
+                    <Color x:Key="PanelColor">#E6E3DC</Color>
+                    <Color x:Key="PanelHighlightColor">#F2F0EA</Color>
+                    <Color x:Key="PanelShadeColor">#C8C4BA</Color>
+                    <Color x:Key="WellColor">#DAD6CD</Color>
+                    <Color x:Key="DeckColor">#E0DDD5</Color>
+                    <Color x:Key="CapColor">#ECE9E2</Color>
+                    <Color x:Key="HairlineColor">#C8C4BA</Color>
+                    <Color x:Key="SeamColor">#C2BEB4</Color>
+
+                    <!-- Text / Ink Palette -->
+                    <Color x:Key="InkPrimaryColor">#1A1918</Color>
+                    <Color x:Key="InkSecondaryColor">#68645E</Color>
+                    <Color x:Key="SilkscreenColor">#524E48</Color>
+                    <Color x:Key="InkOnDeckColor">#242220</Color>
+                    <Color x:Key="InkLabelColor">#68645E</Color>
+
+                    <!-- Instrumentation -->
+                    <Color x:Key="RecordLampColor">#C8342A</Color>
+                    <Color x:Key="RecordIdleLampColor">#A45852</Color>
+                    <Color x:Key="MeterFaceColor">#D8CFB4</Color>
+                    <Color x:Key="MeterLampColor">#E8B860</Color>
+                    <Color x:Key="MeterGreenColor">#4D7A2B</Color>
+                    <Color x:Key="MeterAmberColor">#B57C17</Color>
+                    <Color x:Key="MeterPeakColor">#FFC25E00</Color>
+                    <Color x:Key="MeterRedColor">#C0392B</Color>
+
+                    <!-- Warning / Error Semantic Colors -->
+                    <Color x:Key="WarningColor">#FFC25E00</Color>
+                    <Color x:Key="WarningBgColor">#18C25E00</Color>
+                    <Color x:Key="WarningBorderColor">#50C25E00</Color>
+
+                    <!-- Selection, Hover & Focus -->
+                    <Color x:Key="SelectionColor">#D6D2C8</Color>
+                    <Color x:Key="SelectionEdgeColor">#BDB8AC</Color>
+                    <Color x:Key="HoverColor">#DDD9D0</Color>
+                    <Color x:Key="FocusColor">#1A1918</Color>
+
+                    <!-- Brushes -->
+                    <SolidColorBrush x:Key="FaceplateBrush" Color="{StaticResource FaceplateColor}" />
+                    <SolidColorBrush x:Key="ChassisBrush" Color="{StaticResource ChassisColor}" />
+                    <SolidColorBrush x:Key="PanelBrush" Color="{StaticResource PanelColor}" />
+                    <SolidColorBrush x:Key="PanelHighlightBrush" Color="{StaticResource PanelHighlightColor}" />
+                    <SolidColorBrush x:Key="PanelShadeBrush" Color="{StaticResource PanelShadeColor}" />
+                    <SolidColorBrush x:Key="WellBrush" Color="{StaticResource WellColor}" />
+                    <SolidColorBrush x:Key="DeckBrush" Color="{StaticResource DeckColor}" />
+                    <SolidColorBrush x:Key="CapBrush" Color="{StaticResource CapColor}" />
+                    <SolidColorBrush x:Key="HairlineBrush" Color="{StaticResource HairlineColor}" />
+                    <SolidColorBrush x:Key="SeamBrush" Color="{StaticResource SeamColor}" />
+                    <SolidColorBrush x:Key="SpecularBrush" Color="#10000000" />
+
+                    <SolidColorBrush x:Key="InkPrimaryBrush" Color="{StaticResource InkPrimaryColor}" />
+                    <SolidColorBrush x:Key="InkSecondaryBrush" Color="{StaticResource InkSecondaryColor}" />
+                    <SolidColorBrush x:Key="SilkscreenBrush" Color="{StaticResource SilkscreenColor}" />
+                    <SolidColorBrush x:Key="InkOnDeckBrush" Color="{StaticResource InkOnDeckColor}" />
+                    <SolidColorBrush x:Key="InkLabelBrush" Color="{StaticResource InkLabelColor}" />
+
+                    <SolidColorBrush x:Key="RecordLampBrush" Color="{StaticResource RecordLampColor}" />
+                    <SolidColorBrush x:Key="RecordIdleLampBrush" Color="{StaticResource RecordIdleLampColor}" />
+                    <SolidColorBrush x:Key="MeterFaceBrush" Color="{StaticResource MeterFaceColor}" />
+                    <SolidColorBrush x:Key="MeterLampBrush" Color="{StaticResource MeterLampColor}" />
+                    <SolidColorBrush x:Key="MeterGreenBrush" Color="{StaticResource MeterGreenColor}" />
+                    <SolidColorBrush x:Key="MeterAmberBrush" Color="{StaticResource MeterAmberColor}" />
+                    <SolidColorBrush x:Key="MeterPeakBrush" Color="{StaticResource MeterPeakColor}" />
+                    <SolidColorBrush x:Key="MeterRedBrush" Color="{StaticResource MeterRedColor}" />
+
+                    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
+                    <SolidColorBrush x:Key="WarningBgBrush" Color="{StaticResource WarningBgColor}" />
+                    <SolidColorBrush x:Key="WarningBorderBrush" Color="{StaticResource WarningBorderColor}" />
+
+                    <SolidColorBrush x:Key="SelectionBrush" Color="{StaticResource SelectionColor}" />
+                    <SolidColorBrush x:Key="SelectionEdgeBrush" Color="{StaticResource SelectionEdgeColor}" />
+                    <SolidColorBrush x:Key="HoverBrush" Color="{StaticResource HoverColor}" />
+                    <SolidColorBrush x:Key="FocusBrush" Color="{StaticResource FocusColor}" />
+
+                    <!-- HUD Semantic Brushes -->
+                    <SolidColorBrush x:Key="HudChassisBrush" Color="#55FAFAFC" />
+                    <SolidColorBrush x:Key="HudSolidFallbackBrush" Color="#FFFAFAFC" />
+                    <SolidColorBrush x:Key="HudHairlineBrush" Color="#40000000" />
+                    <SolidColorBrush x:Key="HudRecordingEdgeBrush" Color="#FFFF3B30" />
+                    <SolidColorBrush x:Key="HudProcessingBrush" Color="#FF007AFF" />
+                    <SolidColorBrush x:Key="HudErrorBrush" Color="#FFC25E00" />
+                    <SolidColorBrush x:Key="HudIdleLampBrush" Color="#55000000" />
+                    <SolidColorBrush x:Key="HudMeterWellBrush" Color="#00FAFAFC" />
+                    <SolidColorBrush x:Key="HudMeterUnlitBrush" Color="#1A000000" />
+                    <SolidColorBrush x:Key="HudMeterPeakBrush" Color="#FFC25E00" />
+
+                    <!-- Lens Palette (Light) -->
+                    <SolidColorBrush x:Key="LensChassisBrush" Color="#B3FAFAFC" />
+                    <SolidColorBrush x:Key="LensSolidFallbackBrush" Color="#FFFAFAFC" />
+                    <SolidColorBrush x:Key="LensPanelBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="LensFieldBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="LensWellBrush" Color="#0B000000" />
+                    <SolidColorBrush x:Key="LensHairlineBrush" Color="#13000000" />
+                    <LinearGradientBrush x:Key="LensSpecularBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#F2FFFFFF" />
+                        <GradientStop Offset="1" Color="#40000000" />
+                    </LinearGradientBrush>
+                    <SolidColorBrush x:Key="LensInkPrimaryBrush" Color="#FF1D1D1F" />
+                    <SolidColorBrush x:Key="LensInkSecondaryBrush" Color="#9E3C3C43" />
+                    <SolidColorBrush x:Key="LensInkLabelBrush" Color="#733C3C43" />
+                    <SolidColorBrush x:Key="LensSelectionBrush" Color="#E6007AFF" />
+                    <SolidColorBrush x:Key="LensFocusBrush" Color="#2E007AFF" />
+                    <SolidColorBrush x:Key="LensRecordBrush" Color="#FFFF3B30" />
+                    <SolidColorBrush x:Key="LensRecordIdleBrush" Color="#38FF3B30" />
+                    <SolidColorBrush x:Key="LensMeterUnlitBrush" Color="#1A000000" />
+                    <SolidColorBrush x:Key="LensMeterGreenBrush" Color="#FF248A3D" />
+                    <SolidColorBrush x:Key="LensMeterAmberBrush" Color="#FFB98900" />
+                    <SolidColorBrush x:Key="LensMeterPeakBrush" Color="#FFC25E00" />
+                    <SolidColorBrush x:Key="LensWarningBrush" Color="#FFC25E00" />
+                    <LinearGradientBrush x:Key="LensPrimaryBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#FF007AFF" />
+                        <GradientStop Offset="1" Color="#FF0069E0" />
+                    </LinearGradientBrush>
+                    <LinearGradientBrush x:Key="LensProgressBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Offset="0" Color="#FF007AFF" />
+                        <GradientStop Offset="1" Color="#FF5AC8FA" />
+                    </LinearGradientBrush>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <!-- Radii Tokens -->
+            <CornerRadius x:Key="RadiusNone">0</CornerRadius>
+            <CornerRadius x:Key="RadiusChip">2</CornerRadius>
+            <CornerRadius x:Key="RadiusControl">3</CornerRadius>
+            <CornerRadius x:Key="RadiusPanel">4</CornerRadius>
+            <CornerRadius x:Key="RadiusWindow">6</CornerRadius>
+
+            <!-- Spacing / Padding / Margin Tokens -->
+            <Thickness x:Key="SpacingNone">0</Thickness>
+            <Thickness x:Key="SpacingTight">4</Thickness>
+            <Thickness x:Key="SpacingNormal">8</Thickness>
+            <Thickness x:Key="SpacingMedium">12</Thickness>
+            <Thickness x:Key="SpacingLarge">16</Thickness>
+            <Thickness x:Key="SpacingPanel">14,12</Thickness>
+            <Thickness x:Key="SpacingHudPanel">12,8</Thickness>
+            <Thickness x:Key="SpacingWindow">12</Thickness>
+            <Thickness x:Key="SpacingReadout">10,6</Thickness>
+            <Thickness x:Key="SpacingReadoutCompact">6,2</Thickness>
+            <Thickness x:Key="SpacingButton">12,0</Thickness>
+            <Thickness x:Key="SpacingRowCompact">8,6</Thickness>
+
+            <!-- Typography Metrics -->
+            <x:Double x:Key="FontSizeDisplay">14</x:Double>
+            <x:Double x:Key="FontSizeBody">13</x:Double>
+            <x:Double x:Key="FontSizeSmall">12</x:Double>
+            <x:Double x:Key="FontSizeCounter">11</x:Double>
+            <x:Double x:Key="FontSizeNote">11</x:Double>
+            <x:Double x:Key="FontSizeSilkscreenLarge">11</x:Double>
+            <x:Double x:Key="FontSizeSilkscreen">10</x:Double>
+            <x:Double x:Key="FontSizeSilkscreenSmall">9</x:Double>
+
+            <!-- Spring Easing -->
+            <animation:SpringEasing x:Key="HudOrbSpring"
+                                    Mass="1"
+                                    Stiffness="200"
+                                    Damping="24"
+                                    InitialVelocity="0" />
+
+            <!-- Dimension Metrics -->
+            <x:Double x:Key="ControlHeightDefault">32</x:Double>
+            <x:Double x:Key="ControlHeightCompact">28</x:Double>
+            <x:Double x:Key="VUMeterHeight">14</x:Double>
+            <x:Double x:Key="ProgressBarHeight">4</x:Double>
+            <x:Double x:Key="LampDiameter">8</x:Double>
+            <x:Double x:Key="HudColumnSpacing">12</x:Double>
+            <x:Double x:Key="WaveformWidth">80</x:Double>
+            <x:Double x:Key="WaveformHeight">24</x:Double>
+            <x:Double x:Key="HudViewportWidth">488</x:Double>
+            <x:Double x:Key="HudViewportHeight">83</x:Double>
+            <x:Double x:Key="HudOrbDiameter">52</x:Double>
+            <x:Double x:Key="HudOrbScaleStart">0.92</x:Double>
+            <x:Double x:Key="HudContentStartOpacity">0</x:Double>
+            <x:Double x:Key="HudContentRestingOpacity">1</x:Double>
+            <x:Double x:Key="HudExitDurationMs">260</x:Double>
+            <x:Double x:Key="HudContentRevealDelayMs">60</x:Double>
+            <x:Double x:Key="HudProcessingDotIntervalMs">50</x:Double>
+            <CornerRadius x:Key="HudOrbRadius">26</CornerRadius>
+            <x:Double x:Key="HudTranscriptWidthStep">12</x:Double>
+            <x:Double x:Key="HudProcessingDotSize">3</x:Double>
+            <x:Double x:Key="HudProcessingDotSpacing">3</x:Double>
+            <x:Double x:Key="HudArmedWidth">245</x:Double>
+            <x:Double x:Key="HudArmedHeight">44</x:Double>
+            <x:Double x:Key="HudRecordingExpandedHeight">56</x:Double>
+            <x:Double x:Key="HudRecordingMinWidth">245</x:Double>
+            <x:Double x:Key="HudRecordingMaxWidth">416</x:Double>
+            <x:Double x:Key="HudProcessingWidth">301</x:Double>
+            <x:Double x:Key="HudProcessingHeight">38</x:Double>
+            <x:Double x:Key="HudErrorWidth">488</x:Double>
+            <x:Double x:Key="HudErrorHeight">83</x:Double>
+            <x:Double x:Key="HudTranscriptMaxWidth">288</x:Double>
+            <x:Double x:Key="HudTranscriptStartOpacity">0.78</x:Double>
+            <x:Double x:Key="HudTranscriptRestingOpacity">1</x:Double>
+            <x:Double x:Key="HudTranscriptOffset">2</x:Double>
+            <x:Double x:Key="HudMeterWidth">80</x:Double>
+            <x:Double x:Key="HudMeterHeight">18</x:Double>
+            <x:Double x:Key="HudLampBadgeSpacing">6</x:Double>
+            <x:Double x:Key="HudMeterPaddingX">4</x:Double>
+            <x:Double x:Key="HudMeterPaddingY">4</x:Double>
+            <x:Double x:Key="HudMeterSegmentGap">2</x:Double>
+            <x:Double x:Key="HudMeterSegmentRadius">1.5</x:Double>
+            <x:Double x:Key="HudMeterWellRadius">3</x:Double>
+            <x:Double x:Key="HudMeterBorderThickness">1</x:Double>
+            <x:Double x:Key="HudEntryScale">0.96</x:Double>
+            <x:Double x:Key="HudRestingScale">1</x:Double>
+            <CornerRadius x:Key="HudRadiusArmed">22</CornerRadius>
+            <CornerRadius x:Key="HudRadiusRecording">26</CornerRadius>
+            <CornerRadius x:Key="HudRadiusProcessing">19</CornerRadius>
+            <CornerRadius x:Key="HudRadiusError">14</CornerRadius>
+            <Thickness x:Key="HudPadding">12,8</Thickness>
+            <Thickness x:Key="HudBorderThickness">1</Thickness>
+            <x:Double x:Key="SettingsDefaultWidth">700</x:Double>
+            <x:Double x:Key="SettingsDefaultHeight">744</x:Double>
+            <x:Double x:Key="SettingsMinWidth">580</x:Double>
+            <x:Double x:Key="SettingsMinHeight">520</x:Double>
+            <x:Double x:Key="SettingsWindowChromeHeight">40</x:Double>
+            <x:Double x:Key="SettingsTabBarHeight">42</x:Double>
+            <x:Double x:Key="SettingsMeterHeight">30</x:Double>
+            <x:Double x:Key="SettingsEmptyMeterHeight">20</x:Double>
+            <x:Double x:Key="SettingsMeterPaddingX">8</x:Double>
+            <x:Double x:Key="SettingsMeterPaddingY">8</x:Double>
+            <x:Double x:Key="SettingsMeterSegmentGap">3</x:Double>
+            <x:Double x:Key="SettingsMeterSegmentRadius">2</x:Double>
+            <CornerRadius x:Key="SettingsMeterWellRadius">9</CornerRadius>
+            <Thickness x:Key="SettingsMeterBorderThickness">1</Thickness>
+
+            <CornerRadius x:Key="LensWindowRadius">14</CornerRadius>
+            <CornerRadius x:Key="LensCardRadius">14</CornerRadius>
+            <CornerRadius x:Key="LensFieldRadius">9</CornerRadius>
+            <CornerRadius x:Key="LensControlRadius">9</CornerRadius>
+            <CornerRadius x:Key="LensChipRadius">99</CornerRadius>
+
+            <x:Double x:Key="LensControlHeight">32</x:Double>
+            <x:Double x:Key="LensCompactControlHeight">28</x:Double>
+            <x:Double x:Key="LensFooterHeight">58</x:Double>
+
+            <FontFamily x:Key="LensBodyFont">Segoe UI Variable Text, Segoe UI, sans-serif</FontFamily>
+            <FontFamily x:Key="LensDisplayFont">Segoe UI Variable Display, Segoe UI, sans-serif</FontFamily>
+            <FontFamily x:Key="LensMonoFont">Cascadia Code, Consolas, monospace</FontFamily>
+
+            <!-- Hairlines -->
+            <Thickness x:Key="HairlineThickness">1</Thickness>
+            <Thickness x:Key="HairlineBorderBottom">0,0,0,1</Thickness>
+            <Thickness x:Key="HairlineBorderTop">0,1,0,0</Thickness>
+            <Thickness x:Key="HairlineBorderHorizontal">0,1,0,1</Thickness>
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <!-- Typography Styles -->
+    <Style Selector="TextBlock.silkscreen">
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeSilkscreen}" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="LetterSpacing" Value="0.08" />
+        <Setter Property="Foreground" Value="{DynamicResource SilkscreenBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.silkscreenLarge">
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeSilkscreenLarge}" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="LetterSpacing" Value="0.1" />
+        <Setter Property="Foreground" Value="{DynamicResource SilkscreenBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.counter">
+        <Setter Property="FontFamily" Value="Consolas, Cascadia Code, monospace" />
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeCounter}" />
+        <Setter Property="Foreground" Value="{DynamicResource InkOnDeckBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.note">
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeNote}" />
+        <Setter Property="Foreground" Value="{DynamicResource InkSecondaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!-- Hairline Divider Style -->
+    <Style Selector="Rectangle.hairline">
+        <Setter Property="Fill" Value="{DynamicResource LensHairlineBrush}" />
+        <Setter Property="Height" Value="1" />
+    </Style>
+
+    <!-- ScrollBar Palette Integration -->
+    <Style Selector="ScrollBar">
+        <Setter Property="AllowAutoHide" Value="True" />
+    </Style>
+    <Style Selector="ScrollBar /template/ Thumb">
+        <Setter Property="Background" Value="{DynamicResource LensHairlineBrush}" />
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="ScrollBar:pointerover /template/ Thumb">
+        <Setter Property="Background" Value="{DynamicResource LensInkSecondaryBrush}" />
+    </Style>
+
+    <!-- Lens Surface Styles -->
+    <Style Selector="Border.lensWindow">
+        <Setter Property="Background" Value="{DynamicResource LensChassisBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LensHairlineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource LensWindowRadius}" />
+        <Setter Property="Border.BoxShadow" Value="0 18 40 0 #40000000" />
+    </Style>
+
+    <Style Selector="Border.lensCard">
+        <Setter Property="Background" Value="{DynamicResource LensPanelBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LensHairlineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource LensCardRadius}" />
+        <Setter Property="Padding" Value="15,12" />
+    </Style>
+
+    <Style Selector="Border.lensField">
+        <Setter Property="Background" Value="{DynamicResource LensFieldBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LensHairlineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource LensFieldRadius}" />
+        <Setter Property="MinHeight" Value="{DynamicResource LensControlHeight}" />
+    </Style>
+
+    <Style Selector="Border.lensWell">
+        <Setter Property="Background" Value="{DynamicResource LensWellBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LensHairlineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource LensControlRadius}" />
+        <Setter Property="Padding" Value="{DynamicResource SpacingReadout}" />
+    </Style>
+
+    <Style Selector="Border.lensMeterWell">
+        <Setter Property="Background" Value="{DynamicResource LensWellBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LensHairlineBrush}" />
+        <Setter Property="BorderThickness" Value="{DynamicResource SettingsMeterBorderThickness}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource SettingsMeterWellRadius}" />
+        <Setter Property="Padding" Value="8,0" />
+    </Style>
+
+    <Style Selector="Border.lensBadge">
+        <Setter Property="Background" Value="{DynamicResource LensFieldBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LensHairlineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource LensChipRadius}" />
+        <Setter Property="Padding" Value="8,2" />
+    </Style>
+
+    <Style Selector="Border.lensEditor">
+        <Setter Property="Background" Value="{DynamicResource LensPanelBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LensSelectionBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource LensCardRadius}" />
+        <Setter Property="Padding" Value="15,12" />
+    </Style>
+
+    <Style Selector="Border.lensFooter">
+        <Setter Property="BorderBrush" Value="{DynamicResource LensHairlineBrush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="MinHeight" Value="{DynamicResource LensFooterHeight}" />
+        <Setter Property="Padding" Value="16,10" />
+    </Style>
+
+    <!-- Lens Fields (TextBox & ComboBox) -->
+    <Style Selector="TextBox.lensField">
+        <Setter Property="MinHeight" Value="{DynamicResource LensControlHeight}" />
+        <Setter Property="Background" Value="{DynamicResource LensFieldBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource LensInkPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LensHairlineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource LensFieldRadius}" />
+        <Setter Property="FontFamily" Value="{DynamicResource LensBodyFont}" />
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="CaretBrush" Value="{DynamicResource LensSelectionBrush}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource LensSelectionBrush}" />
+    </Style>
+    <Style Selector="TextBox.lensField:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource LensWellBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LensHairlineBrush}" />
+    </Style>
+    <Style Selector="TextBox.lensField:focus /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource LensFieldBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LensSelectionBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.lensField:disabled">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+    <Style Selector="TextBox.lensField /template/ TextBlock#PART_Watermark">
+        <Setter Property="Foreground" Value="{DynamicResource LensInkLabelBrush}" />
+        <Setter Property="FontFamily" Value="{DynamicResource LensBodyFont}" />
+    </Style>
+
+    <Style Selector="ComboBox.lensField">
+        <Setter Property="MinHeight" Value="{DynamicResource LensControlHeight}" />
+        <Setter Property="Background" Value="{DynamicResource LensFieldBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource LensInkPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LensHairlineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource LensFieldRadius}" />
+        <Setter Property="FontFamily" Value="{DynamicResource LensBodyFont}" />
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+        <Setter Property="Padding" Value="10,4,8,4" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ComboBox.lensField:pointerover /template/ Border#Background">
+        <Setter Property="Background" Value="{DynamicResource LensWellBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LensHairlineBrush}" />
+    </Style>
+    <Style Selector="ComboBox.lensField:focus /template/ Border#Background">
+        <Setter Property="BorderBrush" Value="{DynamicResource LensSelectionBrush}" />
+    </Style>
+    <Style Selector="ComboBox.lensField:focus-visible /template/ Border#Background">
+        <Setter Property="BorderBrush" Value="{DynamicResource LensSelectionBrush}" />
+    </Style>
+    <Style Selector="ComboBox.lensField:disabled">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
+    <Style Selector="ComboBoxItem">
+        <Setter Property="FontFamily" Value="{DynamicResource LensBodyFont}" />
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+        <Setter Property="Foreground" Value="{DynamicResource LensInkPrimaryBrush}" />
+        <Setter Property="Padding" Value="10,6" />
+    </Style>
+    <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource LensWellBrush}" />
+        <Setter Property="TextBlock.Foreground" Value="{DynamicResource LensInkPrimaryBrush}" />
+    </Style>
+    <Style Selector="ComboBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource LensSelectionBrush}" />
+        <Setter Property="TextBlock.Foreground" Value="#FFFFFFFF" />
+    </Style>
+
+    <!-- Lens ListBox -->
+    <Style Selector="ListBox.lensList">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="ListBox.lensList > ListBoxItem">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ListBox.lensList > ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBox.lensList > ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- Lens Buttons -->
+    <Style Selector="Button.lensPrimary">
+        <Setter Property="Height" Value="{DynamicResource LensControlHeight}" />
+        <Setter Property="Padding" Value="{DynamicResource SpacingButton}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource LensControlRadius}" />
+        <Setter Property="Background" Value="{DynamicResource LensPrimaryBrush}" />
+        <Setter Property="Foreground" Value="#FFFFFFFF" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontFamily" Value="{DynamicResource LensBodyFont}" />
+        <Setter Property="RenderTransform" Value="none" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.06" Easing="CubicEaseOut" />
+                <BrushTransition Property="Background" Duration="0:0:0.12" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="Button.lensPrimary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Opacity" Value="0.9" />
+        <Setter Property="TextBlock.Foreground" Value="#FFFFFFFF" />
+    </Style>
+    <Style Selector="Button.lensPrimary:pressed">
+        <Setter Property="RenderTransform" Value="scale(0.97)" />
+    </Style>
+    <Style Selector="Button.lensPrimary:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource LensFocusBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+    <Style Selector="Button.lensPrimary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
+    <Style Selector="Button.lensSecondary">
+        <Setter Property="Height" Value="{DynamicResource LensControlHeight}" />
+        <Setter Property="Padding" Value="{DynamicResource SpacingButton}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource LensControlRadius}" />
+        <Setter Property="Background" Value="{DynamicResource LensFieldBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource LensInkPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LensHairlineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontFamily" Value="{DynamicResource LensBodyFont}" />
+        <Setter Property="RenderTransform" Value="none" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.06" Easing="CubicEaseOut" />
+                <BrushTransition Property="Background" Duration="0:0:0.12" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="Button.lensSecondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource LensWellBrush}" />
+        <Setter Property="TextBlock.Foreground" Value="{DynamicResource LensInkPrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.lensSecondary:pressed">
+        <Setter Property="RenderTransform" Value="scale(0.97)" />
+    </Style>
+    <Style Selector="Button.lensSecondary:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource LensSelectionBrush}" />
+    </Style>
+    <Style Selector="Button.lensSecondary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
+    <Style Selector="Button.lensDestructive">
+        <Setter Property="Height" Value="{DynamicResource LensControlHeight}" />
+        <Setter Property="Padding" Value="{DynamicResource SpacingButton}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource LensControlRadius}" />
+        <Setter Property="Background" Value="{DynamicResource WarningBgBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource LensWarningBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource WarningBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontFamily" Value="{DynamicResource LensBodyFont}" />
+        <Setter Property="RenderTransform" Value="none" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.06" Easing="CubicEaseOut" />
+                <BrushTransition Property="Background" Duration="0:0:0.12" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="Button.lensDestructive:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource WarningBorderBrush}" />
+        <Setter Property="TextBlock.Foreground" Value="{DynamicResource LensWarningBrush}" />
+    </Style>
+    <Style Selector="Button.lensDestructive:pressed">
+        <Setter Property="RenderTransform" Value="scale(0.97)" />
+    </Style>
+    <Style Selector="Button.lensDestructive:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource LensWarningBrush}" />
+    </Style>
+    <Style Selector="Button.lensDestructive:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
+    <Style Selector="Button.lensLink">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource LensSelectionBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="4,2" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MinWidth" Value="28" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FontFamily" Value="{DynamicResource LensBodyFont}" />
+        <Setter Property="RenderTransform" Value="none" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.06" Easing="CubicEaseOut" />
+                <DoubleTransition Property="Opacity" Duration="0:0:0.1" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="Button.lensLink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Opacity" Value="0.8" />
+    </Style>
+    <Style Selector="Button.lensLink:pressed">
+        <Setter Property="RenderTransform" Value="scale(0.97)" />
+    </Style>
+    <Style Selector="Button.lensLink:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource LensSelectionBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.lensLink:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
+    <!-- macOS Traffic Light Buttons -->
+    <Style Selector="Button.lensTrafficLight">
+        <Setter Property="Width" Value="12" />
+        <Setter Property="Height" Value="12" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="4,0" />
+        <Setter Property="Background" Value="{DynamicResource LensInkSecondaryBrush}" />
+        <Setter Property="Opacity" Value="0.45" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="RenderTransform" Value="none" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.1" />
+                <BrushTransition Property="Background" Duration="0:0:0.1" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.06" Easing="CubicEaseOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="Button.lensTrafficLight:pointerover">
+        <Setter Property="Opacity" Value="1.0" />
+    </Style>
+    <Style Selector="Button.lensTrafficLight:pressed">
+        <Setter Property="RenderTransform" Value="scale(0.92)" />
+    </Style>
+    <Style Selector="Button.lensTrafficLight:focus-visible">
+        <Setter Property="Opacity" Value="1.0" />
+    </Style>
+    <Style Selector="Button.lensTrafficLight.close:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#FFFF5F56" />
+    </Style>
+    <Style Selector="Button.lensTrafficLight.minimize:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#FFFFBD2E" />
+    </Style>
+    <Style Selector="Button.lensTrafficLight.maximize:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#FF27C93F" />
+    </Style>
+
+    <!-- Lens Tabs -->
+    <Style Selector="TabControl.lensTabs">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="TabControl.lensTabs > TabItem">
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+        <Setter Property="FontFamily" Value="{DynamicResource LensBodyFont}" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Foreground" Value="{DynamicResource LensInkSecondaryBrush}" />
+        <Setter Property="Padding" Value="14,6" />
+        <Setter Property="CornerRadius" Value="{DynamicResource LensControlRadius}" />
+        <Setter Property="Margin" Value="2,0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Foreground" Duration="0:0:0.1" />
+                <BrushTransition Property="Background" Duration="0:0:0.1" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl.lensTabs > TabItem:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource LensInkPrimaryBrush}" />
+    </Style>
+    <Style Selector="TabControl.lensTabs > TabItem:selected">
+        <Setter Property="Foreground" Value="{DynamicResource LensInkPrimaryBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Background" Value="{DynamicResource LensPanelBrush}" />
+    </Style>
+    <Style Selector="TabControl.lensTabs > TabItem:selected /template/ Border#PART_Indicator">
+        <Setter Property="IsVisible" Value="False" />
+        <Setter Property="Background" Value="{DynamicResource LensSelectionBrush}" />
+    </Style>
+    <Style Selector="TabControl.lensTabs > TabItem:focus /template/ Border#PART_LayoutRoot">
+        <Setter Property="BorderBrush" Value="{DynamicResource LensFocusBrush}" />
+    </Style>
+    <Style Selector="TabControl.lensTabs > TabItem:focus-visible /template/ Border#PART_LayoutRoot">
+        <Setter Property="BorderBrush" Value="{DynamicResource LensSelectionBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TabControl.lensTabs > TabItem:disabled">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
+    <!-- Lens Toggles & Progress -->
+    <Style Selector="ToggleSwitch.lensToggle">
+        <Setter Property="OnContent" Value="" />
+        <Setter Property="OffContent" Value="" />
+        <Setter Property="Foreground" Value="{DynamicResource LensInkPrimaryBrush}" />
+        <Setter Property="FontFamily" Value="{DynamicResource LensBodyFont}" />
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="ToggleSwitch.lensToggle:disabled">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
+    <Style Selector="ProgressBar.lensProgress">
+        <Setter Property="Height" Value="6" />
+        <Setter Property="CornerRadius" Value="3" />
+        <Setter Property="Background" Value="{DynamicResource LensWellBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource LensProgressBrush}" />
+    </Style>
+
+    <!-- Lens Typography -->
+    <Style Selector="TextBlock.lensTitle">
+        <Setter Property="FontFamily" Value="{DynamicResource LensDisplayFont}" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource LensInkPrimaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.lensSection">
+        <Setter Property="FontFamily" Value="{DynamicResource LensDisplayFont}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource LensInkPrimaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.lensBody">
+        <Setter Property="FontFamily" Value="{DynamicResource LensBodyFont}" />
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+        <Setter Property="Foreground" Value="{DynamicResource LensInkPrimaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.lensNote">
+        <Setter Property="FontFamily" Value="{DynamicResource LensBodyFont}" />
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeNote}" />
+        <Setter Property="Foreground" Value="{DynamicResource LensInkSecondaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.lensCounter">
+        <Setter Property="FontFamily" Value="{DynamicResource LensMonoFont}" />
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeCounter}" />
+        <Setter Property="Foreground" Value="{DynamicResource LensInkSecondaryBrush}" />
+    </Style>
+
+    <Style Selector="Border.hudSurface">
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity"
+                                  Duration="0:0:0.12"
+                                  Easing="CubicEaseOut" />
+                <DoubleTransition Property="Width"
+                                  Duration="0:0:0.25"
+                                  Easing="{DynamicResource HudOrbSpring}" />
+                <DoubleTransition Property="Height"
+                                  Duration="0:0:0.20"
+                                  Easing="{DynamicResource HudOrbSpring}" />
+                <TransformOperationsTransition Property="RenderTransform"
+                                                Duration="0:0:0.25"
+                                                Easing="{DynamicResource HudOrbSpring}" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="Border.hudContentSurface">
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity"
+                                  Duration="0:0:0.11"
+                                  Easing="CubicEaseOut" />
+                <TransformOperationsTransition Property="RenderTransform"
+                                                Duration="0:0:0.11"
+                                                Easing="CubicEaseOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="TextBlock.hudTranscript">
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity"
+                                  Duration="0:0:0.14"
+                                  Easing="CubicEaseOut" />
+                <TransformOperationsTransition Property="RenderTransform"
+                                                Duration="0:0:0.14"
+                                                Easing="CubicEaseOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+</Styles>

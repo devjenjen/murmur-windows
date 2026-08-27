@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Language" xml:space="preserve"><value>Sprache</value></data>
+  <data name="InterfaceLanguage" xml:space="preserve"><value>Oberflächensprache</value></data>
+  <data name="English" xml:space="preserve"><value>English</value></data>
+  <data name="German" xml:space="preserve"><value>Deutsch</value></data>
+  <data name="TrayReady" xml:space="preserve"><value>Murmur (Bereit)</value></data>
+  <data name="TraySettings" xml:space="preserve"><value>Einstellungen...</value></data>
+  <data name="TrayOpenLogFolder" xml:space="preserve"><value>Protokollordner öffnen</value></data>
+  <data name="TrayUpdateAvailable" xml:space="preserve"><value>Update verfügbar</value></data>
+  <data name="TrayCheckForUpdates" xml:space="preserve"><value>Nach Updates suchen</value></data>
+  <data name="TrayStartWithWindows" xml:space="preserve"><value>Mit Windows starten</value></data>
+  <data name="TrayExit" xml:space="preserve"><value>Beenden</value></data>
+  <data name="HudArm" xml:space="preserve"><value>BEREIT</value></data>
+  <data name="HudProc" xml:space="preserve"><value>PROC</value></data>
+  <data name="HudRecording" xml:space="preserve"><value>AUF</value></data>
+  <data name="HudErrorBadge" xml:space="preserve"><value>FEHL</value></data>
+  <data name="HudHoldToSpeak" xml:space="preserve"><value>Zum Sprechen gedrückt halten</value></data>
+  <data name="HudListening" xml:space="preserve"><value>Hört zu…</value></data>
+  <data name="HudTranscribing" xml:space="preserve"><value>Wird transkribiert…</value></data>
+  <data name="HudRecordingLevel" xml:space="preserve"><value>Aufnahmepegel</value></data>
+  <data name="HudError" xml:space="preserve"><value>Fehler</value></data>
+  <data name="SettingsTitle" xml:space="preserve"><value>Murmur-Einstellungen</value></data>
+  <data name="SettingsTabs" xml:space="preserve"><value>Einstellungsbereiche</value></data>
+  <data name="SetupTab" xml:space="preserve"><value>EINRICHTUNG</value></data>
+  <data name="SystemReadiness" xml:space="preserve"><value>SYSTEMSTATUS</value></data>
+  <data name="SetupIncomplete" xml:space="preserve"><value>Einrichtung unvollständig</value></data>
+  <data name="Monitor" xml:space="preserve"><value>MONITOR</value></data>
+  <data name="MicChecking" xml:space="preserve"><value>Mikrofon: wird geprüft...</value></data>
+  <data name="ModelChecking" xml:space="preserve"><value>Modell: wird geprüft...</value></data>
+  <data name="HotkeyRightCtrl" xml:space="preserve"><value>Tastenkürzel: rechte Strg-Taste</value></data>
+  <data name="RequiredSignalPath" xml:space="preserve"><value>ERFORDERLICHER SIGNALPFAD</value></data>
+  <data name="Microphone" xml:space="preserve"><value>Mikrofon</value></data>
+  <data name="Refresh" xml:space="preserve"><value>Aktualisieren</value></data>
+  <data name="RefreshMicrophone" xml:space="preserve"><value>Mikrofongeräte aktualisieren</value></data>
+  <data name="Test" xml:space="preserve"><value>Testen</value></data>
+  <data name="TestMicrophone" xml:space="preserve"><value>Mikrofoneingang testen</value></data>
+  <data name="MicrophoneLevel" xml:space="preserve"><value>Mikrofonpegel</value></data>
+  <data name="SpeechRecognitionModel" xml:space="preserve"><value>Spracherkennungsmodell</value></data>
+  <data name="SpeechRecognitionModelAutomation" xml:space="preserve"><value>Spracherkennungsmodell</value></data>
+  <data name="ModelStatus" xml:space="preserve"><value>Modellstatus</value></data>
+  <data name="Download" xml:space="preserve"><value>Herunterladen</value></data>
+  <data name="DownloadModel" xml:space="preserve"><value>Sprachmodell herunterladen</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Abbrechen</value></data>
+  <data name="CancelDownload" xml:space="preserve"><value>Modelldownload abbrechen</value></data>
+  <data name="ModelProgress" xml:space="preserve"><value>Fortschritt des Modelldownloads</value></data>
+  <data name="PushToTalkKey" xml:space="preserve"><value>Diktiertaste</value></data>
+  <data name="PushToTalkKeyAutomation" xml:space="preserve"><value>Diktiertaste</value></data>
+  <data name="Change" xml:space="preserve"><value>Ändern</value></data>
+  <data name="ChangePushToTalk" xml:space="preserve"><value>Diktiertaste ändern</value></data>
+  <data name="KeyNote" xml:space="preserve"><value>Die Taste wird nur erkannt, nicht blockiert. Druckbare Tasten werden weiterhin im fokussierten Programm eingegeben.</value></data>
+  <data name="Preferences" xml:space="preserve"><value>EINSTELLUNGEN</value></data>
+  <data name="HudScreenPlacement" xml:space="preserve"><value>HUD-Position</value></data>
+  <data name="HudScreenPosition" xml:space="preserve"><value>HUD-Bildschirmposition</value></data>
+  <data name="RemoveFillers" xml:space="preserve"><value>Füllwörter entfernen (ähm, äh, weißt du)</value></data>
+  <data name="RemoveFillersAutomation" xml:space="preserve"><value>Füllwörter entfernen</value></data>
+  <data name="AudioFeedback" xml:space="preserve"><value>Optionalen Ton nach dem Einfügen abspielen</value></data>
+  <data name="AudioFeedbackAutomation" xml:space="preserve"><value>Audiofeedback nach dem Einfügen</value></data>
+  <data name="StartOnLogin" xml:space="preserve"><value>Murmur automatisch bei der Windows-Anmeldung starten</value></data>
+  <data name="StartOnLoginAutomation" xml:space="preserve"><value>Murmur beim Windows-Start ausführen</value></data>
+  <data name="SetupNote" xml:space="preserve"><value>Ausgewählte Taste gedrückt halten, sprechen und zum Einfügen loslassen. Parakeet- und Nemotron-Modelle von NVIDIA.</value></data>
+  <data name="StartMurmur" xml:space="preserve"><value>Murmur starten</value></data>
+  <data name="Apply" xml:space="preserve"><value>Übernehmen</value></data>
+  <data name="SaveSettings" xml:space="preserve"><value>Einstellungen speichern und starten</value></data>
+  <data name="LanguageAutomation" xml:space="preserve"><value>Oberflächensprache</value></data>
+  <data name="HistoryTab" xml:space="preserve"><value>VERLAUF</value></data>
+  <data name="SearchTranscriptions" xml:space="preserve"><value>Transkripte durchsuchen...</value></data>
+  <data name="SearchTranscriptionsAutomation" xml:space="preserve"><value>Transkripte durchsuchen</value></data>
+  <data name="NoDictations" xml:space="preserve"><value>Noch keine Diktate aufgezeichnet.</value></data>
+  <data name="DictationHistory" xml:space="preserve"><value>Diktatverlauf</value></data>
+  <data name="AudioDurationFormat" xml:space="preserve"><value>{0:F0} ms Audio</value></data>
+  <data name="InferenceDurationFormat" xml:space="preserve"><value>{0:F0} ms Inferenz</value></data>
+  <data name="Copy" xml:space="preserve"><value>Kopieren</value></data>
+  <data name="CopyTranscription" xml:space="preserve"><value>Transkript kopieren</value></data>
+  <data name="CopyTranscriptionTip" xml:space="preserve"><value>Transkript in die Zwischenablage kopieren</value></data>
+  <data name="Delete" xml:space="preserve"><value>Löschen</value></data>
+  <data name="DeleteTranscription" xml:space="preserve"><value>Transkript löschen</value></data>
+  <data name="DeleteTranscriptionTip" xml:space="preserve"><value>Transkript löschen</value></data>
+  <data name="DeleteEntryConfirm" xml:space="preserve"><value>Diesen Eintrag löschen?</value></data>
+  <data name="CancelDeleteEntry" xml:space="preserve"><value>Löschen des Eintrags abbrechen</value></data>
+  <data name="ConfirmDeleteEntry" xml:space="preserve"><value>Löschen des Eintrags bestätigen</value></data>
+  <data name="ZeroEntries" xml:space="preserve"><value>0 Einträge</value></data>
+  <data name="ClearAllHistory" xml:space="preserve"><value>Gesamten Diktatverlauf löschen</value></data>
+  <data name="DeleteAllHistory" xml:space="preserve"><value>Gesamten Verlauf löschen</value></data>
+  <data name="ClearHistoryConfirm" xml:space="preserve"><value>Gesamten Diktatverlauf dauerhaft löschen?</value></data>
+  <data name="CancelDeleteHistory" xml:space="preserve"><value>Löschen des gesamten Verlaufs abbrechen</value></data>
+  <data name="ConfirmDeleteHistory" xml:space="preserve"><value>Löschen des gesamten Verlaufs bestätigen</value></data>
+  <data name="DictionaryTab" xml:space="preserve"><value>WÖRTERBUCH</value></data>
+  <data name="Corrections" xml:space="preserve"><value>KORREKTUREN</value></data>
+  <data name="DictionaryDescription" xml:space="preserve"><value>Wörter korrigieren, die das Spracherkennungsmodell falsch erkennt.</value></data>
+  <data name="Add" xml:space="preserve"><value>Hinzufügen</value></data>
+  <data name="AddDictionary" xml:space="preserve"><value>Wörterbucheintrag hinzufügen</value></data>
+  <data name="SearchDictionary" xml:space="preserve"><value>Wörterbuch durchsuchen...</value></data>
+  <data name="SearchDictionaryAutomation" xml:space="preserve"><value>Wörterbuch durchsuchen</value></data>
+  <data name="AddCorrection" xml:space="preserve"><value>KORREKTUR HINZUFÜGEN</value></data>
+  <data name="EditDictionaryEntry" xml:space="preserve"><value>WÖRTERBUCHEINTRAG BEARBEITEN</value></data>
+  <data name="DictionaryEntryType" xml:space="preserve"><value>Art des Wörterbucheintrags</value></data>
+  <data name="Term" xml:space="preserve"><value>Begriff</value></data>
+  <data name="Correction" xml:space="preserve"><value>Korrektur</value></data>
+  <data name="MisheardPhrase" xml:space="preserve"><value>Erkannt als</value></data>
+  <data name="MisheardPhraseAutomation" xml:space="preserve"><value>Falsch verstandene Formulierung</value></data>
+  <data name="CorrectedPhrase" xml:space="preserve"><value>Ersetzen durch</value></data>
+  <data name="CorrectedPhraseAutomation" xml:space="preserve"><value>Korrigierte Formulierung</value></data>
+  <data name="Write" xml:space="preserve"><value>Ersatztext</value></data>
+  <data name="Save" xml:space="preserve"><value>Speichern</value></data>
+  <data name="DictionaryEmpty" xml:space="preserve"><value>Wörterbuch ist leer.</value></data>
+  <data name="DictionaryEntries" xml:space="preserve"><value>Wörterbucheinträge</value></data>
+  <data name="Edit" xml:space="preserve"><value>Bearbeiten</value></data>
+  <data name="Toggle" xml:space="preserve"><value>An/Aus</value></data>
+  <data name="DictionaryPath" xml:space="preserve"><value>%LOCALAPPDATA%\\Murmur\\dictionary.txt</value></data>
+  <data name="RightCtrl" xml:space="preserve"><value>rechte Strg-Taste</value></data>
+  <data name="DefaultDevice" xml:space="preserve"><value>Standard</value></data>
+  <data name="TopLeft" xml:space="preserve"><value>Oben links</value></data>
+  <data name="TopCenter" xml:space="preserve"><value>Oben mittig</value></data>
+  <data name="TopRight" xml:space="preserve"><value>Oben rechts</value></data>
+  <data name="BottomLeft" xml:space="preserve"><value>Unten links</value></data>
+  <data name="BottomCenter" xml:space="preserve"><value>Unten mittig</value></data>
+  <data name="BottomRight" xml:space="preserve"><value>Unten rechts</value></data>
+  <data name="LoadingSpeechModel" xml:space="preserve"><value>Sprachmodell wird geladen...</value></data>
+  <data name="Ready" xml:space="preserve"><value>Bereit</value></data>
+  <data name="AppError" xml:space="preserve"><value>Fehler: {0}</value></data>
+  <data name="DictionaryLoadFailed" xml:space="preserve"><value>Wörterbuch konnte nicht geladen werden.</value></data>
+  <data name="HistorySaveFailed" xml:space="preserve"><value>Verlauf konnte nicht gespeichert werden. Der Text wurde trotzdem eingefügt.</value></data>
+  <data name="HistoryEntrySaveFailed" xml:space="preserve"><value>Diktateintrag konnte nicht gespeichert werden.</value></data>
+  <data name="HistoryEntryDeleteFailed" xml:space="preserve"><value>Diktateintrag konnte nicht gelöscht werden.</value></data>
+  <data name="HistoryClearFailed" xml:space="preserve"><value>Verlauf konnte nicht gelöscht werden.</value></data>
+  <data name="DictionarySaveFailed" xml:space="preserve"><value>Wörterbuch konnte nicht gespeichert werden.</value></data>
+  <data name="DownloadingModel" xml:space="preserve"><value>{0}-Sprachmodell wird heruntergeladen...</value></data>
+  <data name="ModelDownloaded" xml:space="preserve"><value>Modell erfolgreich heruntergeladen.</value></data>
+  <data name="DownloadCancelled" xml:space="preserve"><value>Modelldownload abgebrochen.</value></data>
+  <data name="DownloadFailed" xml:space="preserve"><value>Download fehlgeschlagen: {0}</value></data>
+  <data name="MicrophoneTestFailed" xml:space="preserve"><value>Mikrofontest fehlgeschlagen: {0}</value></data>
+  <data name="UpdateAvailableWithVersion" xml:space="preserve"><value>Update verfügbar: {0}</value></data>
+  <data name="ModelInstalledReady" xml:space="preserve"><value>Modell installiert und bereit.</value></data>
+  <data name="ModelNotDownloaded" xml:space="preserve"><value>Modell nicht heruntergeladen ({0} MB erforderlich).</value></data>
+  <data name="DownloadingProgress" xml:space="preserve"><value>Download: {0:P0}</value></data>
+  <data name="DownloadingButton" xml:space="preserve"><value>Wird heruntergeladen...</value></data>
+  <data name="InstalledButton" xml:space="preserve"><value>Installiert</value></data>
+  <data name="PressAnyKey" xml:space="preserve"><value>Beliebige Taste drücken — Esc bricht ab</value></data>
+  <data name="KeyCannot" xml:space="preserve"><value>Diese Taste kann nicht als Diktiertaste verwendet werden.</value></data>
+  <data name="MicrophoneMissing" xml:space="preserve"><value>Mikrofon: fehlt</value></data>
+  <data name="ModelDownloading" xml:space="preserve"><value>Modell: wird heruntergeladen...</value></data>
+  <data name="ModelInstalled" xml:space="preserve"><value>Modell: installiert</value></data>
+  <data name="ModelMissing" xml:space="preserve"><value>Modell: fehlt</value></data>
+  <data name="HotkeyUnset" xml:space="preserve"><value>Tastenkürzel: nicht gesetzt</value></data>
+  <data name="StatusDownloading" xml:space="preserve"><value>{0} wird heruntergeladen...</value></data>
+  <data name="StatusReady" xml:space="preserve"><value>Bereit</value></data>
+  <data name="StatusMicMissing" xml:space="preserve"><value>Mikrofon fehlt oder ist nicht eingerichtet</value></data>
+  <data name="StatusSpeechModelMissing" xml:space="preserve"><value>Sprachmodell nicht heruntergeladen</value></data>
+  <data name="StatusHotkeyMissing" xml:space="preserve"><value>Diktiertaste nicht eingerichtet</value></data>
+  <data name="StatusSetupIncomplete" xml:space="preserve"><value>Einrichtung unvollständig</value></data>
+  <data name="SystemStatus" xml:space="preserve"><value>Systemstatus</value></data>
+  <data name="NoMatchingDictations" xml:space="preserve"><value>Keine passenden Diktate.</value></data>
+  <data name="Entries" xml:space="preserve"><value>{0} Einträge</value></data>
+  <data name="EntriesOf" xml:space="preserve"><value>{0} von {1} Einträgen</value></data>
+  <data name="NoMatchingEntries" xml:space="preserve"><value>Keine passenden Einträge.</value></data>
+  <data name="EnterCorrection" xml:space="preserve"><value>Falsch erkannte und korrigierte Formulierung eingeben.</value></data>
+  <data name="EnterWord" xml:space="preserve"><value>Wort oder Formulierung eingeben.</value></data>
+  <data name="ClipboardUnavailable" xml:space="preserve"><value>Zwischenablage ist nicht verfügbar.</value></data>
+  <data name="Copied" xml:space="preserve"><value>Kopiert ✓</value></data>
+  <data name="CopyFailed" xml:space="preserve"><value>Kopieren fehlgeschlagen: {0}</value></data>
+  <data name="HistoryUnavailable" xml:space="preserve"><value>Der Verlauf ist nicht verfügbar. Einrichtung und Diktieren funktionieren weiterhin.</value></data>
+  <data name="Profile" xml:space="preserve"><value>Profil</value></data>
+  <data name="ProfileStandard" xml:space="preserve"><value>Standard</value></data>
+  <data name="ProfileMath" xml:space="preserve"><value>Mathe &amp; Klausuren</value></data>
+  <data name="ProfileBadgeStandard" xml:space="preserve"><value>STD</value></data>
+  <data name="ProfileBadgeMath" xml:space="preserve"><value>MATHE</value></data>
+  <data name="ProfileDescriptionStandard" xml:space="preserve"><value>Allgemeine Textdiktate mit gesprochener Zeichensetzung und Füllwortbereinigung.</value></data>
+  <data name="ProfileDescriptionMath" xml:space="preserve"><value>Formeln, griechische Symbole und Rechenzeichen in Unicode oder LaTeX.</value></data>
+  <data name="MathOutputMode" xml:space="preserve"><value>Mathe-Ausgabe</value></data>
+  <data name="MathOutputUnicode" xml:space="preserve"><value>Unicode (×, ≤, α)</value></data>
+  <data name="MathOutputLatex" xml:space="preserve"><value>LaTeX (\cdot, \le, \alpha)</value></data>
+  <data name="CloseWindow" xml:space="preserve"><value>Schließen</value></data>
+  <data name="MinimizeWindow" xml:space="preserve"><value>Minimieren</value></data>
+  <data name="MaximizeWindow" xml:space="preserve"><value>Maximieren</value></data>
+  <data name="RestoreWindow" xml:space="preserve"><value>Wiederherstellen</value></data>
+  <data name="HistoryEmptyInstruction" xml:space="preserve"><value>Halte den Hotkey gedrückt und sprich. Deine Transkripte erscheinen hier.</value></data>
+  <data name="HistoryStoredLocally" xml:space="preserve"><value>Lokal auf diesem Gerät gespeichert</value></data>
+  <data name="HistoryAudioDuration" xml:space="preserve"><value>{0:F0} ms Audio</value></data>
+  <data name="HistoryInferenceDuration" xml:space="preserve"><value>{0:F0} ms Inferenz</value></data>
+  <data name="DictionaryTermExample" xml:space="preserve"><value>z. B. GitHub</value></data>
+  <data name="DictionaryCorrectionExample" xml:space="preserve"><value>z. B. cloud code</value></data>
+  <data name="Confirm" xml:space="preserve"><value>Bestätigen</value></data>
+</root>

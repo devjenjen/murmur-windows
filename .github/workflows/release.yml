@@ -1,0 +1,216 @@
+name: Windows release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (vMAJOR.MINOR.PATCH)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build-package:
+    name: Build Windows release assets
+    runs-on: windows-latest
+    timeout-minutes: 45
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+      tag_sha: ${{ steps.release.outputs.tag_sha }}
+
+    steps:
+      - name: Validate and resolve release tag
+        id: release
+        shell: pwsh
+        env:
+          MURMUR_RELEASE_TAG: ${{ inputs.tag }}
+          MURMUR_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          $tag = if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+              $env:MURMUR_RELEASE_TAG
+          } else {
+              $env:GITHUB_REF_NAME
+          }
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') {
+              throw "Release tags must use vMAJOR.MINOR.PATCH, received '$tag'."
+          }
+          $version = $Matches[1]
+
+          $remote = "https://x-access-token:$($env:GITHUB_TOKEN)@github.com/$($env:MURMUR_REPOSITORY).git"
+          $refs = @(git ls-remote --tags $remote "refs/tags/$tag" "refs/tags/$tag^{}")
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to resolve release tag.' }
+          $exact = $refs | Where-Object { $_ -match "\srefs/tags/$([regex]::Escape($tag))$" }
+          if (-not $exact) { throw "Release tag does not exist: $tag" }
+          $peeled = $refs | Where-Object { $_ -match "\srefs/tags/$([regex]::Escape($tag))\^\{\}$" }
+          $tagSha = if ($peeled) { ($peeled -split '\s+')[0] } else { ($exact -split '\s+')[0] }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag_sha=$tagSha" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+
+      - name: Verify checked-out tag commit
+        shell: pwsh
+        env:
+          EXPECTED_TAG_SHA: ${{ steps.release.outputs.tag_sha }}
+        run: |
+          $checkedOutSha = git rev-parse HEAD
+          if ($checkedOutSha -ne $env:EXPECTED_TAG_SHA) {
+              throw "Checked-out commit $checkedOutSha does not match tag commit $env:EXPECTED_TAG_SHA."
+          }
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: windows/global.json
+
+      - name: Restore
+        run: dotnet restore windows/Murmur.sln --runtime win-x64
+
+      - name: Build (warnings are errors)
+        run: >
+          dotnet build windows/Murmur.sln
+          --no-restore
+          --configuration Release
+          --no-incremental
+          -warnaserror
+          -bl:windows/artifacts/build.binlog
+
+      - name: Test
+        run: >
+          dotnet test windows/Murmur.sln
+          --no-build
+          --configuration Release
+          --filter "Category!=RealModel"
+          --logger "trx;LogFileName=results.trx"
+          --logger "console;verbosity=normal"
+          --results-directory windows/artifacts/test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-results
+          path: windows/artifacts/test-results
+          if-no-files-found: error
+
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: build-binlog
+          path: windows/artifacts/build.binlog
+          if-no-files-found: ignore
+
+      - name: Publish portable application
+        shell: pwsh
+        env:
+          MURMUR_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          $releaseRoot = Join-Path $env:GITHUB_WORKSPACE 'windows\artifacts\release'
+          $publishPath = Join-Path $releaseRoot 'publish\win-x64'
+          New-Item -ItemType Directory -Path $publishPath -Force | Out-Null
+          dotnet publish windows/src/Murmur.App/Murmur.App.csproj `
+              --configuration Release `
+              --no-restore `
+              --runtime win-x64 `
+              --self-contained true `
+              -p:PublishSingleFile=false `
+              -p:Version=$env:MURMUR_VERSION `
+              -p:VersionPrefix=$env:MURMUR_VERSION `
+              -p:AssemblyVersion=$env:MURMUR_VERSION `
+              -p:FileVersion=$env:MURMUR_VERSION `
+              -o $publishPath
+          if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed with exit code $LASTEXITCODE." }
+          Compress-Archive -Path (Join-Path $publishPath '*') -DestinationPath (Join-Path $releaseRoot "Murmur-$env:MURMUR_VERSION-win-x64.zip") -CompressionLevel Optimal
+
+      - name: Build setup installer
+        uses: Minionguyjpro/Inno-Setup-Action@b8e8eb5936437c243592fda645c96dfc6488c275 # v1.2.2
+        with:
+          path: windows/installer/Murmur.iss
+          options: /O+ /DMyAppVersion=${{ steps.release.outputs.version }}
+
+      - name: Create checksums
+        shell: pwsh
+        env:
+          MURMUR_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          $releaseRoot = Join-Path $env:GITHUB_WORKSPACE 'windows\artifacts\release'
+          $installer = Join-Path $releaseRoot "installer\Murmur-Setup-v$env:MURMUR_VERSION.exe"
+          $portable = Join-Path $releaseRoot "Murmur-$env:MURMUR_VERSION-win-x64.zip"
+          if (-not (Test-Path -LiteralPath $installer)) { throw "Installer missing: $installer" }
+          if (-not (Test-Path -LiteralPath $portable)) { throw "Portable archive missing: $portable" }
+          $lines = @($installer, $portable) | ForEach-Object {
+              $hash = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()
+              "$hash  $([IO.Path]::GetFileName($_))"
+          }
+          [IO.File]::WriteAllLines((Join-Path $releaseRoot 'SHA256SUMS.txt'), $lines, [Text.Encoding]::ASCII)
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-assets
+          path: |
+            windows/artifacts/release/Murmur-${{ steps.release.outputs.version }}-win-x64.zip
+            windows/artifacts/release/installer/Murmur-Setup-v${{ steps.release.outputs.version }}.exe
+            windows/artifacts/release/SHA256SUMS.txt
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: build-package
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - name: Download release assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MURMUR_REPOSITORY: ${{ github.repository }}
+        run: gh run download $env:GITHUB_RUN_ID --name release-assets --dir windows/artifacts/release --repo $env:MURMUR_REPOSITORY
+
+      - name: Create or update GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MURMUR_RELEASE_TAG: ${{ needs.build-package.outputs.tag }}
+          MURMUR_VERSION: ${{ needs.build-package.outputs.version }}
+          MURMUR_REPOSITORY: ${{ github.repository }}
+        run: |
+          $releaseRoot = Join-Path $env:GITHUB_WORKSPACE 'windows\artifacts\release'
+          $installer = Get-ChildItem -Path $releaseRoot -Recurse -File -Filter "Murmur-Setup-v$env:MURMUR_VERSION.exe" | Select-Object -First 1
+          $portable = Get-ChildItem -Path $releaseRoot -Recurse -File -Filter "Murmur-$env:MURMUR_VERSION-win-x64.zip" | Select-Object -First 1
+          $checksums = Get-ChildItem -Path $releaseRoot -Recurse -File -Filter 'SHA256SUMS.txt' | Select-Object -First 1
+          if (-not $installer -or -not $portable -or -not $checksums) { throw 'Release assets missing after artifact download.' }
+          $assets = @($installer.FullName, $portable.FullName, $checksums.FullName)
+          $releaseViewOutput = @(gh release view $env:MURMUR_RELEASE_TAG --json tagName --repo $env:MURMUR_REPOSITORY 2>&1)
+          $releaseViewExitCode = $LASTEXITCODE
+          if ($releaseViewExitCode -eq 0) {
+              gh release upload $env:MURMUR_RELEASE_TAG @assets --clobber --repo $env:MURMUR_REPOSITORY
+          } elseif ($releaseViewOutput -match '(?im)(?:HTTP(?:/\d(?:\.\d+)?)?\s+404\b|^release not found$)') {
+              gh release create $env:MURMUR_RELEASE_TAG @assets `
+                  --repo $env:MURMUR_REPOSITORY `
+                  --verify-tag `
+                  --title "Murmur $env:MURMUR_VERSION" `
+                  --generate-notes `
+                  --notes "First run downloads the selected speech model. The Setup EXE installs Murmur; the portable ZIP runs from an extracted folder without installation. This release is unsigned, so Windows SmartScreen may show a warning."
+          } else {
+              throw "Unable to inspect release '$env:MURMUR_RELEASE_TAG': $($releaseViewOutput -join ' ')"
+          }

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <Nullable>enable</Nullable>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <NoWarn>$(NoWarn);CA1716;CA1515;CA1001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" Exclude="Assets\Sounds\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Murmur.Core\Murmur.Core.csproj" />
+    <ProjectReference Include="..\Murmur.Speech\Murmur.Speech.csproj" />
+    <ProjectReference Include="..\Murmur.Platform.Windows\Murmur.Platform.Windows.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Murmur.App.Tests" />
+  </ItemGroup>
+</Project>

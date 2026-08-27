@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Platform-neutral on purpose. CA1416 turns any Windows-only API call in this
+         project into a build error, keeping dictionary logic portable and testable. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Murmur.Dictionary</RootNamespace>
+  </PropertyGroup>
+</Project>
