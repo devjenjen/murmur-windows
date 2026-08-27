@@ -2,7 +2,7 @@
 
 Release history for Murmur. Newest release first.
 
-## [0.1.3] - 2026-08-27
+## [0.1.0] - 2026-08-27
 
 ### Added
 
@@ -29,4 +29,4 @@ Release history for Murmur. Newest release first.
 - Speech models download on first setup and are not bundled in the release assets.
 - The release does not auto-update the application.
 
-[0.1.3]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.1.3
+[0.1.0]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.1.0

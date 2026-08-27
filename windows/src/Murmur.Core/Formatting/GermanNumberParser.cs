@@ -163,38 +163,41 @@ public static class GermanNumberParser
         var result = text;
 
         // 1. Replace compounds: hundreds + remainder
-        result = HundredsCompoundRegex.Replace(result, m =>
+        if (result.Contains("hundert", StringComparison.OrdinalIgnoreCase))
         {
-            var hStr = m.Groups[1].Value;
-            var rStr = m.Groups[2].Value;
-
-            if (!Hundreds.TryGetValue(hStr, out var val))
+            result = HundredsCompoundRegex.Replace(result, m =>
             {
-                return m.Value;
-            }
+                var hStr = m.Groups[1].Value;
+                var rStr = m.Groups[2].Value;
 
-            if (!string.IsNullOrEmpty(rStr))
-            {
-                if (TryEvaluateCompoundTen(rStr, out var compTen))
+                if (!Hundreds.TryGetValue(hStr, out var val))
                 {
-                    val += compTen;
+                    return m.Value;
                 }
-                else if (Teens.TryGetValue(rStr, out var teen))
-                {
-                    val += teen;
-                }
-                else if (Tens.TryGetValue(rStr, out var ten))
-                {
-                    val += ten;
-                }
-                else if (Units.TryGetValue(rStr, out var unit))
-                {
-                    val += unit;
-                }
-            }
 
-            return val.ToString(CultureInfo.InvariantCulture);
-        });
+                if (!string.IsNullOrEmpty(rStr))
+                {
+                    if (TryEvaluateCompoundTen(rStr, out var compTen))
+                    {
+                        val += compTen;
+                    }
+                    else if (Teens.TryGetValue(rStr, out var teen))
+                    {
+                        val += teen;
+                    }
+                    else if (Tens.TryGetValue(rStr, out var ten))
+                    {
+                        val += ten;
+                    }
+                    else if (Units.TryGetValue(rStr, out var unit))
+                    {
+                        val += unit;
+                    }
+                }
+
+                return val.ToString(CultureInfo.InvariantCulture);
+            });
+        }
 
         // 2. Replace compound tens (e.g. einundzwanzig)
         result = CompoundTensRegex.Replace(result, m =>
