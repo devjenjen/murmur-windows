@@ -200,66 +200,80 @@ public static class GermanNumberParser
         }
 
         // 2. Replace compound tens (e.g. einundzwanzig)
-        result = CompoundTensRegex.Replace(result, m =>
+        if (result.Contains("und", StringComparison.OrdinalIgnoreCase))
         {
-            if (TryEvaluateCompoundTen(m.Value, out var val))
+            result = CompoundTensRegex.Replace(result, m =>
             {
-                return val.ToString(CultureInfo.InvariantCulture);
-            }
-            return m.Value;
-        });
+                if (TryEvaluateCompoundTen(m.Value, out var val))
+                {
+                    return val.ToString(CultureInfo.InvariantCulture);
+                }
+                return m.Value;
+            });
+        }
 
         // 3. Parse decimal sequences introduced by komma
-        result = DecimalSequenceRegex.Replace(result, m =>
+        if (result.Contains("komma", StringComparison.OrdinalIgnoreCase))
         {
-            var intPartStr = m.Groups[1].Value;
-            var fracPartStr = m.Groups[2].Value;
+            result = DecimalSequenceRegex.Replace(result, m =>
+            {
+                var intPartStr = m.Groups[1].Value;
+                var fracPartStr = m.Groups[2].Value;
 
-            string normalizedIntPart;
-            if (int.TryParse(intPartStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intVal))
-            {
-                normalizedIntPart = intVal.ToString(CultureInfo.InvariantCulture);
-            }
-            else if (StandaloneNumbers.TryGetValue(intPartStr, out var wordVal))
-            {
-                normalizedIntPart = wordVal.ToString(CultureInfo.InvariantCulture);
-            }
-            else
-            {
-                normalizedIntPart = intPartStr;
-            }
-
-            var tokens = fracPartStr.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var fracSb = new StringBuilder();
-            foreach (var token in tokens)
-            {
-                if (FractionalDigitMap.TryGetValue(token, out var digit))
+                string normalizedIntPart;
+                if (int.TryParse(intPartStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intVal))
                 {
-                    fracSb.Append(digit);
+                    normalizedIntPart = intVal.ToString(CultureInfo.InvariantCulture);
                 }
-                else if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                else if (StandaloneNumbers.TryGetValue(intPartStr, out var wordVal))
                 {
-                    fracSb.Append(token);
+                    normalizedIntPart = wordVal.ToString(CultureInfo.InvariantCulture);
                 }
                 else
                 {
-                    // Unrecognized fractional token -> keep original match
-                    return m.Value;
+                    normalizedIntPart = intPartStr;
                 }
-            }
 
-            return $"{normalizedIntPart},{fracSb}";
-        });
+                var tokens = fracPartStr.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var fracSb = new StringBuilder();
+                foreach (var token in tokens)
+                {
+                    if (FractionalDigitMap.TryGetValue(token, out var digit))
+                    {
+                        fracSb.Append(digit);
+                    }
+                    else if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                    {
+                        fracSb.Append(token);
+                    }
+                    else
+                    {
+                        // Unrecognized fractional token -> keep original match
+                        return m.Value;
+                    }
+                }
+
+                return $"{normalizedIntPart},{fracSb}";
+            });
+        }
 
         // 4. Parse safe standalone number words
         foreach (var (word, number) in StandaloneNumbers)
         {
+            if (!result.Contains(word, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             var pattern = $@"(?i)(?<![a-zäöüßA-ZÄÖÜ]){Regex.Escape(word)}(?![a-zäöüßA-ZÄÖÜ])";
             result = Regex.Replace(result, pattern, number.ToString(CultureInfo.InvariantCulture), RegexOptions.CultureInvariant, MatchTimeout);
         }
 
         // 5. Replace leading minus phrase before numeric token (e.g. "minus 3,5" -> "-3,5", "minus 10" -> "-10")
-        result = StandaloneMinusNumberRegex.Replace(result, "-$1");
+        if (result.Contains("minus", StringComparison.OrdinalIgnoreCase))
+        {
+            result = StandaloneMinusNumberRegex.Replace(result, "-$1");
+        }
 
         return result;
     }

@@ -10,6 +10,38 @@ namespace Murmur.Core.Tests;
 
 public class DictationControllerTests
 {
+    private static async Task WaitForStatusAsync(DictationController controller, DictationStatus status)
+    {
+        if (controller.State.Status == status)
+        {
+            return;
+        }
+
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnStateChanged(DictationState state)
+        {
+            if (state.Status == status)
+            {
+                reached.TrySetResult();
+            }
+        }
+
+        controller.StateChanged += OnStateChanged;
+        try
+        {
+            if (controller.State.Status == status)
+            {
+                return;
+            }
+
+            await reached.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            controller.StateChanged -= OnStateChanged;
+        }
+    }
+
     private sealed class FakeAudioCapture : IAudioCapture
     {
         public event Action<ReadOnlyMemory<float>>? AudioChunkAvailable;
@@ -250,16 +282,16 @@ public class DictationControllerTests
         // Dictation 1
         hotkey.Press();
         audio.EmitChunk([0.1f]);
+        var firstIdle = WaitForStatusAsync(controller, DictationStatus.Idle);
         hotkey.Release();
-        await Task.Delay(100);
-        controller.State.Status.ShouldBe(DictationStatus.Idle);
+        await firstIdle;
 
         // Dictation 2
         hotkey.Press();
         audio.EmitChunk([0.2f]);
+        var secondIdle = WaitForStatusAsync(controller, DictationStatus.Idle);
         hotkey.Release();
-        await Task.Delay(100);
-        controller.State.Status.ShouldBe(DictationStatus.Idle);
+        await secondIdle;
 
         transcriber.TranscribeCalls.ShouldBe(2);
         transcriber.DisposeCalls.ShouldBe(0);
@@ -514,7 +546,7 @@ public class DictationControllerTests
         hotkey.Press();
         audio.EmitChunk([0.1f]);
         hotkey.Release();
-        await textInjected.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await textInjected.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         order.ShouldBe(["history", "inject", "feedback"]);
     }
