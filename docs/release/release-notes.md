@@ -18,6 +18,8 @@ Public beta for Windows 11 x64.
 - English and German interface, microphone selection and testing, configurable recording-overlay position, and optional Windows startup.
 - Bundled license notices, dependency inventory, and automated repository secret scans.
 
+The Math profile lets you dictate numbers and formulas in German for study notes or work with numbers. For example, `fünf mal drei gleich fünfzehn` becomes `5 × 3 = 15.` and `x hoch zwei` becomes `x².` in Unicode mode. LaTeX output is also available.
+
 ## First run
 
 Windows 11 x64 and a microphone are required. Release downloads include the .NET runtime and native speech engine; no .NET SDK, Python, CUDA, or dedicated GPU is required. Allow desktop microphone access in Windows privacy settings.

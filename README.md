@@ -4,6 +4,8 @@
 
 Murmur is a Windows dictation app. Hold your push-to-talk key, speak, then release it. Murmur formats the transcript and types it into the focused application.
 
+The Math profile also lets you dictate numbers and formulas in German and insert them in mathematical notation.
+
 Murmur is a separate, AI-assisted Windows adaptation inspired by [per-simmons/murmur-youtube](https://github.com/per-simmons/murmur-youtube).
 
 ## Download and first run
@@ -51,7 +53,7 @@ Speech and transcripts stay on the PC; they are not uploaded to a speech service
 - Captures microphone audio while your configured push-to-talk key is held.
 - Runs Parakeet v3 for a final transcript after key release, or Nemotron 3.5 for live transcript previews in the recording overlay. One model is resident at a time.
 - Offers Standard and Math profiles. **F8** switches profiles by default; you can change that key or switch through Settings and the tray menu.
-- Converts spoken German math expressions into Unicode or LaTeX in the Math profile. For example, `x hoch zwei` becomes `x².` in Unicode mode. Formatting uses fixed rules; it does not solve equations or rewrite text with a language model.
+- Converts spoken German numbers and math expressions into digits and mathematical symbols in the Math profile. Choose Unicode or LaTeX output.
 - Applies punctuation and optional filler removal, with a separate filler setting for each profile. Your personal dictionary supplies text corrections before insertion; edit or disable its entries in Settings.
 - Types at the current cursor or the end of the document. If insertion fails after transcription, Settings offers the finished text for copying. This recovery text is temporary and does not survive an app restart.
 - Keeps an optional dictation history with copying and deletion of individual entries or the whole history. Choose 7, 30, or 90 days of retention, or no age limit, and a 1,000-entry limit or no entry limit. History is disabled by default.
@@ -59,6 +61,19 @@ Speech and transcripts stay on the PC; they are not uploaded to a speech service
 - Lets you select and test a microphone, choose an English or German interface, and enable startup with Windows.
 
 Both [Parakeet v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) and [Nemotron 3.5](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b) list German and English among their supported languages. Recognition detects the spoken language automatically; changing the interface language does not change the speech model. The math formatting rules are German.
+
+### Math dictation
+
+For study notes or work with numbers, you can speak numbers and formulas instead of typing them. The Math profile formats German number words, decimals, powers, and roots, among other expressions:
+
+| Spoken expression | Unicode output |
+|---|---|
+| `fünf mal drei gleich fünfzehn` | `5 × 3 = 15.` |
+| `x gleich fünf komma null fünf` | `x = 5,05.` |
+| `x hoch zwei` | `x².` |
+| `wurzel aus x` | `√x.` |
+
+In LaTeX mode, for example, `s quadrat plus wurzel aus x` becomes `s^2 + \sqrt{x}`. **F8** switches between Standard and Math profiles by default. Formatting uses fixed rules; it does not solve equations or rewrite text with a language model.
 
 ### Optional audio feedback
 

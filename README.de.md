@@ -4,6 +4,8 @@
 
 Murmur ist ein Diktierprogramm für Windows. Push-to-Talk-Taste gedrückt halten, sprechen und loslassen. Murmur formatiert den Text und fügt ihn in die Anwendung mit Fokus ein.
 
+Mit dem Matheprofil kannst du auch Zahlen und Formeln auf Deutsch einsprechen und in mathematischer Schreibweise einfügen.
+
 Murmur ist eine eigenständige, KI-unterstützte Windows-Anpassung, inspiriert von [per-simmons/murmur-youtube](https://github.com/per-simmons/murmur-youtube).
 
 ## Download und erster Start
@@ -51,7 +53,7 @@ Audio und Transkripte bleiben auf dem PC; sie werden nicht an einen Spracherkenn
 - Nimmt Mikrofon-Audio auf, solange die eingestellte Push-to-Talk-Taste gedrückt ist.
 - Nutzt Parakeet v3 für fertige Transkripte nach dem Loslassen oder Nemotron 3.5 für Live-Textvorschauen im Aufnahmefenster. Nur ein Modell liegt gleichzeitig im Speicher.
 - Bietet Standard- und Matheprofil. **F8** wechselt standardmäßig das Profil; Taste ändern oder Profil über Einstellungen und Tray-Menü wählen.
-- Wandelt gesprochene deutsche Matheausdrücke im Matheprofil in Unicode oder LaTeX um. Beispielsweise wird `x hoch zwei` im Unicode-Modus zu `x².`. Feste Regeln übernehmen die Formatierung; Murmur löst keine Gleichungen und schreibt Texte nicht mit einem Sprachmodell um.
+- Wandelt gesprochene deutsche Zahlen und Matheausdrücke im Matheprofil in Ziffern und mathematische Zeichen um. Als Ausgabe kannst du Unicode oder LaTeX wählen.
 - Setzt Satzzeichen und entfernt auf Wunsch Füllwörter, getrennt für jedes Profil. Das persönliche Wörterbuch korrigiert Text vor dem Einfügen; Einträge lassen sich in den Einstellungen bearbeiten oder deaktivieren.
 - Fügt Text am Cursor oder Dokumentende ein. Scheitert das Einfügen nach der Erkennung, bieten die Einstellungen den fertigen Text zum Kopieren an. Dieser Rettungstext ist vorübergehend und bleibt nach einem Neustart der App nicht erhalten.
 - Speichert auf Wunsch einen Diktatverlauf. Einträge lassen sich kopieren und einzeln oder vollständig löschen. Wählbar sind 7, 30 oder 90 Tage Aufbewahrung oder keine Altersgrenze sowie maximal 1.000 Einträge oder keine Eintragsgrenze. Bei Neuinstallationen ist der Verlauf deaktiviert.
@@ -59,6 +61,19 @@ Audio und Transkripte bleiben auf dem PC; sie werden nicht an einen Spracherkenn
 - Erlaubt Mikrofonwahl und Mikrofontest, englische oder deutsche Oberfläche sowie Autostart mit Windows.
 
 Die Modellkarten von [Parakeet v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) und [Nemotron 3.5](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b) nennen Deutsch und Englisch als unterstützte Sprachen. Die Erkennung bestimmt die gesprochene Sprache automatisch; die Sprache der Oberfläche ändert das Sprachmodell nicht. Die Matheformatierung verwendet deutsche Regeln.
+
+### Mathe diktieren
+
+Fürs Studium oder die Arbeit mit Zahlen kannst du Zahlen und Formeln einsprechen, statt sie über die Tastatur zu schreiben. Das Matheprofil formatiert unter anderem Zahlwörter, Dezimalzahlen, Potenzen und Wurzeln:
+
+| Gesprochener Ausdruck | Ausgabe im Unicode-Modus |
+|---|---|
+| `fünf mal drei gleich fünfzehn` | `5 × 3 = 15.` |
+| `x gleich fünf komma null fünf` | `x = 5,05.` |
+| `x hoch zwei` | `x².` |
+| `wurzel aus x` | `√x.` |
+
+Im LaTeX-Modus wird beispielsweise `s quadrat plus wurzel aus x` zu `s^2 + \sqrt{x}`. Mit **F8** wechselst du standardmäßig zwischen Standard- und Matheprofil. Die Formatierung nutzt feste Regeln; Murmur löst keine Gleichungen und schreibt Texte nicht mit einem Sprachmodell um.
 
 Die Sprachmodelle laufen über sherpa-onnx. Murmur verwendet .NET 10 und Avalonia, die Audioaufnahme läuft über WASAPI mit NAudio.
 
