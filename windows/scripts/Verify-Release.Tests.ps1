@@ -43,6 +43,42 @@ exit 17
     {
         throw "Expected exactly one restore invocation before failure, got: $($calls -join ' | ')"
     }
+
+    $detachedRepo = Join-Path $testRoot 'detached-repo'
+    $detachedScripts = Join-Path $detachedRepo 'windows/scripts'
+    New-Item -ItemType Directory -Path $detachedScripts -Force | Out-Null
+    Copy-Item -LiteralPath $scriptPath, (Join-Path $PSScriptRoot 'Resolve-ReleaseVersion.ps1') -Destination $detachedScripts
+    Set-Content -LiteralPath (Join-Path $detachedRepo 'source.txt') -Value 'test source'
+    foreach ($gitArguments in @(
+        @('init', '--quiet', '--initial-branch=main'),
+        @('config', 'user.email', 'release-test@example.invalid'),
+        @('config', 'user.name', 'Release Test'),
+        @('add', 'source.txt'),
+        @('commit', '--quiet', '-m', 'test source'),
+        @('tag', 'v1.2.3'),
+        @('checkout', '--quiet', '--detach', 'v1.2.3')
+    ))
+    {
+        & git -C $detachedRepo @gitArguments *> $null
+        if ($LASTEXITCODE -ne 0) { throw "Detached fixture setup failed: git $($gitArguments -join ' ')" }
+    }
+    Clear-Content -LiteralPath $callsPath
+    $detachedReport = Join-Path $testRoot 'detached-report.md'
+    $detachedOutput = & pwsh -NoProfile -NonInteractive -File (Join-Path $detachedScripts 'Verify-Release.ps1') `
+        -Tag v1.2.3 -DotnetPath $fakeDotnet `
+        -OutputDirectory (Join-Path $testRoot 'detached-verification') -ReportPath $detachedReport 2>&1
+    $detachedExitCode = $LASTEXITCODE
+    if ($detachedExitCode -eq 0 -or -not (Test-Path -LiteralPath $detachedReport) -or
+        ($detachedOutput -join ' ') -notmatch 'Restore failed')
+    {
+        throw "Detached tag verification must reach restore and preserve its failure report. Output: $($detachedOutput -join ' | ')"
+    }
+    $detachedReportText = Get-Content -LiteralPath $detachedReport -Raw
+    if (-not $detachedReportText.Contains('Branch: `(detached)`') -or
+        -not $detachedReportText.Contains('Restore failed. Exit code: 17'))
+    {
+        throw 'Detached tag report must identify checkout mode and retain the original failure.'
+    }
 }
 finally
 {

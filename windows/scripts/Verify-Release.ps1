@@ -31,6 +31,11 @@ $script:FailureMessage = ''
 $script:RunStarted = Get-Date
 $script:ReleaseTag = ''
 $script:ReleaseVersion = ''
+$script:SourceSha = '(unavailable)'
+$script:Branch = '(unknown)'
+$script:GitStatus = @()
+$script:LocalTags = @()
+$script:RemoteTags = @()
 
 $scriptsDirectory = $PSScriptRoot
 $windowsDirectory = Split-Path -Parent $scriptsDirectory
@@ -335,7 +340,8 @@ try
     Set-Location -LiteralPath $windowsDirectory
 
     $script:SourceSha = (Invoke-GitText -Arguments @('rev-parse', 'HEAD') | Select-Object -First 1).ToString().Trim()
-    $script:Branch = (Invoke-GitText -Arguments @('branch', '--show-current') | Select-Object -First 1).ToString().Trim()
+    $script:Branch = [string](Invoke-GitText -Arguments @('branch', '--show-current') | Select-Object -First 1)
+    if ([string]::IsNullOrWhiteSpace($script:Branch)) { $script:Branch = '(detached)' }
     $script:GitStatus = @(Invoke-GitText -Arguments @('status', '--short', '--branch'))
     $script:LocalTags = @(Invoke-GitText -Arguments @('tag', '--sort=-version:refname'))
     $remoteName = @(Invoke-GitText -Arguments @('remote')) | Where-Object { $_ -eq 'origin' } | Select-Object -First 1
