@@ -965,7 +965,7 @@ public class SettingsWindowTests
     }
 
     [Fact]
-    public void ElevenLabsClickSound_IsNotBundled()
+    public void FeedbackSound_IsNotBundled()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir != null && !File.Exists(Path.Combine(dir.FullName, "Murmur.sln")))

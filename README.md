@@ -2,19 +2,18 @@
 
 [Deutsch](README.de.md) | [English](README.md) | [Changelog](CHANGELOG.md)
 
-Murmur is a Windows push-to-talk dictation utility. Hold the configured key, speak, then release it to type cleaned-up text into the focused application.
+Murmur is a Windows dictation app. Hold your push-to-talk key, speak, then release it. Murmur formats the transcript and types it into the focused application.
 
-This is an AI-assisted Windows adaptation inspired by [per-simmons/murmur-youtube](https://github.com/per-simmons/murmur-youtube). It does not claim to be the upstream implementation.
+Murmur is a separate, AI-assisted Windows adaptation inspired by [per-simmons/murmur-youtube](https://github.com/per-simmons/murmur-youtube).
 
 ## Download and first run
 
-Murmur 0.2.0 is a beta draft candidate, not a stable release. Use the
-[GitHub Releases page](https://github.com/devjenjen/murmur-windows/releases)
-and choose an explicitly published asset:
+Murmur 0.2.0 is being prepared as a beta release. Published downloads appear on
+the [GitHub Releases page](https://github.com/devjenjen/murmur-windows/releases):
 
 - `Murmur-Setup-vX.Y.Z.exe` installs Murmur for the current user.
 - `Murmur-<version>-win-x64.zip` is portable. Extract it and run `Murmur.App.exe`; it does not install Murmur.
-- `build-info.json` and `SHA256SUMS.txt` describe and verify the candidate.
+- `build-info.json` records the source commit and build details. `SHA256SUMS.txt` contains checksums for the downloads.
 
 The installer is unsigned, so Windows SmartScreen may show a warning. Murmur opens its setup screen on first run. Choose a microphone, hotkey, and model, then download the selected speech model. Dictation works after that download completes.
 
@@ -25,15 +24,15 @@ The installer is unsigned, so Windows SmartScreen may show a warning. Murmur ope
 - Internet access to GitHub is required for the first model download inside Murmur. Model weights are not bundled with the installer. After the model is downloaded, speech recognition runs locally and works without an internet connection; the startup update check still contacts GitHub.
 - Keep all extracted files together when using the portable ZIP. The application EXE depends on the libraries beside it.
 
-The .NET SDK in the Build section is for compiling the source, not for using a release download. Model extraction uses Windows 11's built-in `tar.exe`; no separate archive utility is required on a standard Windows installation.
+You only need the .NET SDK if you build from source. Murmur extracts models with Windows 11's built-in `tar.exe`.
 
 Murmur checks for a newer stable release at startup. If it finds one, the tray menu offers an action that opens that release page. It does not update itself.
 
-The supported beta target is Windows 11 x64. The two model archives are about
-465 MiB (Parakeet) and 453 MiB (Nemotron); model files occupy about 640 MiB and
-653 MiB respectively in the current local measurement. Download and extraction
-need additional free disk space. RAM depends on the selected model, backend,
-audio session, and host; no guaranteed RAM minimum or speed across all PCs is advertised.
+The model archives are about 465 MiB (Parakeet) and 453 MiB (Nemotron). Their
+extracted files use about 640 MiB and 653 MiB in the local release measurement.
+Allow extra free disk space for downloading and extraction. RAM use and speed
+depend on the model, audio session, and PC; there is no guaranteed RAM minimum
+or speed for every device.
 
 ## Data locations
 
@@ -43,6 +42,7 @@ Speech and transcripts stay on the PC; they are not uploaded to a speech service
 |---|---|
 | `%LOCALAPPDATA%\Murmur\settings.json` | settings |
 | `%LOCALAPPDATA%\Murmur\history.jsonl` | dictation history |
+| `%LOCALAPPDATA%\Murmur\dictionary.txt` | personal dictionary |
 | `%LOCALAPPDATA%\Murmur\murmur.log` | application log |
 | `%LOCALAPPDATA%\Murmur\models\` | downloaded speech models |
 | `%LOCALAPPDATA%\Programs\Murmur` | Setup EXE installation |
@@ -51,25 +51,23 @@ Speech and transcripts stay on the PC; they are not uploaded to a speech service
 
 - Captures microphone audio while the push-to-talk key is held.
 - Runs either Parakeet v3 offline or Nemotron 3.5 live streaming through sherpa-onnx. One model is resident at a time.
-- Applies deterministic formatting and personal dictionary corrections before injection.
-- Shows a non-activating recording HUD so focus stays in the target application.
+- Formats text with fixed rules and applies your dictionary corrections before typing it.
+- Shows a recording overlay that keeps focus in the target application.
 
 ### Optional audio feedback
 
-No ElevenLabs feedback WAV ships in the repository, the Setup EXE, or the
-Portable ZIP. To use feedback, place your own licensed `Sounds\feedback.wav`
-beside `Murmur.App.exe`. If the file is missing, feedback is silent. You are
-responsible for the sound's license; Murmur's MIT License covers Murmur source
-code only, not user-owned sounds. See [NOTICE.md](NOTICE.md) for relevant
-ElevenLabs terms links.
+To play a sound after text is inserted, place your own WAV at
+`Sounds\feedback.wav` beside `Murmur.App.exe` and enable audio feedback in
+Settings. Murmur includes no sound files and stays silent if that file is
+missing.
 
-Murmur uses .NET 10 and Avalonia. It captures audio with WASAPI via NAudio and runs speech models through sherpa-onnx. Models are downloaded from GitHub on demand; the app is not an offline installer.
+Murmur uses .NET 10 and Avalonia. It captures audio with WASAPI via NAudio and runs speech models through sherpa-onnx.
 
 ## Limits
 
-Transcription quality is unmeasured. This project makes no accuracy claim and has no benchmark supporting a default-model choice.
+Transcription accuracy has not been measured. The default model was not chosen from an accuracy benchmark.
 
-Automated checks cannot cover every microphone, PC, or foreground application. Compatibility across other devices has not been exhaustively verified.
+Automated checks cover only part of the app's behavior. Compatibility with every microphone, PC, or target application has not been verified. Windows blocks text insertion into applications with higher privileges than Murmur.
 
 ## License
 
@@ -81,9 +79,12 @@ Murmur source code is MIT licensed. Model and bundled third-party notices are in
 cd windows
 dotnet restore Murmur.sln
 dotnet build Murmur.sln --configuration Release --no-incremental -warnaserror
-dotnet test Murmur.sln --configuration Release --no-build
+dotnet test Murmur.sln --configuration Release --no-build --filter 'Category!=RealModel&Category!=QualityCorpus'
 ```
 
-Normal CI excludes tests marked `RealModel` and `QualityCorpus`. The release workflow also runs model-download and inference checks marked `RealModel`; the separate `.github/workflows/real-model.yml` workflow runs model checks manually or nightly. Accuracy evaluations marked `QualityCorpus` need an explicitly supplied corpus.
+This command runs the unit and UI tests used by normal CI. The release workflow
+also downloads models and runs inference tests marked `RealModel`.
+`.github/workflows/real-model.yml` runs model tests manually or nightly.
+Tests marked `QualityCorpus` require a separately supplied corpus.
 
 More detail: [Windows setup and build notes](windows/README.md).

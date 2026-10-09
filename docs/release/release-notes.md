@@ -1,14 +1,14 @@
 # Murmur 0.2.0 beta
 
-Draft release candidate for Windows 11 x64.
+Beta release candidate for Windows 11 x64.
 
 ## Included
 
 - Self-contained portable ZIP and per-user installer.
 - Offline Parakeet v3 and live Nemotron 3.5 model support; models download on first use.
-- Cursor/document-end insertion modes, history policy controls, bounded logs, and
-  cancellation-safe model replacement.
-- English and German UI.
+- Text insertion at the cursor or document end, history limits, and bounded logs.
+- Model changes wait for recognition work to stop before releasing native resources.
+- English and German interface.
 
 ## First run
 

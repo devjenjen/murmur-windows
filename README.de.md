@@ -2,19 +2,18 @@
 
 [English](README.md) | [Deutsch](README.de.md) | [Changelog](CHANGELOG.md)
 
-Murmur ist ein Push-to-Talk-Diktierprogramm für Windows. Gewählte Taste gedrückt halten, sprechen, loslassen: Der bereinigte Text wird in die Anwendung mit Fokus eingefügt.
+Murmur ist ein Diktierprogramm für Windows. Push-to-Talk-Taste gedrückt halten, sprechen und loslassen. Murmur formatiert den Text und fügt ihn in die Anwendung mit Fokus ein.
 
-Dies ist eine KI-unterstützte Windows-Anpassung, inspiriert von [per-simmons/murmur-youtube](https://github.com/per-simmons/murmur-youtube). Sie beansprucht nicht, die Upstream-Implementierung zu sein.
+Murmur ist eine eigenständige, KI-unterstützte Windows-Anpassung, inspiriert von [per-simmons/murmur-youtube](https://github.com/per-simmons/murmur-youtube).
 
 ## Download und erster Start
 
-Murmur 0.2.0 ist ein Beta-Draft-Kandidat, keine stabile Release. Auf der
-[GitHub-Releases-Seite](https://github.com/devjenjen/murmur-windows/releases)
-nur ausdrücklich veröffentlichte Assets wählen:
+Murmur 0.2.0 wird als Beta-Release vorbereitet. Veröffentlichte Downloads stehen
+auf der [GitHub-Releases-Seite](https://github.com/devjenjen/murmur-windows/releases):
 
 - `Murmur-Setup-vX.Y.Z.exe` installiert Murmur für das aktuelle Benutzerkonto.
 - `Murmur-<version>-win-x64.zip` ist portabel. Archiv entpacken und `Murmur.App.exe` starten; es wird nichts installiert.
-- `build-info.json` und `SHA256SUMS.txt` beschreiben und prüfen den Kandidaten.
+- `build-info.json` enthält den Quellcode-Commit und Build-Angaben. `SHA256SUMS.txt` enthält die Prüfsummen der Downloads.
 
 Der Installer ist nicht signiert. Windows SmartScreen kann deshalb eine Warnung anzeigen. Beim ersten Start öffnet Murmur die Einrichtung. Mikrofon, Taste und Sprachmodell wählen, dann das gewählte Modell herunterladen. Erst danach ist Diktieren möglich.
 
@@ -25,15 +24,15 @@ Der Installer ist nicht signiert. Windows SmartScreen kann deshalb eine Warnung 
 - Für den ersten Modelldownload innerhalb von Murmur ist Internetzugriff auf GitHub nötig. Modellgewichte liegen nicht im Installer. Nach dem Download läuft die Spracherkennung lokal und ohne Internetverbindung; die Updateprüfung beim Start fragt weiterhin GitHub ab.
 - Beim Portable-ZIP alle entpackten Dateien zusammenlassen. Die Anwendungs-EXE benötigt die Bibliotheken neben ihr.
 
-Das .NET SDK im Abschnitt Build ist nur zum Kompilieren des Quellcodes nötig. Modelle werden mit dem in Windows 11 enthaltenen `tar.exe` entpackt; eine normale Windows-Installation benötigt kein zusätzliches Archivprogramm.
+Das .NET SDK brauchst du nur beim Kompilieren des Quellcodes. Murmur entpackt Modelle mit dem in Windows 11 enthaltenen `tar.exe`.
 
 Murmur prüft beim Start auf eine neuere stabile Release. Bei einem Treffer öffnet ein Eintrag im Tray-Menü die zugehörige Release-Seite. Updates werden nicht selbst installiert.
 
-Unterstütztes Beta-Ziel ist Windows 11 x64. Die beiden Modellarchive sind etwa
-465 MiB (Parakeet) und 453 MiB (Nemotron) groß; die Modell-Dateien belegen in
-der aktuellen lokalen Messung etwa 640 MiB bzw. 653 MiB. Download und Entpacken
-benötigen zusätzlichen freien Speicher. Der RAM-Bedarf hängt von Modell,
-Backend, Audiositzung und Rechner ab; eine garantierte RAM-Mindestanforderung oder Geschwindigkeit für sämtliche PCs wird nicht angegeben.
+Die Modellarchive sind etwa 465 MiB (Parakeet) und 453 MiB (Nemotron) groß.
+Entpackt belegen sie in der lokalen Release-Messung etwa 640 MiB und 653 MiB.
+Plane zusätzlichen freien Speicher für Download und Entpacken ein. RAM-Bedarf
+und Geschwindigkeit hängen vom Modell, der Audiositzung und dem PC ab;
+garantierte Werte für jedes Gerät gibt es nicht.
 
 ## Lokale Daten
 
@@ -43,6 +42,7 @@ Audio und Transkripte bleiben auf dem PC; sie werden nicht an einen Spracherkenn
 |---|---|
 | `%LOCALAPPDATA%\Murmur\settings.json` | Einstellungen |
 | `%LOCALAPPDATA%\Murmur\history.jsonl` | Diktatverlauf |
+| `%LOCALAPPDATA%\Murmur\dictionary.txt` | persönliches Wörterbuch |
 | `%LOCALAPPDATA%\Murmur\murmur.log` | Anwendungsprotokoll |
 | `%LOCALAPPDATA%\Murmur\models\` | heruntergeladene Sprachmodelle |
 | `%LOCALAPPDATA%\Programs\Murmur` | Installation durch die Setup EXE |
@@ -58,19 +58,16 @@ Die Sprachmodelle laufen über sherpa-onnx. Immer nur ein Modell ist gleichzeiti
 
 ### Optionales Audiofeedback
 
-Eine ElevenLabs-Feedback-WAV-Datei ist weder im Repository noch in der Setup-
-EXE oder im Portable-ZIP enthalten. Für Audiofeedback kann eine eigene,
-lizenzierte `Sounds\feedback.wav` neben `Murmur.App.exe` abgelegt werden. Fehlt
-die Datei, bleibt das Feedback stumm. Für die Lizenz des Tons sind die Nutzer
-selbst verantwortlich; die MIT-Lizenz von Murmur gilt nur für den Murmur-
-Quellcode, nicht für nutzereigene Töne. Relevante ElevenLabs-Links stehen in
-[NOTICE.md](NOTICE.md).
+Für einen Ton nach dem Einfügen kannst du eine eigene WAV-Datei unter
+`Sounds\feedback.wav` neben `Murmur.App.exe` ablegen. Aktiviere dazu Audiofeedback
+in den Einstellungen. Murmur liefert keine Sounddateien mit und bleibt ohne
+diese Datei stumm.
 
 ## Grenzen
 
-Die Transkriptionsqualität ist nicht gemessen. Murmur macht keine Genauigkeitsangabe und stützt die Standardauswahl auf keinen Benchmark.
+Die Erkennungsgenauigkeit wurde nicht gemessen. Die Auswahl des Standardmodells beruht auf keinem Genauigkeitsvergleich.
 
-Automatische Prüfungen können nicht jedes Mikrofon, jeden PC und jede Zielanwendung abdecken. Die Kompatibilität mit anderen Geräten wurde nicht umfassend geprüft.
+Automatische Prüfungen decken nur einen Teil des Verhaltens ab. Die Kompatibilität mit jedem Mikrofon, PC und Zielprogramm wurde nicht geprüft. Windows verhindert das Einfügen in Anwendungen mit höheren Rechten als Murmur.
 
 ## Lizenz
 
@@ -82,9 +79,13 @@ Der Murmur-Quellcode steht unter der MIT-Lizenz. Hinweise zu Modellen und gebün
 cd windows
 dotnet restore Murmur.sln
 dotnet build Murmur.sln --configuration Release --no-incremental -warnaserror
-dotnet test Murmur.sln --configuration Release --no-build
+dotnet test Murmur.sln --configuration Release --no-build --filter 'Category!=RealModel&Category!=QualityCorpus'
 ```
 
-Normale CI nimmt Tests mit den Kategorien `RealModel` und `QualityCorpus` aus. Der Release-Workflow führt zusätzlich Modelldownload- und Inferenztests der Kategorie `RealModel` aus; der separate Workflow `.github/workflows/real-model.yml` prüft Modelle manuell oder nächtlich. Genauigkeitsmessungen der Kategorie `QualityCorpus` benötigen einen ausdrücklich bereitgestellten Korpus.
+Dieser Befehl führt die Unit- und UI-Tests der normalen CI aus. Der
+Release-Workflow lädt zusätzlich Modelle herunter und führt Inferenztests der
+Kategorie `RealModel` aus. `.github/workflows/real-model.yml` prüft Modelle
+manuell oder nächtlich. Tests der Kategorie `QualityCorpus` benötigen einen
+separat bereitgestellten Korpus.
 
 Weitere Details: [Windows-Einrichtung und Build-Hinweise](windows/README.md).

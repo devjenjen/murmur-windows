@@ -1,26 +1,24 @@
 # Security policy
 
-Murmur is beta software. Do not put secrets, complete transcripts, private
-audio, or unredacted logs in a public issue or pull request.
+Murmur is beta software. Keep passwords, tokens, private audio, transcripts,
+and unredacted logs out of public issues and pull requests.
 
 ## Private reporting
 
-Use GitHub's **Security** tab and **Report a vulnerability** flow:
-<https://github.com/devjenjen/murmur-windows/security/advisories/new>
+Use GitHub's [private vulnerability report](https://github.com/devjenjen/murmur-windows/security/advisories/new)
+when the repository offers that form.
 
-This channel works only when GitHub Private Vulnerability Reporting is enabled
-for the repository. The repository owner must enable and verify that setting
-before public publication. If the page does not offer a private submission,
-do not disclose the issue publicly; wait for the owner to provide a verified
-private channel.
+The form is available only when the owner has enabled GitHub Private
+Vulnerability Reporting. If it is unavailable, ask the owner for a private
+contact before sharing vulnerability details.
 
-Include affected version/commit, Windows version, exact reproduction steps,
-impact, and a minimal synthetic example. Redact usernames, paths, tokens,
-transcripts, history, and microphone data.
+Include the affected version or commit, Windows version, reproduction steps,
+and impact. Use a small example with invented data. Remove personal data,
+including usernames, private paths, tokens, transcripts, and recordings.
 
-## Scope notes
+## Data and Windows restrictions
 
-- ASR runs locally after model download; stable update checks contact GitHub.
+- Speech recognition runs locally. Model downloads and startup update checks contact GitHub.
 - `SendInput` is subject to Windows UIPI and foreground-window behavior.
 - Settings, history, dictionary, models, and logs are local files and are not
   encrypted by Murmur.

@@ -1,29 +1,35 @@
 # Changelog
 
-Release history for Murmur. Newest release first.
+Newest release first.
+
+## Unreleased
+
+- Remove obsolete sound-provider references from notices and setup instructions.
+- Clarify how to add a personal feedback WAV and when Murmur stays silent.
+- Update the .NET runtime inventory to match the 10.0.12 packages in the beta build.
 
 ## [0.2.0] - 2026-10-09
 
 ### Added
 
-- Cursor-safe or document-end text insertion with legacy settings migration.
-- Optional bounded dictation history with retention and entry limits.
-- Isolated, integrity-checked model downloads with cancellation-safe extraction.
+- Text insertion at the cursor or document end, with migration of existing settings.
+- Optional dictation history with age and entry limits.
+- Model downloads check archive integrity and clean up after cancellation.
 - Beta release verification, package inventory, checksums, and build metadata.
 
 ### Improved
 
-- Dictation cancellation, model replacement, and shutdown await session work before freeing native resources.
-- Streaming retains audio only in its recognition queue; model loading verifies integrity once per construction.
-- Timing distinguishes streaming completion from offline inference and measures key release through text insertion.
-- History runs after the insertion attempt and avoids unnecessary retention rewrites.
+- Cancellation, model changes, and shutdown wait for session work before releasing native resources.
+- Streaming keeps audio in its recognition queue. Model loading checks integrity once when constructing the recognizer.
+- Timing records streaming completion separately from offline inference and measures the delay from key release to text insertion.
+- History saves after the insertion attempt and rewrites files only when retention removes entries.
 - Model status callbacks ignore stale selections and report download phases.
 - Settings writes preserve the previous valid file when storage fails.
 - Real-model tests use isolated roots, robust WAV parsing, and measured benchmarks.
 
 ### Release notes
 
-- This candidate is intended for a GitHub draft/prerelease beta.
+- Version 0.2.0 is a beta release candidate.
 - The Windows installer is unsigned; SmartScreen may show a warning.
 - Speech models download on first setup and are not bundled in release assets.
 
@@ -31,7 +37,7 @@ Release history for Murmur. Newest release first.
 
 ### Added
 
-- Lens-inspired settings redesign across setup, history, and dictionary views.
+- Settings pages for setup, history, and dictionary editing.
 - Offline Parakeet v3 and live Nemotron 3.5 speech-model support.
 - English and German interface localization.
 - Portable ZIP and per-user Windows installer release assets.

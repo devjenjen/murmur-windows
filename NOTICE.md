@@ -1,43 +1,23 @@
 # Murmur notices
 
-Murmur source code is licensed under the MIT License; see [LICENSE](LICENSE).
+Murmur source code uses the MIT License. See [LICENSE](LICENSE).
 
 ## Speech models
 
-Murmur does not include speech-model archives in the repository or release
-assets. The application downloads the selected archive from sherpa-onnx on
-first run. Model terms remain separate from the Murmur source license:
+Download a speech model in Murmur before dictating. The app fetches the selected
+archive from the sherpa-onnx releases on GitHub. The repository, installer, and
+portable ZIP contain no model weights. Each model has its own license:
 
-- [Parakeet v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3): NVIDIA model card; CC BY 4.0.
-- [Nemotron 3.5](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b): NVIDIA model card; OpenMDW-1.1.
+- [Parakeet v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3): CC BY 4.0.
+- [Nemotron 3.5](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b): OpenMDW-1.1.
 
-Users must follow the applicable model terms when downloading or using a
-model.
-
-## Optional feedback sound
-
-No ElevenLabs feedback WAV ships in this repository, the Setup EXE, or the
-Portable ZIP. Users may optionally place their own licensed
-`Sounds\feedback.wav` beside `Murmur.App.exe`. If the file is missing, Murmur
-plays no feedback sound. Users remain responsible for the sound's license and
-terms; Murmur's MIT License covers Murmur source code only and does not cover
-user-owned sounds.
-
-For any user-supplied ElevenLabs sound, consult the
-[Sound Effects Terms](https://elevenlabs.io/sound-effects-terms), the
-[EEA Terms of Service](https://elevenlabs.io/terms-of-use-eu), and the
-[Prohibited Use Policy](https://elevenlabs.io/use-policy).
+Read the linked model cards for the terms that apply when downloading or using
+these models.
 
 ## Dependencies
 
-Bundled third-party libraries remain under their own licenses. The release
-inventory at
-[`windows/installer/third-party-components.json`](windows/installer/third-party-components.json)
-binds each published runtime component to its source version and copied
-license/notice files in `licenses/`. Their terms are not replaced by Murmur's
-MIT License.
-
-Release candidates are Windows x64, self-contained, and unsigned. Release
-assets contain no speech-model weights, user settings, history, logs, or
-user-supplied sounds. The app downloads the selected pinned model from GitHub
-after first run; model terms remain the user's responsibility.
+Bundled libraries and fonts keep their own licenses. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
+lists the components, and `licenses/` contains their original license and notice
+texts. The [release inventory](https://github.com/devjenjen/murmur-windows/blob/main/windows/installer/third-party-components.json)
+maps components to those files. The package's `Murmur.App.deps.json` and
+`Murmur.App.runtimeconfig.json` record the versions included in that build.
