@@ -31,9 +31,9 @@ Murmur checks GitHub for a newer stable release during startup. When an update i
 
 ## Features
 
-The [main README](../README.md#what-it-does) describes the user-facing features: Standard and German Math profiles, Unicode or LaTeX output, dictionary corrections, optional filler removal, cursor or document-end insertion, optional history with retention limits, temporary recovery text after insertion failures, microphone testing, HUD placement, English and German interface, and Windows startup.
+The [main README](../README.md#what-it-does) describes the user-facing features: Standard and Math profiles with German and English dictation, Unicode or LaTeX output, dictionary corrections, optional filler removal, cursor or document-end insertion, optional history with retention limits, temporary recovery text after insertion failures, microphone testing, HUD placement, English and German interface, and Windows startup.
 
-The interface language does not select the speech language. Both models detect the spoken language automatically; their model cards list German and English among the supported languages. Math formatting uses German rules.
+The interface language does not select the speech language. Both models detect the spoken language automatically; their model cards list German and English among the supported languages. The current source accepts both languages in the Math profile, regardless of interface language. English number words cover whole numbers from 0 through 999. Formatting uses fixed rules and does not solve equations. The v0.2.2 downloads still use German math rules.
 
 ## Local files
 

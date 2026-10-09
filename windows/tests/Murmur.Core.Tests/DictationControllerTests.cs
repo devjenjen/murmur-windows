@@ -779,8 +779,10 @@ public class DictationControllerTests
         partials[^1].ShouldBeEmpty();
     }
 
-    [Fact]
-    public async Task UpdateProfile_Uses_Math_Formatter_For_Next_Dictation()
+    [Theory]
+    [InlineData("x plus y gleich z")]
+    [InlineData("x plus y equals z")]
+    public async Task UpdateProfile_Uses_Math_Formatter_For_Next_Dictation(string transcript)
     {
         var audio = new FakeAudioCapture();
         var hotkey = new FakeHotkeySource();
@@ -790,7 +792,7 @@ public class DictationControllerTests
         using var controller = new DictationController(
             audio,
             hotkey,
-            new FakeTranscriber("x plus y gleich z"),
+            new FakeTranscriber(transcript),
             injector,
             "test-engine");
 

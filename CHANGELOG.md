@@ -2,6 +2,11 @@
 
 Newest release first.
 
+## [Unreleased]
+
+- Add English number words and math expressions to the existing Math profile. German and English dictation work regardless of interface language in Unicode and LaTeX modes.
+- English number words cover whole numbers from 0 through 999. Formatting uses fixed rules and does not solve equations.
+
 ## [0.2.2] - 2026-10-09
 
 - Publish the Windows beta with a Setup EXE, portable ZIP, build metadata, and checksums.
