@@ -225,7 +225,7 @@ jobs:
           MURMUR_CHANNEL: ${{ needs.build-package.outputs.channel }}
         run: |
           $isPrerelease = $env:MURMUR_CHANNEL -eq 'beta'
-          pwsh -NoProfile -File windows/scripts/Publish-ReleaseDraft.ps1 `
+          & ./windows/scripts/Publish-ReleaseDraft.ps1 `
             -Tag $env:MURMUR_TAG `
             -Repository $env:MURMUR_REPOSITORY `
             -AssetsDirectory (Join-Path $env:GITHUB_WORKSPACE 'windows/artifacts/release') `
