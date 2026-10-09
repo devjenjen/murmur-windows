@@ -4,6 +4,7 @@ Newest release first.
 
 ## Unreleased
 
+- Add automated Gitleaks scans of Git history on pushes and pull requests.
 - Remove obsolete sound-provider references from notices and setup instructions.
 - Clarify how to add a personal feedback WAV and when Murmur stays silent.
 - Update the .NET runtime inventory to match the 10.0.12 packages in the beta build.

@@ -16,6 +16,12 @@ Include the affected version or commit, Windows version, reproduction steps,
 and impact. Use a small example with invented data. Remove personal data,
 including usernames, private paths, tokens, transcripts, and recordings.
 
+## Automated secret checks
+
+The Secret scan workflow runs Gitleaks on pushes and pull requests. It scans
+the checked-out Git history using the standard rules in `.gitleaks.toml`.
+Findings fail the check, and secret values are redacted in its logs.
+
 ## Data and Windows restrictions
 
 - Speech recognition runs locally. Model downloads and startup update checks contact GitHub.
