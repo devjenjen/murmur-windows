@@ -154,7 +154,7 @@ public partial class App : Application
     private static ITextFormatter CreateFormatter(DictationProfile profile)
     {
         return profile.FormatterKind == ProfileFormatterKind.Math
-            ? new GermanMathFormatter(profile.MathMode, profile.RemoveFillers)
+            ? new MathFormatter(profile.MathMode, profile.RemoveFillers)
             : new RuleBasedFormatter(profile.RemoveFillers);
     }
 

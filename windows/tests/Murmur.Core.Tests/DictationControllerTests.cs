@@ -800,7 +800,7 @@ public class DictationControllerTests
             Name = "Mathe",
             FormatterKind = ProfileFormatterKind.Math
         };
-        var mathFormatter = new GermanMathFormatter(MathFormatMode.Unicode);
+        var mathFormatter = new MathFormatter(MathFormatMode.Unicode);
 
         controller.UpdateProfile(mathProfile, mathFormatter);
         controller.Start();
@@ -835,7 +835,7 @@ public class DictationControllerTests
             Name = "Mathe",
             FormatterKind = ProfileFormatterKind.Math
         };
-        controller.UpdateProfile(mathProfile, new GermanMathFormatter());
+        controller.UpdateProfile(mathProfile, new MathFormatter());
 
         controller.CurrentProfile.ShouldBe(mathProfile);
         notifiedProfile.ShouldBe(mathProfile);
@@ -882,7 +882,7 @@ public class DictationControllerTests
             Name = "Mathe",
             FormatterKind = ProfileFormatterKind.Math
         };
-        controller.UpdateProfile(mathProfile, new GermanMathFormatter(MathFormatMode.Unicode));
+        controller.UpdateProfile(mathProfile, new MathFormatter(MathFormatMode.Unicode));
 
         // Release first dictation and ungate stop
         hotkey.Release();
@@ -925,7 +925,7 @@ public class DictationControllerTests
             Name = "Mathe",
             FormatterKind = ProfileFormatterKind.Math
         };
-        controller.UpdateProfile(mathProfile, new GermanMathFormatter(MathFormatMode.Unicode));
+        controller.UpdateProfile(mathProfile, new MathFormatter(MathFormatMode.Unicode));
         controller.SetDictionary([DictionaryEntry.Correction("cloud code", "Claude Code")]);
 
         controller.Start();

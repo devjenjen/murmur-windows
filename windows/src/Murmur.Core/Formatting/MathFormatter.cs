@@ -16,9 +16,9 @@ public enum MathFormatMode
 }
 
 /// <summary>
-/// Formats spoken German mathematical and scientific dictations into Unicode or LaTeX notation.
+/// Formats spoken German and English mathematical and scientific dictations into Unicode or LaTeX notation.
 /// </summary>
-public sealed class GermanMathFormatter : ITextFormatter
+public sealed class MathFormatter : ITextFormatter
 {
     private static readonly TimeSpan MatchTimeout = TimeSpan.FromSeconds(1);
 
@@ -36,12 +36,42 @@ public sealed class GermanMathFormatter : ITextFormatter
         ("eckige klammer zu", "]"),
         ("runde klammer auf", "("),
         ("runde klammer zu", ")"),
+        ("open curly brace", "{"),
+        ("close curly brace", "}"),
+        ("open square bracket", "["),
+        ("close square bracket", "]"),
+        ("open parenthesis", "("),
+        ("close parenthesis", ")"),
+        ("open brace", "{"),
+        ("close brace", "}"),
+        ("open bracket", "["),
+        ("close bracket", "]"),
+        ("open paren", "("),
+        ("close paren", ")"),
         ("klammer auf", "("),
         ("klammer zu", ")"),
     ];
 
     private static readonly (string Phrase, string Replacement)[] SpokenOperators =
     [
+        ("is approximately equal to", " ≈ "),
+        ("approximately equal to", " ≈ "),
+        ("is less than or equal to", " ≤ "),
+        ("less than or equal to", " ≤ "),
+        ("is greater than or equal to", " ≥ "),
+        ("greater than or equal to", " ≥ "),
+        ("is not equal to", " ≠ "),
+        ("not equal to", " ≠ "),
+        ("is equal to", " = "),
+        ("equal to", " = "),
+        ("multiplied by", " × "),
+        ("divided by", " ÷ "),
+        ("times", " × "),
+        ("is less than", " < "),
+        ("less than", " < "),
+        ("is greater than", " > "),
+        ("greater than", " > "),
+        ("equals", " = "),
         ("approximately gleich", " ≈ "),
         ("ungefähr gleich", " ≈ "),
         ("ungefaehr gleich", " ≈ "),
@@ -58,6 +88,9 @@ public sealed class GermanMathFormatter : ITextFormatter
 
     private static readonly (string Phrase, string Replacement)[] GreekLetters =
     [
+        ("uppercase sigma", "Σ"),
+        ("capital sigma", "Σ"),
+        ("lowercase sigma", "σ"),
         ("großes sigma", "Σ"),
         ("grosses sigma", "Σ"),
         ("kleines sigma", "σ"),
@@ -73,7 +106,7 @@ public sealed class GermanMathFormatter : ITextFormatter
     ];
 
     private static readonly Regex SpokenPowerRegex = new(
-        @"(?i)(?<![\p{L}\p{N}])(?<base>[A-Za-zα-ωΑ-Ω0-9]+|[\)\]\}])\s+hoch\s+(?<sign>minus\s+|[-−]\s*)?(?<exponent>\d+)\b",
+        @"(?i)(?<![\p{L}\p{N}])(?<base>[A-Za-zα-ωΑ-Ω0-9]+|[\)\]\}])\s+(?:hoch|to\s+the\s+power\s+of)\s+(?<sign>minus\s+|[-−]\s*)?(?<exponent>\d+)\b",
         RegexOptions.CultureInvariant | RegexOptions.Compiled,
         MatchTimeout);
 
@@ -84,13 +117,13 @@ public sealed class GermanMathFormatter : ITextFormatter
         MatchTimeout);
 
     private static readonly Regex SpokenSquareRegex = new(
-        @"(?i)(?<![\p{L}\p{N}])(?<base>[A-Za-zα-ωΑ-Ω0-9]+|[\)\]\}])\s+(?:(?:zum|im)\s+)?quadrat\b",
+        @"(?i)(?<![\p{L}\p{N}])(?<base>[A-Za-zα-ωΑ-Ω0-9]+|[\)\]\}])\s+(?:(?:zum|im)\s+)?(?:quadrat|squared)\b",
         RegexOptions.CultureInvariant | RegexOptions.Compiled,
         MatchTimeout);
 
     // ponytail: root binds to one atom or one explicit bracket group; full spoken operand parsing can come later.
     private static readonly Regex SpokenRootRegex = new(
-        @"(?i)\b(?:quadratische\s+wurzel|quadratwurzel|wurzel)\s+aus\s+(?<operand>\([^()]*\)|\[[^\[\]]*\]|\{[^{}]*\}|[A-Za-zα-ωΑ-Ω0-9,⁰¹²³⁴⁵⁶⁷⁸⁹⁻^{}-]+)",
+        @"(?i)\b(?:(?:quadratische\s+wurzel|quadratwurzel|wurzel)\s+aus|square\s+root\s+of)\s+(?<operand>\([^()]*\)|\[[^\[\]]*\]|\{[^{}]*\}|[-−]?[0-9]+(?:\.[0-9]+)?|[A-Za-zα-ωΑ-Ω0-9,⁰¹²³⁴⁵⁶⁷⁸⁹⁻^{}-]+)",
         RegexOptions.CultureInvariant | RegexOptions.Compiled,
         MatchTimeout);
 
@@ -120,11 +153,11 @@ public sealed class GermanMathFormatter : ITextFormatter
         MatchTimeout);
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="GermanMathFormatter"/> class.
+    /// Initializes a new instance of the <see cref="MathFormatter"/> class.
     /// </summary>
     /// <param name="mode">The target output mode (Unicode or LaTeX).</param>
     /// <param name="removeFillers">Whether filler words should be removed.</param>
-    public GermanMathFormatter(MathFormatMode mode = MathFormatMode.Unicode, bool removeFillers = true)
+    public MathFormatter(MathFormatMode mode = MathFormatMode.Unicode, bool removeFillers = true)
     {
         _mode = mode;
         _removeFillers = removeFillers;
@@ -151,15 +184,12 @@ public sealed class GermanMathFormatter : ITextFormatter
             text = text.Trim();
         }
 
-        // 2. Normalize spoken German numbers and decimals
+        // 2. Normalize spoken German and English numbers and decimals
         text = GermanNumberParser.NormalizeSpokenNumbers(text);
+        text = EnglishNumberParser.NormalizeSpokenNumbers(text);
 
         // 3. Replace longest spoken brackets first
-        foreach (var (phrase, replacement) in SpokenBrackets)
-        {
-            var pattern = $@"(?i)\b{Regex.Escape(phrase)}\b";
-            text = Regex.Replace(text, pattern, replacement, RegexOptions.CultureInvariant, MatchTimeout);
-        }
+        text = ReplacePhrases(text, SpokenBrackets);
 
         // 4. Normalize spoken powers before operators alter their context
         text = CompactSquareRegex.Replace(text, FormatSquare);
@@ -170,21 +200,13 @@ public sealed class GermanMathFormatter : ITextFormatter
         text = SpokenRootRegex.Replace(text, FormatRoot);
 
         // 6. Replace longest spoken operators
-        foreach (var (phrase, replacement) in SpokenOperators)
-        {
-            var pattern = $@"(?i)\b{Regex.Escape(phrase)}\b";
-            text = Regex.Replace(text, pattern, replacement, RegexOptions.CultureInvariant, MatchTimeout);
-        }
+        text = ReplacePhrases(text, SpokenOperators);
 
         // 7. Handle minus (as operator and before Greek/variables/numbers)
         text = Regex.Replace(text, @"(?i)\bminus\b", "−", RegexOptions.CultureInvariant, MatchTimeout);
 
         // 8. Replace Greek letters
-        foreach (var (phrase, replacement) in GreekLetters)
-        {
-            var pattern = $@"(?i)\b{Regex.Escape(phrase)}\b";
-            text = Regex.Replace(text, pattern, replacement, RegexOptions.CultureInvariant, MatchTimeout);
-        }
+        text = ReplacePhrases(text, GreekLetters);
 
         // 9. Apply mode-specific output substitutions
         if (_mode == MathFormatMode.Unicode)
@@ -290,5 +312,22 @@ public sealed class GermanMathFormatter : ITextFormatter
         return _mode == MathFormatMode.Unicode
             ? $"√{operand}"
             : $"\\sqrt{{{operand}}}";
+    }
+
+    private static string ReplacePhrases(string text, (string Phrase, string Replacement)[] phrases)
+    {
+        foreach (var (phrase, replacement) in phrases)
+        {
+            var words = phrase.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            for (var i = 0; i < words.Length; i++)
+            {
+                words[i] = Regex.Escape(words[i]);
+            }
+
+            var pattern = $@"(?i)\b{string.Join(@"\s+", words)}\b";
+            text = Regex.Replace(text, pattern, replacement, RegexOptions.CultureInvariant, MatchTimeout);
+        }
+
+        return text;
     }
 }
