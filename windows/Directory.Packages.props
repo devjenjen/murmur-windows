@@ -28,7 +28,7 @@
     <PackageVersion Include="Avalonia.Headless" Version="11.3.20" />
     <!-- Avalonia.Headless.XUnit 12.x requires xUnit *v3*, a different package line.
          11.3.x pairs with xUnit v2, which is what is referenced below. -->
-    <PackageVersion Include="Avalonia.Headless.XUnit" Version="11.3.20" />
+    <PackageVersion Include="Avalonia.Headless.XUnit" Version="12.1.4" />
 
     <!-- Testing. Not FluentAssertions: 8.x is commercially licensed (~$130/dev/yr). -->
     <PackageVersion Include="xunit" Version="2.9.3" />
