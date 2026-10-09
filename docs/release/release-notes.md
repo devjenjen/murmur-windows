@@ -1,6 +1,12 @@
-# Murmur 0.2.0 beta
+# Murmur 0.2.1 beta
 
 Beta release candidate for Windows 11 x64.
+
+## Changes in 0.2.1
+
+- Update bundled notices and the runtime dependency inventory.
+- Add repository secret scans for pushes and pull requests.
+- Update build tooling and fix draft publication.
 
 ## Included
 
@@ -26,7 +32,7 @@ Download one speech model inside Murmur before dictating. Internet access to Git
 
 ## Assets
 
-- `Murmur-0.2.0-win-x64.zip`
-- `Murmur-Setup-v0.2.0.exe`
+- `Murmur-0.2.1-win-x64.zip`
+- `Murmur-Setup-v0.2.1.exe`
 - `build-info.json`
 - `SHA256SUMS.txt`

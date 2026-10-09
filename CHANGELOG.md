@@ -2,12 +2,14 @@
 
 Newest release first.
 
-## Unreleased
+## [0.2.1] - 2026-10-09
 
 - Add automated Gitleaks scans of Git history on pushes and pull requests.
 - Remove obsolete sound-provider references from notices and setup instructions.
 - Clarify how to add a personal feedback WAV and when Murmur stays silent.
 - Update the .NET runtime inventory to match the 10.0.12 packages in the beta build.
+- Fix the prerelease flag passed to the draft publication script.
+- Update the GitHub artifact download action and Microsoft.NET.Test.Sdk.
 
 ## [0.2.0] - 2026-10-09
 
@@ -63,3 +65,4 @@ Newest release first.
 
 [0.1.0]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.1.0
 [0.2.0]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.2.0
+[0.2.1]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.2.1

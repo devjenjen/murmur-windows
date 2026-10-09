@@ -8,7 +8,7 @@ Murmur ist eine eigenständige, KI-unterstützte Windows-Anpassung, inspiriert v
 
 ## Download und erster Start
 
-Murmur 0.2.0 wird als Beta-Release vorbereitet. Veröffentlichte Downloads stehen
+Murmur 0.2.1 wird als Beta-Release vorbereitet. Veröffentlichte Downloads stehen
 auf der [GitHub-Releases-Seite](https://github.com/devjenjen/murmur-windows/releases):
 
 - `Murmur-Setup-vX.Y.Z.exe` installiert Murmur für das aktuelle Benutzerkonto.

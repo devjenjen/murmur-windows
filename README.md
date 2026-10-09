@@ -8,7 +8,7 @@ Murmur is a separate, AI-assisted Windows adaptation inspired by [per-simmons/mu
 
 ## Download and first run
 
-Murmur 0.2.0 is being prepared as a beta release. Published downloads appear on
+Murmur 0.2.1 is being prepared as a beta release. Published downloads appear on
 the [GitHub Releases page](https://github.com/devjenjen/murmur-windows/releases):
 
 - `Murmur-Setup-vX.Y.Z.exe` installs Murmur for the current user.
