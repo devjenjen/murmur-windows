@@ -62,6 +62,23 @@ public class GermanMathFormatterTests
         formatter.Format("wurzel aus klammer auf x plus eins klammer zu").ShouldBe("√(x + 1)");
     }
 
+    [Theory]
+    [InlineData(MathFormatMode.Unicode, "wurzel aus fünf komma null fünf", "√5,05.")]
+    [InlineData(MathFormatMode.Latex, "wurzel aus fünf komma null fünf", @"\sqrt{5.05}")]
+    [InlineData(MathFormatMode.Latex, "square root of five point zero five", @"\sqrt{5.05}")]
+    [InlineData(MathFormatMode.Unicode, "wurzel aus fünf quadrat", "√5².")]
+    [InlineData(MathFormatMode.Latex, "wurzel aus fünf quadrat", @"\sqrt{5^2}")]
+    [InlineData(MathFormatMode.Unicode, "square root of five squared", "√5².")]
+    [InlineData(MathFormatMode.Latex, "square root of five squared", @"\sqrt{5^2}")]
+    [InlineData(MathFormatMode.Latex, "wurzel aus fünf.", @"\sqrt{5}.")]
+    public void Spoken_Roots_Consume_Complete_Numeric_Operands(
+        MathFormatMode mode,
+        string input,
+        string expected)
+    {
+        new MathFormatter(mode).Format(input).ShouldBe(expected);
+    }
+
     [Fact]
     public void Spoken_Sigma_Uses_Math_Symbols()
     {

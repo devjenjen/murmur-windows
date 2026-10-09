@@ -123,7 +123,7 @@ public sealed class MathFormatter : ITextFormatter
 
     // ponytail: root binds to one atom or one explicit bracket group; full spoken operand parsing can come later.
     private static readonly Regex SpokenRootRegex = new(
-        @"(?i)\b(?:(?:quadratische\s+wurzel|quadratwurzel|wurzel)\s+aus|square\s+root\s+of)\s+(?<operand>\([^()]*\)|\[[^\[\]]*\]|\{[^{}]*\}|[-−]?[0-9]+(?:\.[0-9]+)?|[A-Za-zα-ωΑ-Ω0-9,⁰¹²³⁴⁵⁶⁷⁸⁹⁻^{}-]+)",
+        @"(?i)\b(?:(?:quadratische\s+wurzel|quadratwurzel|wurzel)\s+aus|square\s+root\s+of)\s+(?<operand>\([^()]*\)|\[[^\[\]]*\]|\{[^{}]*\}|[-−]?[0-9]+(?:[.,][0-9]+)?(?:\^\{?[-−]?\d+\}?|[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)?(?![\p{L}\p{N}_])|[A-Za-zα-ωΑ-Ω0-9,⁰¹²³⁴⁵⁶⁷⁸⁹⁻^{}-]+)",
         RegexOptions.CultureInvariant | RegexOptions.Compiled,
         MatchTimeout);
 
