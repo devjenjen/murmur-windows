@@ -11,12 +11,8 @@ public static class WindowsStartup
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "Murmur";
 
-    internal static string InstalledExecutablePath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Programs", "Murmur", "Murmur.App.exe");
-
     internal static string ResolveExecutablePath(string processPath, string installedPath, bool installedExists) =>
-        Path.GetFullPath(installedExists ? installedPath : processPath);
+        Path.GetFullPath(processPath);
 
     internal static string BuildCommand(string executablePath) =>
         $"\"{Path.GetFullPath(executablePath)}\"";
@@ -78,7 +74,7 @@ public static class WindowsStartup
             throw new InvalidOperationException("Could not determine executable path.");
         }
 
-        return ResolveExecutablePath(processPath, InstalledExecutablePath, File.Exists(InstalledExecutablePath));
+        return Path.GetFullPath(processPath);
     }
 
     /// <summary>

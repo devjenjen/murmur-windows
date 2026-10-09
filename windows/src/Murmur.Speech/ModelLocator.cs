@@ -22,7 +22,21 @@ public static class ModelLocator
         return Path.Combine(localAppData, "Murmur", "models", variant);
     }
 
-    /// <summary>Checks whether all required model files exist and are non-empty for the specified model.</summary>
+    /// <summary>Checks only directory and nonempty required files; does not verify model integrity.</summary>
+    public static bool HasRequiredFiles(ModelManifest model, string? modelDirectory = null)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        var dir = modelDirectory ?? GetDefaultModelDirectory(model);
+        if (!Directory.Exists(dir)) return false;
+        foreach (var file in ModelManifest.RequiredFiles)
+        {
+            var path = Path.Combine(dir, file);
+            if (!File.Exists(path) || new FileInfo(path).Length == 0) return false;
+        }
+        return true;
+    }
+
+    /// <summary>Verifies model integrity, allowing existing unverified legacy installations.</summary>
     public static bool IsModelDownloaded(ModelManifest model, string? modelDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(model);
@@ -30,7 +44,7 @@ public static class ModelLocator
         return GetIntegrityStatus(model, dir) is ModelIntegrityStatus.Valid or ModelIntegrityStatus.LegacyUnverified;
     }
 
-    /// <summary>Checks whether all required model files exist and are non-empty in the specified directory.</summary>
+    /// <summary>Verifies Parakeet model integrity, allowing unverified legacy installations.</summary>
     public static bool IsModelDownloaded(string? modelDirectory = null)
     {
         var dir = modelDirectory ?? GetDefaultModelDirectory(ModelManifest.ParakeetV3);
@@ -42,13 +56,7 @@ public static class ModelLocator
     {
         ArgumentNullException.ThrowIfNull(model);
         var dir = modelDirectory ?? GetDefaultModelDirectory(model);
-        if (!Directory.Exists(dir)) return ModelIntegrityStatus.Missing;
-
-        foreach (var file in ModelManifest.RequiredFiles)
-        {
-            var path = Path.Combine(dir, file);
-            if (!File.Exists(path) || new FileInfo(path).Length == 0) return ModelIntegrityStatus.Missing;
-        }
+        if (!HasRequiredFiles(model, dir)) return ModelIntegrityStatus.Missing;
 
         var manifestPath = Path.Combine(dir, ModelIntegrityManifest.FileName);
         if (!File.Exists(manifestPath)) return ModelIntegrityStatus.LegacyUnverified;

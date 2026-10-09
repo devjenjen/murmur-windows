@@ -46,6 +46,7 @@ public class DictationControllerTests
     {
         public event Action<ReadOnlyMemory<float>>? AudioChunkAvailable;
         public event Action<float>? LevelChanged;
+        public event Action<Exception>? CaptureFailed;
         public bool IsRunning { get; private set; }
         public AudioCaptureFormat? Format { get; } = new(16000, 1, 32, "IeeeFloat");
         public AudioCaptureStats? LastSessionStats { get; } = new(0.1, 0.2f, 0, 1600);
@@ -83,6 +84,11 @@ public class DictationControllerTests
 
         public void EmitChunk(float[] chunk) => AudioChunkAvailable?.Invoke(chunk);
         public void EmitLevel(float level) => LevelChanged?.Invoke(level);
+        public void Fail(Exception exception)
+        {
+            IsRunning = false;
+            CaptureFailed?.Invoke(exception);
+        }
         public void Dispose() { }
     }
 
@@ -187,10 +193,30 @@ public class DictationControllerTests
         public FakeTextInjector(Action<string>? onInsert = null) => _onInsert = onInsert;
 
         public List<string> Injected { get; } = [];
+        public List<(TextInjectionTarget Target, TextInsertionMode Mode)> InjectionMetadata { get; } = [];
+        public TextInjectionTarget CapturedTarget { get; set; } = new(1, 2);
+        public Exception? CaptureException { get; set; }
+        public Exception? InsertException { get; set; }
 
-        public void Insert(string text)
+        public TextInjectionTarget CaptureTarget()
         {
+            if (CaptureException is not null)
+            {
+                throw CaptureException;
+            }
+
+            return CapturedTarget;
+        }
+
+        public void Insert(string text, TextInjectionTarget target, TextInsertionMode mode)
+        {
+            if (InsertException is not null)
+            {
+                throw InsertException;
+            }
+
             Injected.Add(text);
+            InjectionMetadata.Add((target, mode));
             _onInsert?.Invoke(text);
         }
     }
@@ -235,6 +261,85 @@ public class DictationControllerTests
         controller.State.Status.ShouldBe(DictationStatus.Idle);
         injector.Injected.Count.ShouldBe(1);
         injector.Injected[0].ShouldBe("Hello world Claude Code\ntest.");
+    }
+
+    [Fact]
+    public async Task Session_captures_target_and_insertion_mode_before_later_changes()
+    {
+        var audio = new FakeAudioCapture { DelayStop = true };
+        var hotkey = new FakeHotkeySource();
+        var injected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var injector = new FakeTextInjector(_ => injected.TrySetResult())
+        {
+            CapturedTarget = new TextInjectionTarget(123, 456)
+        };
+
+        using var controller = new DictationController(
+            audio,
+            hotkey,
+            new FakeTranscriber("captured text"),
+            injector,
+            "test-engine",
+            insertionMode: TextInsertionMode.DocumentEnd);
+
+        controller.Start();
+        hotkey.Press();
+        controller.SetTextInsertionMode(TextInsertionMode.AtCaret);
+        audio.EmitChunk([0.1f]);
+        hotkey.Release();
+        await Task.Delay(80);
+        audio.StopGate.SetResult();
+        await injected.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        injector.InjectionMetadata.Single().ShouldBe((new TextInjectionTarget(123, 456), TextInsertionMode.DocumentEnd));
+    }
+
+    [Fact]
+    public void Target_capture_failure_stops_session_before_audio_starts()
+    {
+        var audio = new FakeAudioCapture();
+        var hotkey = new FakeHotkeySource();
+        var injector = new FakeTextInjector { CaptureException = new InvalidOperationException("target unavailable") };
+        using var controller = new DictationController(
+            audio, hotkey, new FakeTranscriber("unused"), injector, "test-engine");
+
+        controller.Start();
+        hotkey.Press();
+
+        controller.State.Status.ShouldBe(DictationStatus.Error);
+        controller.State.Message.ShouldNotBeNull();
+        controller.State.Message!.ShouldContain("target unavailable");
+        audio.IsRunning.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Target_change_preserves_final_text_but_does_not_report_injection()
+    {
+        var audio = new FakeAudioCapture();
+        var hotkey = new FakeHotkeySource();
+        var injector = new FakeTextInjector
+        {
+            InsertException = new InvalidOperationException("target changed")
+        };
+        var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var injected = false;
+
+        using var controller = new DictationController(
+            audio, hotkey, new FakeTranscriber("recoverable final text"), injector, "test-engine");
+        controller.DictationCompleted += _ => completed.TrySetResult();
+        controller.TextInjected += _ => injected = true;
+
+        controller.Start();
+        hotkey.Press();
+        audio.EmitChunk([0.1f]);
+        hotkey.Release();
+        await completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await WaitForStatusAsync(controller, DictationStatus.Error);
+
+        controller.CurrentTranscript.ShouldBe("Recoverable final text.");
+        injected.ShouldBeFalse();
+        controller.State.Message.ShouldNotBeNull();
+        controller.State.Message!.ShouldContain("target changed");
     }
 
     [Fact]
@@ -301,16 +406,15 @@ public class DictationControllerTests
     }
 
     [Fact]
-    public async Task Completion_Event_Precedes_Injection_And_Carries_Final_Text()
+    public async Task Completion_Event_Follows_Injection_And_Carries_Final_Text()
     {
         var audio = new FakeAudioCapture();
         var hotkey = new FakeHotkeySource();
         var order = new List<string>();
-        var injected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var injector = new FakeTextInjector(_ =>
         {
             order.Add("inject");
-            injected.SetResult();
         });
         CompletedDictation? completed = null;
 
@@ -324,15 +428,16 @@ public class DictationControllerTests
         {
             completed = value;
             order.Add("history");
+            completion.TrySetResult();
         };
 
         controller.Start();
         hotkey.Press();
         audio.EmitChunk([0.1f]);
         hotkey.Release();
-        await injected.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await completion.Task.WaitAsync(TimeSpan.FromSeconds(1));
 
-        order.ShouldBe(["history", "inject"]);
+        order.ShouldBe(["inject", "history"]);
         completed.ShouldNotBeNull();
         completed!.Engine.ShouldBe("Parakeet v3");
         completed.Text.ShouldBe("Hello world.");
@@ -361,6 +466,7 @@ public class DictationControllerTests
         audio.EmitChunk([0.1f]);
         hotkey.Release();
         await injected.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await WaitForStatusAsync(controller, DictationStatus.Idle);
 
         controller.State.Status.ShouldBe(DictationStatus.Idle);
     }
@@ -476,7 +582,7 @@ public class DictationControllerTests
     }
 
     [Fact]
-    public void Capture_Start_Error_Cancels_Streaming_Session()
+    public async Task Capture_Start_Error_Cancels_Streaming_Session()
     {
         var audio = new FakeAudioCapture { ThrowOnStart = true };
         var hotkey = new FakeHotkeySource();
@@ -486,10 +592,35 @@ public class DictationControllerTests
 
         controller.Start();
         hotkey.Press();
+        await WaitForStatusAsync(controller, DictationStatus.Error);
 
         controller.State.Status.ShouldBe(DictationStatus.Error);
         transcriber.SessionActive.ShouldBeFalse();
         transcriber.CancelCalls.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Unexpected_Capture_Failure_Enters_Error_And_Next_Press_Restarts()
+    {
+        var audio = new FakeAudioCapture();
+        var hotkey = new FakeHotkeySource();
+        using var controller = new DictationController(
+            audio, hotkey, new FakeTranscriber("unused"),
+            new FakeTextInjector(), "test-engine");
+
+        controller.Start();
+        hotkey.Press();
+        controller.State.Status.ShouldBe(DictationStatus.Listening);
+
+        audio.Fail(new IOException("device invalidated"));
+        await WaitForStatusAsync(controller, DictationStatus.Error);
+
+        controller.State.Status.ShouldBe(DictationStatus.Error);
+        controller.State.Message.ShouldNotBeNull();
+        controller.State.Message.ShouldContain("device invalidated");
+
+        hotkey.Press();
+        controller.State.Status.ShouldBe(DictationStatus.Listening);
     }
 
     [Fact]
@@ -534,7 +665,12 @@ public class DictationControllerTests
         using var controller = new DictationController(
             audio, hotkey, new FakeTranscriber("hello world"), injector, "test-engine");
 
-        controller.DictationCompleted += _ => order.Add("history");
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        controller.DictationCompleted += _ =>
+        {
+            order.Add("history");
+            completion.TrySetResult();
+        };
         var textInjected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         controller.TextInjected += _ =>
         {
@@ -547,8 +683,9 @@ public class DictationControllerTests
         audio.EmitChunk([0.1f]);
         hotkey.Release();
         await textInjected.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await completion.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        order.ShouldBe(["history", "inject", "feedback"]);
+        order.ShouldBe(["inject", "feedback", "history"]);
     }
 
     [Fact]

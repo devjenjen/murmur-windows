@@ -1,56 +1,43 @@
 namespace Murmur.Speech.Tests;
 
-using System;
-using System.Collections.Generic;
-using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
+using Murmur.Core.Abstractions;
 using Murmur.Speech;
 using Shouldly;
 using Xunit;
 
 [Trait("Category", "RealModel")]
+[Collection("Real model inference")]
 public class RealModelDownloadTests
 {
-    [Fact]
-    public async Task Download_And_Transcribe_Smoke_Test()
+    [Theory]
+    [InlineData("parakeet-v3", "de")]
+    [InlineData("parakeet-v3", "en")]
+    [InlineData("nemotron-3.5-streaming-160ms", "de")]
+    [InlineData("nemotron-3.5-streaming-160ms", "en")]
+    public async Task Download_And_Transcribe_German_And_English_Smoke_Test(string modelId, string language)
     {
-        var downloader = new ModelDownloader();
-        var progressValues = new List<double>();
-        var progress = new Progress<double>(p => progressValues.Add(p));
+        var model = ModelManifest.Get(modelId);
+        var modelDirectory = ModelTestPaths.GetDirectory(model);
+        await EnsureModelAsync(model);
+        var samples = await LoadFixtureAsync(model, language);
 
-        await downloader.DownloadModelAsync(ModelManifest.ParakeetV3, progress: progress);
-
-        ModelLocator.IsModelDownloaded(ModelManifest.ParakeetV3).ShouldBeTrue();
-
-        using var transcriber = new SherpaOnnxTranscriber();
-        var result = await transcriber.TranscribeAsync(new float[16000]);
-        result.ShouldNotBeNull();
-    }
-
-    [Fact]
-    public async Task Download_And_Transcribe_Nemotron_Smoke_Test()
-    {
-        var downloader = new ModelDownloader();
-        var progressValues = new List<double>();
-        var progress = new Progress<double>(p => progressValues.Add(p));
-
-        await downloader.DownloadModelAsync(ModelManifest.NemotronStreaming160Ms, progress: progress);
-
-        ModelLocator.IsModelDownloaded(ModelManifest.NemotronStreaming160Ms).ShouldBeTrue();
-
-        using var transcriber = new NemotronStreamingTranscriber();
-        var result = await transcriber.TranscribeAsync(new float[16000]);
-        result.ShouldNotBeNull();
+        using ITranscriber transcriber = model.SupportsLivePreview
+            ? new NemotronStreamingTranscriber(modelDirectory)
+            : new SherpaOnnxTranscriber(modelDirectory);
+        var result = await transcriber.TranscribeAsync(samples);
+        result.ShouldNotBeNullOrWhiteSpace();
     }
 
     [Fact]
     public async Task German_Audio_Emits_Partial_Before_Final_Result()
     {
         var model = ModelManifest.NemotronStreaming160Ms;
-        var modelDir = ModelLocator.GetDefaultModelDirectory(model);
-        await new ModelDownloader().DownloadModelAsync(model);
+        var modelDir = ModelTestPaths.GetDirectory(model);
+        await new ModelDownloader().DownloadModelAsync(model, targetDir: modelDir);
 
-        var samples = ReadPcm16Wav(Path.Combine(modelDir, "test_wavs", "de.wav"));
+        var samples = WaveFixtureReader.ReadModelMono16k(Path.Combine(modelDir, "test_wavs", "de.wav"));
         var partials = new List<string>();
         using var transcriber = new NemotronStreamingTranscriber(modelDir);
         transcriber.PartialTranscriptChanged += partials.Add;
@@ -66,14 +53,61 @@ public class RealModelDownloadTests
         final.ShouldNotBeNullOrWhiteSpace();
     }
 
-    private static float[] ReadPcm16Wav(string path)
+    [Fact]
+    public async Task Completion_before_worker_start_preserves_accepted_audio()
     {
-        var bytes = File.ReadAllBytes(path);
-        var samples = new float[(bytes.Length - 44) / 2];
-        for (var i = 0; i < samples.Length; i++)
+        var model = ModelManifest.NemotronStreaming160Ms;
+        var modelDirectory = ModelTestPaths.GetDirectory(model);
+        await new ModelDownloader().DownloadModelAsync(model, targetDir: modelDirectory);
+        var samples = WaveFixtureReader.ReadModelMono16k(Path.Combine(modelDirectory, "test_wavs", "de.wav"));
+        var partials = new List<string>();
+        using var transcriber = new NemotronStreamingTranscriber(modelDirectory);
+        transcriber.PartialTranscriptChanged += partials.Add;
+        var gate = (Lock)typeof(NemotronStreamingTranscriber)
+            .GetField("_lock", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(transcriber)!;
+
+        Task<string> completion;
+        lock (gate)
         {
-            samples[i] = BitConverter.ToInt16(bytes, 44 + (i * 2)) / 32768.0f;
+            // Private lock is deliberate scheduling control: Complete runs before worker can capture session refs.
+            transcriber.BeginSession();
+            foreach (var chunk in samples.Chunk(1600))
+            {
+                transcriber.AcceptAudio(chunk);
+            }
+
+            completion = transcriber.CompleteSessionAsync();
         }
-        return samples;
+
+        var final = await completion.WaitAsync(TimeSpan.FromSeconds(30));
+        final.ShouldNotBeNullOrWhiteSpace();
+        partials.ShouldContain(text => !string.IsNullOrWhiteSpace(text));
+    }
+
+    private static async Task EnsureModelAsync(ModelManifest model)
+    {
+        var directory = ModelTestPaths.GetDirectory(model);
+        await new ModelDownloader().DownloadModelAsync(model, targetDir: directory);
+        ModelLocator.IsModelDownloaded(model, directory).ShouldBeTrue();
+    }
+
+    private static async Task<float[]> LoadFixtureAsync(ModelManifest model, string language)
+    {
+        var candidate = Path.Combine(ModelTestPaths.GetDirectory(model), "test_wavs", $"{language}.wav");
+        if (!File.Exists(candidate) && model.SupportsLivePreview && string.Equals(language, "en", StringComparison.OrdinalIgnoreCase))
+        {
+            // Nemotron's pinned archive has no English fixture; use the pinned Parakeet
+            // English fixture after validating that model in the same isolated root.
+            await EnsureModelAsync(ModelManifest.ParakeetV3);
+            candidate = Path.Combine(ModelTestPaths.GetDirectory(ModelManifest.ParakeetV3), "test_wavs", "en.wav");
+        }
+
+        if (!File.Exists(candidate))
+        {
+            throw new FileNotFoundException($"Real-model fixture is missing for {model.Id}/{language}.", candidate);
+        }
+
+        return WaveFixtureReader.ReadModelMono16k(candidate);
     }
 }

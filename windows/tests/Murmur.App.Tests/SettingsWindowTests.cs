@@ -234,7 +234,7 @@ public class SettingsWindowTests
 
         window.FindControl<TextBlock>("StatusCounterBadgeText")!.Text.ShouldBe("3/3");
         var statusText = window.FindControl<TextBlock>("StatusText")!;
-        statusText.Text.ShouldBe("Ready");
+        statusText.Text.ShouldBe(UiText.Text("StatusModelInstalled"));
         AutomationProperties.GetLiveSetting(statusText).ShouldNotBe(AutomationLiveSetting.Off);
         var readinessDetails = window.FindControl<Panel>("ReadinessDetails")!;
         readinessDetails.IsVisible.ShouldBeFalse();
@@ -374,7 +374,7 @@ public class SettingsWindowTests
     }
 
     [AvaloniaFact]
-    public void CompleteSetup_ExposesDerivedReadyText()
+    public void CompleteSetup_ShowsInstalledUntilModelLoaded()
     {
         var window = new SettingsWindow();
         window.SetDevices([new AudioInputDevice("dev-1", "Default Mic", true)], "dev-1");
@@ -384,6 +384,11 @@ public class SettingsWindowTests
 
         var statusText = window.FindControl<TextBlock>("StatusText");
         statusText.ShouldNotBeNull();
+        statusText.Text.ShouldBe(UiText.Text("StatusModelInstalled"));
+
+        window.SetModelLoaded("parakeet-v3");
+        window.SetModelProgress(1.0);
+        Dispatcher.UIThread.RunJobs();
         statusText.Text.ShouldBe("Ready");
     }
 
@@ -482,7 +487,7 @@ public class SettingsWindowTests
 
         var statusText = window.FindControl<TextBlock>("StatusText");
         statusText.ShouldNotBeNull();
-        statusText.Text.ShouldBe("Ready");
+        statusText.Text.ShouldBe(UiText.Text("StatusModelInstalled"));
     }
 
     [AvaloniaFact]
@@ -799,6 +804,104 @@ public class SettingsWindowTests
         modelCombo.SelectedIndex.ShouldBeGreaterThanOrEqualTo(0);
         languageCombo.SelectedIndex.ShouldBe(0); // English
         hotkeyBox.Text.ShouldNotBeNullOrWhiteSpace();
+    }
+
+    [AvaloniaFact]
+    public void SetChoices_PopulatesTextInsertionMode_AndSaveRequest()
+    {
+        var window = new SettingsWindow();
+        window.SetDevices([new AudioInputDevice("dev-1", "Default Mic", true)], "dev-1");
+        window.SetChoices(AppSettings.Default with
+        {
+            SpeechModelId = "parakeet-v3",
+            HotkeyId = "vk:162",
+            TextInsertionMode = TextInsertionMode.DocumentEnd
+        });
+        window.SetModelProgress(1.0);
+        Dispatcher.UIThread.RunJobs();
+
+        var modeCombo = window.FindControl<ComboBox>("TextInsertionModeComboBox");
+        modeCombo.ShouldNotBeNull();
+        modeCombo.SelectedIndex.ShouldBe(1);
+        modeCombo.Items.Cast<string>().ShouldContain(UiText.AtCurrentCursor);
+        modeCombo.Items.Cast<string>().ShouldContain(UiText.AtEndOfDocument);
+
+        SettingsSaveRequest? saved = null;
+        window.SaveRequested += request => saved = request;
+        var saveButton = window.FindControl<Button>("SaveButton");
+        saveButton.ShouldNotBeNull();
+        saveButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+
+        saved.ShouldNotBeNull();
+        saved!.TextInsertionMode.ShouldBe(TextInsertionMode.DocumentEnd);
+    }
+
+    [AvaloniaFact]
+    public void SetChoices_PopulatesHistoryPolicy_AndSaveRequest()
+    {
+        var window = new SettingsWindow();
+        window.SetDevices([new AudioInputDevice("dev-1", "Default Mic", true)], "dev-1");
+        window.SetChoices(AppSettings.Default with
+        {
+            SpeechModelId = "parakeet-v3",
+            HotkeyId = "vk:162",
+            HistoryEnabled = true,
+            HistoryRetentionDays = 7,
+            HistoryMaxEntries = 0
+        });
+        window.SetModelProgress(1.0);
+        Dispatcher.UIThread.RunJobs();
+
+        var enabled = window.FindControl<ToggleSwitch>("HistoryEnabledCheckBox");
+        var retention = window.FindControl<ComboBox>("HistoryRetentionComboBox");
+        var maxEntries = window.FindControl<ComboBox>("HistoryMaxEntriesComboBox");
+        enabled.ShouldNotBeNull();
+        retention.ShouldNotBeNull();
+        maxEntries.ShouldNotBeNull();
+
+        enabled.IsChecked.ShouldBe(true);
+        retention.SelectedIndex.ShouldBe(1);
+        maxEntries.SelectedIndex.ShouldBe(0);
+
+        SettingsSaveRequest? saved = null;
+        window.SaveRequested += request => saved = request;
+        window.FindControl<Button>("SaveButton")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+
+        saved.ShouldNotBeNull();
+        saved!.HistoryEnabled.ShouldBeTrue();
+        saved.HistoryRetentionDays.ShouldBe(7);
+        saved.HistoryMaxEntries.ShouldBe(0);
+    }
+
+    [AvaloniaFact]
+    public void RecoveryTranscript_Shows_AndExplicitDiscardClearsIt()
+    {
+        var window = new SettingsWindow();
+        var panel = window.FindControl<Border>("RecoveryTranscriptPanel");
+        var text = window.FindControl<TextBox>("RecoveryTranscriptText");
+        var discard = window.FindControl<Button>("DiscardRecoveryTranscriptButton");
+
+        panel.ShouldNotBeNull();
+        text.ShouldNotBeNull();
+        discard.ShouldNotBeNull();
+
+        var cleared = false;
+        window.RecoveryTranscriptCleared += () => cleared = true;
+        window.SetRecoveryTranscript("recover this text");
+        Dispatcher.UIThread.RunJobs();
+
+        panel.IsVisible.ShouldBeTrue();
+        text.Text.ShouldBe("recover this text");
+        text.IsReadOnly.ShouldBeTrue();
+
+        discard.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+
+        cleared.ShouldBeTrue();
+        panel.IsVisible.ShouldBeFalse();
+        text.Text.ShouldBe(string.Empty);
     }
 
     [AvaloniaFact]

@@ -1,0 +1,49 @@
+name: Bug report
+description: Report a reproducible Murmur problem
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not attach private transcripts, microphone recordings, secrets, or unredacted logs.
+  - type: input
+    id: version
+    attributes:
+      label: App version or commit
+      placeholder: 0.2.0 beta / SHA
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version and architecture
+      placeholder: Windows 11 24H2 x64
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Speech model
+      placeholder: Parakeet v3 or Nemotron 3.5
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Use synthetic text and minimal steps.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized diagnostics
+      description: Manually redact paths, transcripts, history, tokens, and personal data before sharing.
+    validations:
+      required: false

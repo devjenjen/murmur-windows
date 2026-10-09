@@ -58,6 +58,10 @@ public sealed class GermanMathFormatter : ITextFormatter
 
     private static readonly (string Phrase, string Replacement)[] GreekLetters =
     [
+        ("großes sigma", "Σ"),
+        ("grosses sigma", "Σ"),
+        ("kleines sigma", "σ"),
+        ("sigma", "σ"),
         ("alpha", "α"),
         ("beta", "β"),
         ("gamma", "γ"),
@@ -68,8 +72,35 @@ public sealed class GermanMathFormatter : ITextFormatter
         ("pi", "π"),
     ];
 
-    private static readonly Regex LeadingSingleVariableRegex = new(
-        @"^(\s*[\{\[\(]?\s*)([a-z])\b",
+    private static readonly Regex SpokenPowerRegex = new(
+        @"(?i)(?<![\p{L}\p{N}])(?<base>[A-Za-zα-ωΑ-Ω0-9]+|[\)\]\}])\s+hoch\s+(?<sign>minus\s+|[-−]\s*)?(?<exponent>\d+)\b",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled,
+        MatchTimeout);
+
+    // ponytail: single-letter `2` is treated as square; replace with context parsing if indexed identifiers matter.
+    private static readonly Regex CompactSquareRegex = new(
+        @"(?i)(?<![\p{L}\p{N}])(?<base>[A-Za-zα-ωΑ-Ω])2\b",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled,
+        MatchTimeout);
+
+    private static readonly Regex SpokenSquareRegex = new(
+        @"(?i)(?<![\p{L}\p{N}])(?<base>[A-Za-zα-ωΑ-Ω0-9]+|[\)\]\}])\s+(?:(?:zum|im)\s+)?quadrat\b",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled,
+        MatchTimeout);
+
+    // ponytail: root binds to one atom or one explicit bracket group; full spoken operand parsing can come later.
+    private static readonly Regex SpokenRootRegex = new(
+        @"(?i)\b(?:quadratische\s+wurzel|quadratwurzel|wurzel)\s+aus\s+(?<operand>\([^()]*\)|\[[^\[\]]*\]|\{[^{}]*\}|[A-Za-zα-ωΑ-Ω0-9,⁰¹²³⁴⁵⁶⁷⁸⁹⁻^{}-]+)",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled,
+        MatchTimeout);
+
+    private static readonly Regex LeadingMathLetterRegex = new(
+        @"^(\s*(?:(?:[−+√]\s*)?[\{\[\(]?\s*))(?<letter>[a-zα-ω])(?=\b|[⁰¹²³⁴⁵⁶⁷⁸⁹⁻])",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled,
+        MatchTimeout);
+
+    private static readonly Regex LatexCommandRegex = new(
+        @"\\[a-z]+",
         RegexOptions.CultureInvariant | RegexOptions.Compiled,
         MatchTimeout);
 
@@ -130,24 +161,32 @@ public sealed class GermanMathFormatter : ITextFormatter
             text = Regex.Replace(text, pattern, replacement, RegexOptions.CultureInvariant, MatchTimeout);
         }
 
-        // 4. Replace longest spoken operators
+        // 4. Normalize spoken powers before operators alter their context
+        text = CompactSquareRegex.Replace(text, FormatSquare);
+        text = SpokenPowerRegex.Replace(text, FormatPower);
+        text = SpokenSquareRegex.Replace(text, FormatSquare);
+
+        // 5. Normalize spoken roots before operators alter their context
+        text = SpokenRootRegex.Replace(text, FormatRoot);
+
+        // 6. Replace longest spoken operators
         foreach (var (phrase, replacement) in SpokenOperators)
         {
             var pattern = $@"(?i)\b{Regex.Escape(phrase)}\b";
             text = Regex.Replace(text, pattern, replacement, RegexOptions.CultureInvariant, MatchTimeout);
         }
 
-        // 5. Handle minus (as operator and before Greek/variables/numbers)
+        // 7. Handle minus (as operator and before Greek/variables/numbers)
         text = Regex.Replace(text, @"(?i)\bminus\b", "−", RegexOptions.CultureInvariant, MatchTimeout);
 
-        // 6. Replace Greek letters
+        // 8. Replace Greek letters
         foreach (var (phrase, replacement) in GreekLetters)
         {
             var pattern = $@"(?i)\b{Regex.Escape(phrase)}\b";
             text = Regex.Replace(text, pattern, replacement, RegexOptions.CultureInvariant, MatchTimeout);
         }
 
-        // 7. Apply mode-specific output substitutions
+        // 9. Apply mode-specific output substitutions
         if (_mode == MathFormatMode.Unicode)
         {
             // In Unicode mode, ensure minus sign is Unicode minus − (U+2212)
@@ -173,29 +212,83 @@ public sealed class GermanMathFormatter : ITextFormatter
             text = text.Replace("θ", @"\theta", StringComparison.Ordinal);
             text = text.Replace("λ", @"\lambda", StringComparison.Ordinal);
             text = text.Replace("ω", @"\omega", StringComparison.Ordinal);
+            text = text.Replace("σ", @"\sigma", StringComparison.Ordinal);
+            text = text.Replace("Σ", @"\Sigma", StringComparison.Ordinal);
 
             // Decimal comma to decimal point in LaTeX mode (5,05 -> 5.05)
             text = DecimalCommaRegex.Replace(text, "$1.$2");
+
+            // Keep LaTeX commands lowercase when RuleBasedFormatter capitalizes sentences.
+            text = LatexCommandRegex.Replace(text, match =>
+                $"{RuleBasedFormatter.ProtectedLetterMarker}{match.Value}");
         }
 
-        // 8. Clean up whitespace around brackets
+        // 10. Clean up whitespace around brackets
         text = BracketTrimOpenRegex.Replace(text, "$1");
         text = BracketTrimCloseRegex.Replace(text, "$1");
 
-        // 9. Protect a leading one-letter math variable with RuleBasedFormatter.ProtectedLetterMarker
-        text = LeadingSingleVariableRegex.Replace(text, $"$1{RuleBasedFormatter.ProtectedLetterMarker}$2");
+        // 11. Protect leading math letters from sentence capitalization
+        text = LeadingMathLetterRegex.Replace(text, match =>
+        {
+            var letter = match.Groups["letter"].Value;
+            return $"{match.Groups[1].Value}{RuleBasedFormatter.ProtectedLetterMarker}{letter}";
+        });
 
-        // 10. Run through RuleBasedFormatter
+        // 12. Run through RuleBasedFormatter
         var formatter = new RuleBasedFormatter(_removeFillers);
         text = formatter.Format(text);
 
-        // 11. Clean up whitespace inside brackets again if RuleBasedFormatter added space
+        // 13. Clean up whitespace inside brackets again if RuleBasedFormatter added space
         text = BracketTrimOpenRegex.Replace(text, "$1");
         text = BracketTrimCloseRegex.Replace(text, "$1");
 
-        // 12. Remove any remaining marker
+        // 14. Remove any remaining marker
         text = text.Replace(RuleBasedFormatter.ProtectedLetterMarker.ToString(), "", StringComparison.Ordinal);
 
         return text;
+    }
+
+    private string FormatPower(Match match)
+    {
+        var baseText = match.Groups["base"].Value;
+        var exponent = match.Groups["exponent"].Value;
+        var negative = match.Groups["sign"].Success;
+
+        if (_mode == MathFormatMode.Unicode)
+        {
+            var superscript = new char[exponent.Length + (negative ? 1 : 0)];
+            var index = 0;
+            if (negative)
+            {
+                superscript[index++] = '⁻';
+            }
+
+            const string superscriptDigits = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+            foreach (var digit in exponent)
+            {
+                superscript[index++] = superscriptDigits[digit - '0'];
+            }
+
+            return baseText + new string(superscript);
+        }
+
+        var sign = negative ? "-" : string.Empty;
+        return !negative && exponent.Length == 1
+            ? $"{baseText}^{exponent}"
+            : $"{baseText}^{{{sign}{exponent}}}";
+    }
+
+    private string FormatSquare(Match match)
+    {
+        var baseText = match.Groups["base"].Value;
+        return _mode == MathFormatMode.Unicode ? baseText + "²" : baseText + "^2";
+    }
+
+    private string FormatRoot(Match match)
+    {
+        var operand = match.Groups["operand"].Value.Trim();
+        return _mode == MathFormatMode.Unicode
+            ? $"√{operand}"
+            : $"\\sqrt{{{operand}}}";
     }
 }

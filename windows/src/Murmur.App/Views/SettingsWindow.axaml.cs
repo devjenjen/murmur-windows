@@ -29,7 +29,11 @@ public sealed record SettingsSaveRequest(
     string Language,
     bool AudioFeedbackEnabled,
     IReadOnlyList<DictationProfile>? Profiles = null,
-    string? ActiveProfileId = null);
+    string? ActiveProfileId = null,
+    TextInsertionMode TextInsertionMode = TextInsertionMode.DocumentEnd,
+    bool HistoryEnabled = false,
+    int HistoryRetentionDays = AppSettings.DefaultHistoryRetentionDays,
+    int HistoryMaxEntries = AppSettings.DefaultHistoryMaxEntries);
 
 /// <summary>
 /// Settings and first-run setup window.
@@ -59,7 +63,12 @@ public partial class SettingsWindow : Window
     private DictionaryEntry[] _dictionary = [];
     private Guid? _editingDictionaryId;
     private bool _isDownloading;
+    private string? _downloadingModelId;
     private bool _modelReady;
+    private readonly Dictionary<string, string> _modelLoadErrors = new(StringComparer.OrdinalIgnoreCase);
+    private string? _displayedModelErrorId;
+    private string? _loadedModelId;
+    private string? _loadingModelId;
     private int _modelStatusGeneration;
     private bool _isApplyingChoices;
     private bool _isFirstRun;
@@ -93,6 +102,9 @@ public partial class SettingsWindow : Window
 
     /// <summary>Fired after a dictionary entry is added, edited, toggled, or deleted.</summary>
     public event Action<IReadOnlyList<DictionaryEntry>>? DictionaryChanged;
+
+    /// <summary>Fired after recovery text is copied or discarded explicitly.</summary>
+    public event Action? RecoveryTranscriptCleared;
 
     /// <summary>Initializes a new instance of SettingsWindow.</summary>
     public SettingsWindow()
@@ -148,7 +160,7 @@ public partial class SettingsWindow : Window
 
         var normalized = settings.Normalize();
 
-        Dispatcher.UIThread.Post(() =>
+        RunOnUiThread(() =>
         {
             _isApplyingChoices = true;
             try
@@ -169,6 +181,35 @@ public partial class SettingsWindow : Window
                 HudPlacementComboBox.ItemsSource = new[] { UiText.Text("TopLeft"), UiText.Text("TopCenter"), UiText.Text("TopRight"), UiText.Text("BottomLeft"), UiText.Text("BottomCenter"), UiText.Text("BottomRight") };
                 var hudIdx = Array.FindIndex(HudPlacements, p => string.Equals(p.Id, normalized.HudPlacement, StringComparison.OrdinalIgnoreCase));
                 HudPlacementComboBox.SelectedIndex = hudIdx >= 0 ? hudIdx : 4; // bottom-center
+
+                TextInsertionModeComboBox.ItemsSource = new[]
+                {
+                    UiText.AtCurrentCursor,
+                    UiText.AtEndOfDocument
+                };
+                TextInsertionModeComboBox.SelectedIndex = normalized.TextInsertionMode == TextInsertionMode.AtCaret ? 0 : 1;
+
+                HistoryEnabledCheckBox.IsChecked = normalized.HistoryEnabled;
+                HistoryRetentionComboBox.ItemsSource = new[]
+                {
+                    UiText.HistoryRetentionUnlimited,
+                    UiText.HistoryRetention7Days,
+                    UiText.HistoryRetention30Days,
+                    UiText.HistoryRetention90Days
+                };
+                HistoryRetentionComboBox.SelectedIndex = normalized.HistoryRetentionDays switch
+                {
+                    0 => 0,
+                    7 => 1,
+                    90 => 3,
+                    _ => 2
+                };
+                HistoryMaxEntriesComboBox.ItemsSource = new[]
+                {
+                    UiText.HistoryMaxEntriesUnlimited,
+                    UiText.HistoryMaxEntries1000
+                };
+                HistoryMaxEntriesComboBox.SelectedIndex = normalized.HistoryMaxEntries == 0 ? 0 : 1;
 
                 SpeechModelComboBox.ItemsSource = ModelManifest.All.Select(m => m.DisplayName).ToList();
                 var modelIdx = ModelManifest.All.ToList().FindIndex(m => string.Equals(m.Id, normalized.SpeechModelId, StringComparison.OrdinalIgnoreCase));
@@ -243,7 +284,7 @@ public partial class SettingsWindow : Window
     /// <summary>Sets the status text and error appearance.</summary>
     public void SetStatus(string text, bool isError = false)
     {
-        Dispatcher.UIThread.Post(() =>
+        RunOnUiThread(() =>
         {
             _isStatusError = isError;
             StatusText.Text = text;
@@ -262,16 +303,23 @@ public partial class SettingsWindow : Window
     /// <summary>Sets the model download progress.</summary>
     public void SetModelProgress(double progress)
     {
-        Interlocked.Increment(ref _modelStatusGeneration);
+        var generation = Interlocked.Increment(ref _modelStatusGeneration);
         Dispatcher.UIThread.Post(() =>
         {
+            if (generation != Volatile.Read(ref _modelStatusGeneration)) return;
             var clamped = Math.Clamp(progress, 0.0, 1.0);
             ModelProgressBar.Value = clamped;
+            if (clamped >= 1.0 && _modelLoadErrors.ContainsKey(SelectedModelId))
+            {
+                // Download completion, rather than a queued progress callback, clears load errors.
+                ModelStatusText.Text = UiText.Text("VerifyingModel");
+                return;
+            }
             if (clamped >= 1.0)
             {
                 _isDownloading = false;
                 _modelReady = true;
-                ModelStatusText.Text = UiText.Text("ModelInstalledReady");
+                ModelStatusText.Text = UiText.Text("ModelFilesInstalled");
                 DownloadButton.IsEnabled = false;
                 DownloadButton.Content = UiText.Text("InstalledButton");
                 CancelDownloadButton.IsVisible = false;
@@ -286,7 +334,13 @@ public partial class SettingsWindow : Window
                 if (pct != _lastReportedProgress)
                 {
                     _lastReportedProgress = pct;
-                    ModelStatusText.Text = UiText.Format("DownloadingProgress", clamped);
+                    ModelStatusText.Text = clamped < 0.75
+                        ? UiText.Format("DownloadingProgress", clamped / 0.75)
+                        : clamped < 0.82
+                            ? UiText.Text("VerifyingModel")
+                            : clamped < 0.9
+                                ? UiText.Text("ExtractingModel")
+                                : UiText.Text("PreparingModel");
                 }
                 if (!wasDownloading)
                 {
@@ -330,7 +384,92 @@ public partial class SettingsWindow : Window
         });
     }
 
-    /// <summary>Updates UI to reflect current model download status for the specified or selected model.</summary>
+    /// <summary>Shows the latest final transcript that could not be inserted.</summary>
+    public void SetRecoveryTranscript(string? text)
+    {
+        RunOnUiThread(() =>
+        {
+            var hasText = !string.IsNullOrWhiteSpace(text);
+            RecoveryTranscriptText.Text = text ?? string.Empty;
+            RecoveryTranscriptPanel.IsVisible = hasText;
+        });
+    }
+
+    /// <summary>Clears the non-persisted recovery transcript.</summary>
+    public void ClearRecoveryTranscript()
+    {
+        RunOnUiThread(() =>
+        {
+            RecoveryTranscriptText.Text = string.Empty;
+            RecoveryTranscriptPanel.IsVisible = false;
+        });
+    }
+
+    /// <summary>Shows an owning model load failure and enables download or Apply to retry.</summary>
+    public void SetModelLoadError(string modelId, string message)
+    {
+        RunOnUiThread(() =>
+        {
+            _modelLoadErrors[modelId] = message;
+            if (string.Equals(_loadingModelId, modelId, StringComparison.OrdinalIgnoreCase)) _loadingModelId = null;
+            if (string.Equals(_loadedModelId, modelId, StringComparison.OrdinalIgnoreCase)) _loadedModelId = null;
+            if (!string.Equals(SelectedModelId, modelId, StringComparison.OrdinalIgnoreCase)) return;
+            Interlocked.Increment(ref _modelStatusGeneration);
+            _displayedModelErrorId = modelId;
+            ModelStatusText.Text = message;
+            DownloadButton.IsEnabled = !_isDownloading;
+            DownloadButton.Content = UiText.Download;
+            SetStatus(message, isError: true);
+            UpdateModelStatus(modelId);
+        });
+    }
+
+    /// <summary>Marks the model being loaded without claiming files are already usable.</summary>
+    public void SetModelLoading(string modelId)
+    {
+        RunOnUiThread(() =>
+        {
+            _loadedModelId = null;
+            _loadingModelId = modelId;
+            UpdateModelStatus();
+        });
+    }
+
+    /// <summary>Marks a successfully loaded model ready and clears its previous load failure.</summary>
+    public void SetModelLoaded(string modelId)
+    {
+        RunOnUiThread(() =>
+        {
+            _loadedModelId = modelId;
+            _loadingModelId = null;
+            ClearModelLoadError(modelId);
+            if (string.Equals(SelectedModelId, modelId, StringComparison.OrdinalIgnoreCase)) _isStatusError = false;
+            UpdateModelStatus();
+        });
+    }
+
+    private void ClearModelLoadError(string modelId)
+    {
+        _modelLoadErrors.Remove(modelId);
+        if (string.Equals(_displayedModelErrorId, modelId, StringComparison.OrdinalIgnoreCase))
+        {
+            _displayedModelErrorId = null;
+            _isStatusError = false;
+        }
+    }
+
+    /// <summary>Clears readiness for a removed controller; preserves model load failures.</summary>
+    public void SetModelNotLoaded()
+    {
+        RunOnUiThread(() =>
+        {
+            _loadedModelId = null;
+            _loadingModelId = null;
+            UpdateModelStatus();
+        });
+    }
+
+    /// <summary>Updates UI to reflect file presence for the specified or selected model, without hashing.</summary>
     public async void UpdateModelStatus(string? modelId = null)
     {
         var targetId = modelId ?? SelectedModelId;
@@ -339,7 +478,7 @@ public partial class SettingsWindow : Window
         bool ready;
         try
         {
-            ready = await Task.Run(() => ModelLocator.IsModelDownloaded(model));
+            ready = await Task.Run(() => ModelLocator.HasRequiredFiles(model));
         }
         catch (Exception ex)
         {
@@ -359,15 +498,44 @@ public partial class SettingsWindow : Window
                 return;
             }
 
-            if (_isDownloading)
+            if (_isDownloading && string.Equals(_downloadingModelId, targetId, StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
 
             _modelReady = ready;
+            if (string.Equals(_loadingModelId, targetId, StringComparison.OrdinalIgnoreCase))
+            {
+                ModelStatusText.Text = UiText.Text("LoadingSpeechModel");
+                StatusText.Text = UiText.Text("LoadingSpeechModel");
+                DownloadButton.IsEnabled = false;
+                CancelDownloadButton.IsVisible = false;
+                RefreshReadiness();
+                return;
+            }
+            if (_modelLoadErrors.TryGetValue(targetId, out var error))
+            {
+                _displayedModelErrorId = targetId;
+                _isStatusError = true;
+                StatusText.Text = error;
+                ModelStatusText.Text = error;
+                DownloadButton.IsEnabled = true;
+                DownloadButton.Content = UiText.Download;
+                CancelDownloadButton.IsVisible = false;
+                RefreshReadiness();
+                return;
+            }
+            if (_displayedModelErrorId != null)
+            {
+                _displayedModelErrorId = null;
+                _isStatusError = false;
+            }
             if (ready)
             {
-                ModelStatusText.Text = UiText.Text("ModelInstalledReady");
+                ModelStatusText.Text = string.Equals(_loadingModelId, targetId, StringComparison.OrdinalIgnoreCase)
+                    ? UiText.Text("LoadingSpeechModel")
+                    : string.Equals(_loadedModelId, targetId, StringComparison.OrdinalIgnoreCase)
+                        ? UiText.Text("Ready") : UiText.Text("ModelFilesInstalled");
                 ModelProgressBar.Value = 1.0;
                 DownloadButton.IsEnabled = false;
                 DownloadButton.Content = UiText.Text("InstalledButton");
@@ -404,6 +572,8 @@ public partial class SettingsWindow : Window
         var micReady = _devices.Count > 0 && MicrophoneComboBox.SelectedIndex >= 0 && MicrophoneComboBox.SelectedIndex < _devices.Count;
         var hotkeyReady = !string.IsNullOrWhiteSpace(_selectedHotkeyId);
         var modelReady = _modelReady;
+        var modelLoading = string.Equals(_loadingModelId, SelectedModelId, StringComparison.OrdinalIgnoreCase);
+        var modelLoadError = _modelLoadErrors.ContainsKey(SelectedModelId);
 
         var greenBrush = ResolveBrush("LensMeterGreenBrush", Brushes.Green);
         var amberBrush = ResolveBrush("LensMeterAmberBrush", Brushes.Orange);
@@ -411,13 +581,13 @@ public partial class SettingsWindow : Window
         var inkPrimary = ResolveBrush("LensInkPrimaryBrush", Brushes.White);
 
         MicStatusDot.Fill = micReady ? greenBrush : amberBrush;
-        ModelStatusDot.Fill = _isDownloading ? amberBrush : (modelReady ? greenBrush : amberBrush);
+        ModelStatusDot.Fill = modelLoadError ? warningBrush : _isDownloading || modelLoading ? amberBrush : (modelReady ? greenBrush : amberBrush);
         HotkeyStatusDot.Fill = hotkeyReady ? greenBrush : amberBrush;
 
         var readyCount = (micReady ? 1 : 0) + (modelReady && !_isDownloading ? 1 : 0) + (hotkeyReady ? 1 : 0);
         StatusCounterBadgeText.Text = $"{readyCount}/3";
 
-        StatusLamp.Fill = (micReady && modelReady && hotkeyReady && !_isDownloading) ? greenBrush : amberBrush;
+        StatusLamp.Fill = (micReady && modelReady && hotkeyReady && !_isDownloading && !modelLoading && !_isStatusError) ? greenBrush : amberBrush;
 
         MicReadinessText.Text = micReady
             ? $"{UiText.Microphone}: {_devices[MicrophoneComboBox.SelectedIndex].Name}"
@@ -425,6 +595,8 @@ public partial class SettingsWindow : Window
 
         ModelReadinessText.Text = _isDownloading
             ? UiText.Text("ModelDownloading")
+            : modelLoading ? UiText.Text("LoadingSpeechModel")
+            : modelLoadError ? UiText.Text("ModelLoadError")
             : (modelReady ? UiText.Text("ModelInstalled") : UiText.Text("ModelMissing"));
 
         HotkeyReadinessText.Text = hotkeyReady
@@ -437,9 +609,14 @@ public partial class SettingsWindow : Window
             {
                 StatusText.Text = UiText.Format("StatusDownloading", ModelManifest.Get(SelectedModelId).DisplayName);
             }
+            else if (modelLoading)
+            {
+                StatusText.Text = UiText.Text("LoadingSpeechModel");
+            }
             else if (micReady && modelReady && hotkeyReady)
             {
-                StatusText.Text = UiText.Text("StatusReady");
+                StatusText.Text = string.Equals(_loadedModelId, SelectedModelId, StringComparison.OrdinalIgnoreCase)
+                    ? UiText.Text("StatusReady") : UiText.Text("StatusModelInstalled");
             }
             else if (!micReady)
             {
@@ -461,7 +638,7 @@ public partial class SettingsWindow : Window
 
         StatusText.Foreground = _isStatusError ? warningBrush : inkPrimary;
 
-        var isConfigured = micReady && modelReady && hotkeyReady && !_isDownloading;
+        var isConfigured = micReady && modelReady && hotkeyReady && !_isDownloading && !modelLoading;
         ReadinessDetails.IsVisible = !isConfigured || _isStatusError;
         PreferencesPanel.IsEnabled = isConfigured;
         SaveButton.IsEnabled = isConfigured;
@@ -777,6 +954,48 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private static void RunOnUiThread(Action action)
+    {
+        if (Dispatcher.UIThread.CheckAccess()) action();
+        else Dispatcher.UIThread.Post(action);
+    }
+
+    private async void OnCopyRecoveryTranscriptClick(object? sender, RoutedEventArgs e)
+    {
+        var text = RecoveryTranscriptText.Text;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        try
+        {
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard is null)
+            {
+                SetStatus(UiText.Text("ClipboardUnavailable"), isError: true);
+                return;
+            }
+
+            await clipboard.SetTextAsync(text);
+            ClearRecoveryTranscript();
+            RecoveryTranscriptCleared?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            SetStatus(UiText.Format("CopyFailed", ex.Message), isError: true);
+        }
+    }
+
+    /// <summary>Returns the model currently selected in the settings UI.</summary>
+    public string SelectedSpeechModelId => SelectedModelId;
+
+    private void OnDiscardRecoveryTranscriptClick(object? sender, RoutedEventArgs e)
+    {
+        ClearRecoveryTranscript();
+        RecoveryTranscriptCleared?.Invoke();
+    }
+
     private void OnDeleteHistoryRowClick(object? sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Parent is StackPanel defaultPanel && defaultPanel.Parent is Grid actionsGrid)
@@ -851,6 +1070,7 @@ public partial class SettingsWindow : Window
     private void OnDownloadClick(object? sender, RoutedEventArgs e)
     {
         Interlocked.Increment(ref _modelStatusGeneration);
+        _downloadingModelId = SelectedModelId;
         _isDownloading = true;
         CancelDownloadButton.IsVisible = true;
         CancelDownloadButton.IsEnabled = true;
@@ -862,6 +1082,23 @@ public partial class SettingsWindow : Window
     {
         CancelDownloadButton.IsEnabled = false;
         DownloadCancelRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Completes the download state for the model that started the active download.</summary>
+    public void CompleteModelDownload(string modelId, bool succeeded = false)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!string.Equals(_downloadingModelId, modelId, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            _downloadingModelId = null;
+            _isDownloading = false;
+            if (succeeded) ClearModelLoadError(modelId);
+            UpdateModelStatus();
+        });
     }
 
     private void OnCaptureHotkeyClick(object? sender, RoutedEventArgs e)
@@ -974,6 +1211,17 @@ public partial class SettingsWindow : Window
         }
 
         var speechModelId = SelectedModelId;
+        var insertionMode = TextInsertionModeComboBox.SelectedIndex == 0
+            ? TextInsertionMode.AtCaret
+            : TextInsertionMode.DocumentEnd;
+        var historyRetentionDays = HistoryRetentionComboBox.SelectedIndex switch
+        {
+            0 => 0,
+            1 => 7,
+            3 => 90,
+            _ => 30
+        };
+        var historyMaxEntries = HistoryMaxEntriesComboBox.SelectedIndex == 0 ? 0 : 1000;
 
         SaveCurrentControlValuesToProfile();
 
@@ -992,7 +1240,11 @@ public partial class SettingsWindow : Window
             LanguageComboBox.SelectedIndex == 1 ? UiLanguage.German : UiLanguage.English,
             AudioFeedbackCheckBox.IsChecked ?? false,
             _profiles,
-            _selectedProfileId));
+            _selectedProfileId,
+            insertionMode,
+            HistoryEnabledCheckBox.IsChecked ?? false,
+            historyRetentionDays,
+            historyMaxEntries));
     }
 
     private void OnCloseButtonClick(object? sender, RoutedEventArgs e) => Close();

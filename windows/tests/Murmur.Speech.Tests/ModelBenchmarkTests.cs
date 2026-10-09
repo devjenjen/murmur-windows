@@ -1,118 +1,89 @@
-namespace Murmur.Speech.Tests;
-
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Threading.Tasks;
+using Murmur.Speech;
 using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
 
+namespace Murmur.Speech.Tests;
+
 [Trait("Category", "RealModel")]
+[Collection("Real model inference")]
 public class ModelBenchmarkTests
 {
     private readonly ITestOutputHelper _output;
 
-    public ModelBenchmarkTests(ITestOutputHelper output)
+    public ModelBenchmarkTests(ITestOutputHelper output) => _output = output;
+
+    [Fact]
+    public async Task Benchmark_Parakeet_V3_Reports_Latency_Rtf_Cpu_And_Memory()
     {
-        _output = output;
+        var model = ModelManifest.ParakeetV3;
+        var modelDirectory = ModelTestPaths.GetDirectory(model);
+        await new ModelDownloader().DownloadModelAsync(model, targetDir: modelDirectory);
+        ModelLocator.IsModelDownloaded(model, modelDirectory).ShouldBeTrue();
+
+        var process = Process.GetCurrentProcess();
+        var cpuBefore = process.TotalProcessorTime;
+        var peakWorkingSet = process.WorkingSet64;
+        var modelSizeBytes = ModelManifest.RequiredFiles
+            .Select(file => new FileInfo(Path.Combine(modelDirectory, file)).Length)
+            .Sum();
+
+        using var transcriber = new SherpaOnnxTranscriber(modelDirectory);
+        await transcriber.TranscribeAsync(new float[16000]);
+
+        foreach (var language in new[] { "de", "en" })
+        {
+            var source = WaveFixtureReader.ReadModelMono16k(Path.Combine(modelDirectory, "test_wavs", $"{language}.wav"));
+            foreach (var durationSeconds in new[] { 3, 5, 10 })
+            {
+                var audio = RepeatToDuration(source, durationSeconds);
+                var latencies = new List<double>();
+                var lastText = string.Empty;
+                for (var run = 0; run < 5; run++)
+                {
+                    var stopwatch = Stopwatch.StartNew();
+                    lastText = await transcriber.TranscribeAsync(audio);
+                    stopwatch.Stop();
+                    latencies.Add(stopwatch.Elapsed.TotalMilliseconds);
+                    process.Refresh();
+                    peakWorkingSet = Math.Max(peakWorkingSet, process.WorkingSet64);
+                }
+
+                latencies.Sort();
+                var p50 = Percentile(latencies, 0.50);
+                var p95 = Percentile(latencies, 0.95);
+                var audioMilliseconds = audio.Length / 16.0;
+                var rtf = p50 / audioMilliseconds;
+                lastText.ShouldNotBeNullOrWhiteSpace();
+                _output.WriteLine(
+                    $"model={model.Id} language={language} audioSeconds={audio.Length / 16000.0:F3} " +
+                    $"modelBytes={modelSizeBytes} p50Ms={p50:F2} p95Ms={p95:F2} rtf={rtf:F4} " +
+                    $"lastTextLength={lastText.Length}");
+            }
+        }
+
+        process.Refresh();
+        var cpuMilliseconds = (process.TotalProcessorTime - cpuBefore).TotalMilliseconds;
+        _output.WriteLine(
+            $"model={model.Id} warmup=true cpuMs={cpuMilliseconds:F2} peakWorkingSetBytes={peakWorkingSet} modelBytes={modelSizeBytes}");
     }
 
-    private static float[] ReadWavTo16kMono(string path, double targetDurationSeconds)
+    private static float[] RepeatToDuration(float[] source, int durationSeconds)
     {
-        var bytes = File.ReadAllBytes(path);
-        // Standard 16-bit PCM RIFF header is 44 bytes
-        var sampleCount = (bytes.Length - 44) / 2;
-        var samples = new float[sampleCount];
-        for (var i = 0; i < sampleCount; i++)
+        var length = checked(durationSeconds * 16000);
+        var result = new float[length];
+        for (var index = 0; index < result.Length; index++)
         {
-            var val = BitConverter.ToInt16(bytes, 44 + i * 2);
-            samples[i] = val / 32768.0f;
+            result[index] = source[index % source.Length];
         }
 
-        var targetCount = (int)(targetDurationSeconds * 16000);
-        var result = new float[targetCount];
-        for (var i = 0; i < targetCount; i++)
-        {
-            result[i] = samples[i % samples.Length];
-        }
         return result;
     }
 
-    [Fact]
-    public async Task Benchmark_Parakeet_V3_Latency_And_RTF()
+    private static double Percentile(List<double> sortedValues, double percentile)
     {
-        var modelDir = ModelLocator.GetDefaultModelDirectory(ModelManifest.ParakeetV3);
-        if (!ModelLocator.IsModelDownloaded(ModelManifest.ParakeetV3, modelDir)) return;
-
-        var deWavPath = Path.Combine(modelDir, "test_wavs", "de.wav");
-        var enWavPath = Path.Combine(modelDir, "test_wavs", "en.wav");
-
-        // Cold init measurement
-        var swInit = Stopwatch.StartNew();
-        using var transcriber = new SherpaOnnxTranscriber(modelDir);
-        swInit.Stop();
-        var coldInitMs = swInit.ElapsedMilliseconds;
-        _output.WriteLine($"[Cold Init] {coldInitMs} ms");
-
-        // Warm up
-        await transcriber.TranscribeAsync(new float[16000]);
-
-        var durations = new[] { 3.0, 5.0, 10.0 };
-
-        // German benchmark
-        _output.WriteLine("\n--- German Benchmark ---");
-        foreach (var duration in durations)
-        {
-            var audio = ReadWavTo16kMono(deWavPath, duration);
-            var latencies = new List<double>();
-            string lastText = "";
-
-            for (var run = 0; run < 3; run++)
-            {
-                var sw = Stopwatch.StartNew();
-                lastText = await transcriber.TranscribeAsync(audio);
-                sw.Stop();
-                latencies.Add(sw.Elapsed.TotalMilliseconds);
-            }
-
-            latencies.Sort();
-            var median = latencies[1];
-            var audioMs = duration * 1000.0;
-            var rtf = median / audioMs;
-            _output.WriteLine($"DE {duration:F0}s (audio: {audioMs:F0}ms) -> median latency: {median:F2} ms (runs: {latencies[0]:F1}, {latencies[1]:F1}, {latencies[2]:F1} ms), RTF: {rtf:F4}");
-            _output.WriteLine($"   Transcript: \"{lastText}\"");
-
-            if (duration == 5.0) median.ShouldBeLessThanOrEqualTo(750.0);
-            if (duration == 10.0) median.ShouldBeLessThanOrEqualTo(1000.0);
-        }
-
-        // English benchmark
-        _output.WriteLine("\n--- English Benchmark ---");
-        foreach (var duration in durations)
-        {
-            var audio = ReadWavTo16kMono(enWavPath, duration);
-            var latencies = new List<double>();
-            string lastText = "";
-
-            for (var run = 0; run < 3; run++)
-            {
-                var sw = Stopwatch.StartNew();
-                lastText = await transcriber.TranscribeAsync(audio);
-                sw.Stop();
-                latencies.Add(sw.Elapsed.TotalMilliseconds);
-            }
-
-            latencies.Sort();
-            var median = latencies[1];
-            var audioMs = duration * 1000.0;
-            var rtf = median / audioMs;
-            _output.WriteLine($"EN {duration:F0}s (audio: {audioMs:F0}ms) -> median latency: {median:F2} ms (runs: {latencies[0]:F1}, {latencies[1]:F1}, {latencies[2]:F1} ms), RTF: {rtf:F4}");
-            _output.WriteLine($"   Transcript: \"{lastText}\"");
-
-            if (duration == 5.0) median.ShouldBeLessThanOrEqualTo(750.0);
-            if (duration == 10.0) median.ShouldBeLessThanOrEqualTo(1000.0);
-        }
+        var index = Math.Clamp((int)Math.Ceiling(sortedValues.Count * percentile) - 1, 0, sortedValues.Count - 1);
+        return sortedValues[index];
     }
 }

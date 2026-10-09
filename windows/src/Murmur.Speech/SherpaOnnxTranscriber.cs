@@ -9,15 +9,21 @@ namespace Murmur.Speech;
 public sealed class SherpaOnnxTranscriber : ITranscriber
 {
     private readonly OfflineRecognizer _recognizer;
+    private readonly Lock _resourceLock = new();
+    private bool _disposed;
 
     /// <summary>Initializes a new instance of SherpaOnnxTranscriber.</summary>
     public SherpaOnnxTranscriber(string? modelDir = null)
     {
         var dir = modelDir ?? ModelLocator.GetDefaultModelDirectory(ModelManifest.ParakeetV3);
-        if (!ModelLocator.IsModelDownloaded(ModelManifest.ParakeetV3, dir))
+        var integrity = ModelLocator.GetIntegrityStatus(ModelManifest.ParakeetV3, dir);
+        if (integrity == ModelIntegrityStatus.Missing)
         {
             throw new DirectoryNotFoundException($"Parakeet model files not found in: {dir}");
         }
+        if (integrity == ModelIntegrityStatus.Corrupt)
+            throw new InvalidDataException($"Parakeet model integrity verification failed in: {dir}");
+        // Valid and LegacyUnverified retain the existing installation compatibility.
 
         var config = new OfflineRecognizerConfig();
         config.FeatConfig.SampleRate = 16000;
@@ -41,19 +47,29 @@ public sealed class SherpaOnnxTranscriber : ITranscriber
         return Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var stream = _recognizer.CreateStream();
-            var floatArray = audioSamples.ToArray();
-            stream.AcceptWaveform(16000, floatArray);
+            lock (_resourceLock)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                cancellationToken.ThrowIfCancellationRequested();
+                using var stream = _recognizer.CreateStream();
+                var floatArray = audioSamples.ToArray();
+                stream.AcceptWaveform(16000, floatArray);
 
-            _recognizer.Decode(stream);
-            var result = stream.Result.Text;
-            return result ?? string.Empty;
+                _recognizer.Decode(stream);
+                cancellationToken.ThrowIfCancellationRequested();
+                return stream.Result.Text ?? string.Empty;
+            }
         }, cancellationToken);
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        _recognizer.Dispose();
+        lock (_resourceLock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _recognizer.Dispose();
+        }
     }
 }

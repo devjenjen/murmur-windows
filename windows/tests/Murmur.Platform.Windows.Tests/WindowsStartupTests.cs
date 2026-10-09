@@ -22,13 +22,13 @@ public class WindowsStartupTests
     }
 
     [Fact]
-    public void ResolveExecutablePath_Prefers_Existing_Installed_Path()
+    public void Portable_start_keeps_its_own_path_when_install_exists()
     {
         WindowsStartup.ResolveExecutablePath(
-                @"C:\repo\publish\Murmur.App.exe",
-                @"C:\fixture\installed\Murmur.App.exe",
+                @"C:\portable\Murmur.App.exe",
+                @"C:\installed\Murmur.App.exe",
                 installedExists: true)
-            .ShouldBe(@"C:\fixture\installed\Murmur.App.exe");
+            .ShouldBe(@"C:\portable\Murmur.App.exe");
     }
 
     [Fact]

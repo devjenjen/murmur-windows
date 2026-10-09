@@ -1,6 +1,5 @@
 namespace Murmur.Speech.Tests;
 
-using System.Buffers.Binary;
 using System.Text.Json;
 
 internal sealed record QualityCase(string Id, string Language, string Reference, IReadOnlyList<float> Samples);
@@ -40,8 +39,14 @@ internal sealed record QualityCorpus(IReadOnlyList<QualityCase> Cases)
                 var audioPath = Path.GetFullPath(Path.Combine(root, audio));
                 if (!IsWithin(root, audioPath)) throw new InvalidDataException($"Quality case {id} audio path escapes corpus directory.");
                 if (!File.Exists(audioPath)) throw new InvalidDataException($"Quality case {id} audio file is missing.");
-                cases.Add(new QualityCase(id, language, reference, Array.AsReadOnly(ReadPcm16Mono16k(audioPath))));
+                cases.Add(new QualityCase(id, language, reference, Array.AsReadOnly(WaveFixtureReader.ReadMono16k(audioPath))));
             }
+
+            if (cases.Count == 0)
+            {
+                throw new InvalidDataException("Quality corpus must contain at least one case.");
+            }
+
             return new QualityCorpus(Array.AsReadOnly(cases.ToArray()));
         }
         catch (JsonException exception)
@@ -74,41 +79,4 @@ internal sealed record QualityCorpus(IReadOnlyList<QualityCase> Cases)
     private static bool IsWithin(string root, string path) =>
         path.StartsWith(root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
-    private static float[] ReadPcm16Mono16k(string path)
-    {
-        var bytes = File.ReadAllBytes(path);
-        if (bytes.Length < 44 || !bytes.AsSpan(0, 4).SequenceEqual("RIFF"u8) || !bytes.AsSpan(8, 4).SequenceEqual("WAVE"u8)
-            || BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(4, 4)) != bytes.Length - 8)
-        {
-            throw new InvalidDataException("Quality audio must be a complete RIFF WAVE file.");
-        }
-
-        var offset = 12;
-        ReadOnlySpan<byte> format = default;
-        ReadOnlySpan<byte> data = default;
-        while (offset + 8 <= bytes.Length)
-        {
-            var chunkLength = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(offset + 4, 4));
-            if (chunkLength < 0 || offset + 8L + chunkLength > bytes.Length) throw new InvalidDataException("Invalid RIFF chunk length.");
-            var chunk = bytes.AsSpan(offset + 8, chunkLength);
-            if (bytes.AsSpan(offset, 4).SequenceEqual("fmt "u8)) format = chunk;
-            if (bytes.AsSpan(offset, 4).SequenceEqual("data"u8)) data = chunk;
-            offset += 8 + chunkLength + (chunkLength & 1);
-        }
-
-        if (offset != bytes.Length || format.Length != 16 || data.Length == 0 || data.Length % 2 != 0
-            || BinaryPrimitives.ReadUInt16LittleEndian(format) != 1
-            || BinaryPrimitives.ReadUInt16LittleEndian(format[2..]) != 1
-            || BinaryPrimitives.ReadInt32LittleEndian(format[4..]) != 16000
-            || BinaryPrimitives.ReadInt32LittleEndian(format[8..]) != 32000
-            || BinaryPrimitives.ReadUInt16LittleEndian(format[12..]) != 2
-            || BinaryPrimitives.ReadUInt16LittleEndian(format[14..]) != 16)
-        {
-            throw new InvalidDataException("Quality audio must be PCM16 mono 16 kHz WAV.");
-        }
-
-        var samples = new float[data.Length / 2];
-        for (var i = 0; i < samples.Length; i++) samples[i] = BinaryPrimitives.ReadInt16LittleEndian(data[(i * 2)..]) / 32768f;
-        return samples;
-    }
 }

@@ -133,7 +133,7 @@ public sealed class RuleBasedFormatter : ITextFormatter
     {
         if (text.Length == 0) return text;
         var last = text[^1];
-        if (char.IsLetterOrDigit(last))
+        if (char.IsLetterOrDigit(last) || char.IsNumber(last))
         {
             return text + ".";
         }

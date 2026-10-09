@@ -119,6 +119,37 @@
                                     </StackPanel>
                                 </Border>
 
+                                <!-- Non-persisted recovery result after a focus-safe insertion failure -->
+                                <Border x:Name="RecoveryTranscriptPanel"
+                                        Classes="lensCard"
+                                        Padding="12"
+                                        IsVisible="False">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{x:Static localization:UiText.RecoveryTranscriptTitle}"
+                                                   Classes="lensSection" />
+                                        <TextBlock Text="{x:Static localization:UiText.RecoveryTranscriptNote}"
+                                                   Classes="lensNote"
+                                                   TextWrapping="Wrap" />
+                                        <TextBox x:Name="RecoveryTranscriptText"
+                                                 Classes="lensField"
+                                                 IsReadOnly="True"
+                                                 AcceptsReturn="True"
+                                                 TextWrapping="Wrap"
+                                                 MinHeight="72"
+                                                 AutomationProperties.Name="{x:Static localization:UiText.RecoveryTranscriptTitle}" />
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                                            <Button x:Name="DiscardRecoveryTranscriptButton"
+                                                    Content="{x:Static localization:UiText.DiscardRecoveryTranscript}"
+                                                    Classes="lensSecondary"
+                                                    Click="OnDiscardRecoveryTranscriptClick" />
+                                            <Button x:Name="CopyRecoveryTranscriptButton"
+                                                    Content="{x:Static localization:UiText.CopyRecoveryTranscript}"
+                                                    Classes="lensPrimary"
+                                                    Click="OnCopyRecoveryTranscriptClick" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
                                 <!-- Required Signal Path -->
                                 <Border Classes="lensCard" Padding="12">
                                     <StackPanel Spacing="12">
@@ -279,6 +310,42 @@
                                                       HorizontalAlignment="Stretch"
                                                       AutomationProperties.Name="{x:Static localization:UiText.HudScreenPosition}" />
                                         </Grid>
+
+                                        <Grid RowDefinitions="Auto,6,Auto,4,Auto" ColumnDefinitions="*">
+                                            <TextBlock Grid.Row="0" Text="{x:Static localization:UiText.TextInsertionMode}" Classes="lensBody" FontWeight="Medium" />
+                                            <ComboBox Grid.Row="2"
+                                                      x:Name="TextInsertionModeComboBox"
+                                                      Classes="lensField"
+                                                      HorizontalAlignment="Stretch"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.TextInsertionMode}" />
+                                            <TextBlock Grid.Row="4"
+                                                       Text="{x:Static localization:UiText.TextInsertionModeNote}"
+                                                       Classes="lensNote"
+                                                       TextWrapping="Wrap" />
+                                        </Grid>
+
+                                        <ToggleSwitch x:Name="HistoryEnabledCheckBox"
+                                                      Content="{x:Static localization:UiText.HistoryEnabled}"
+                                                      Classes="lensToggle" />
+
+                                        <Grid RowDefinitions="Auto,6,Auto,8,Auto,4,Auto" ColumnDefinitions="*">
+                                            <TextBlock Grid.Row="0" Text="{x:Static localization:UiText.HistoryRetention}" Classes="lensBody" FontWeight="Medium" />
+                                            <ComboBox Grid.Row="2"
+                                                      x:Name="HistoryRetentionComboBox"
+                                                      Classes="lensField"
+                                                      HorizontalAlignment="Stretch"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.HistoryRetention}" />
+                                            <TextBlock Grid.Row="4" Text="{x:Static localization:UiText.HistoryMaxEntries}" Classes="lensBody" FontWeight="Medium" />
+                                            <ComboBox Grid.Row="6"
+                                                      x:Name="HistoryMaxEntriesComboBox"
+                                                      Classes="lensField"
+                                                      HorizontalAlignment="Stretch"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.HistoryMaxEntries}" />
+                                        </Grid>
+
+                                        <TextBlock Text="{x:Static localization:UiText.HistoryRetentionNote}"
+                                                   Classes="lensNote"
+                                                   TextWrapping="Wrap" />
 
                                         <Grid RowDefinitions="Auto,6,Auto" ColumnDefinitions="*">
                                             <TextBlock Grid.Row="0" Text="{x:Static localization:UiText.InterfaceLanguage}" Classes="lensBody" FontWeight="Medium" />

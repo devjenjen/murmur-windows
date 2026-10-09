@@ -29,10 +29,12 @@ jobs:
         working-directory: windows
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: windows/global.json
 
@@ -63,13 +65,14 @@ jobs:
           dotnet test Murmur.sln
           --no-build
           --configuration Release
-          --logger "trx;LogFileName=results.trx"
+          --filter "Category!=RealModel&Category!=QualityCorpus"
+          --logger "trx;LogFilePrefix=unit"
           --logger "console;verbosity=normal"
           --results-directory artifacts/test-results
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-results
           path: windows/artifacts/test-results
@@ -79,7 +82,7 @@ jobs:
       # locally — which, for this project, is every Windows failure.
       - name: Upload build log
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: build-binlog
           path: windows/artifacts/build.binlog

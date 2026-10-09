@@ -1,3 +1,5 @@
+using Murmur.Core.Settings;
+
 namespace Murmur.Core.Abstractions;
 
 /// <summary>
@@ -5,6 +7,9 @@ namespace Murmur.Core.Abstractions;
 /// </summary>
 public interface ITextInjector
 {
-    /// <summary>Inserts text into the focused application.</summary>
-    void Insert(string text);
+    /// <summary>Captures the current foreground target before audio capture starts.</summary>
+    TextInjectionTarget CaptureTarget();
+
+    /// <summary>Inserts text into the captured target.</summary>
+    void Insert(string text, TextInjectionTarget target, TextInsertionMode mode);
 }

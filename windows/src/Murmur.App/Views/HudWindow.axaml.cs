@@ -401,6 +401,14 @@ public partial class HudWindow : Window
         TranscriptText.RenderTransform = TransformTranslate0;
     }
 
+    private static string BuildErrorText(string? message, string? transcript)
+    {
+        var summary = string.IsNullOrWhiteSpace(message) ? UiText.HudError : message;
+        return string.IsNullOrWhiteSpace(transcript)
+            ? summary
+            : $"{summary}{Environment.NewLine}{transcript}";
+    }
+
     private void BeginOrbEntry()
     {
         ApplyPlacementAlignment();
@@ -513,10 +521,7 @@ public partial class HudWindow : Window
                     break;
                 case DictationStatus.Error:
                     TelemetryBadge.Text = UiText.Text("HudErrorBadge");
-                    if (string.IsNullOrWhiteSpace(_lastErrorMessage))
-                    {
-                        UpdateTranscriptText(UiText.HudError);
-                    }
+                    UpdateTranscriptText(BuildErrorText(_lastErrorMessage, _lastTranscript));
                     break;
             }
         });
@@ -526,6 +531,12 @@ public partial class HudWindow : Window
     /// <summary>Updates only the HUD meter volume level and active state without triggering layout or state morphs.</summary>
     public void UpdateLevel(DictationStatus status, float level)
     {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            HudMeter.Level = Math.Clamp(level, 0.0f, 1.0f);
+            HudMeter.IsActive = status == DictationStatus.Listening;
+            return;
+        }
         _pendingLevel = level;
         _pendingLevelStatus = status;
         if (Interlocked.CompareExchange(ref _levelUpdatePending, 1, 0) == 0)
@@ -547,7 +558,7 @@ public partial class HudWindow : Window
     {
         ArgumentNullException.ThrowIfNull(state);
 
-        Dispatcher.UIThread.Post(() =>
+        void ApplyState()
         {
             HudMeter.Level = Math.Clamp(level, 0.0f, 1.0f);
             HudMeter.IsActive = state.Status == DictationStatus.Listening;
@@ -706,7 +717,7 @@ public partial class HudWindow : Window
                     RecordLamp.Fill = errorBrush;
                     TelemetryBadge.Text = UiText.Text("HudErrorBadge");
 
-                    UpdateTranscriptText(string.IsNullOrWhiteSpace(state.Message) ? UiText.HudError : state.Message);
+                    UpdateTranscriptText(BuildErrorText(state.Message, transcript));
 
                     SetSurfaceTarget(
                         GetDouble("HudErrorWidth", 488),
@@ -727,6 +738,8 @@ public partial class HudWindow : Window
                     SetContentVisible(true);
                     break;
             }
-        });
+        }
+        if (Dispatcher.UIThread.CheckAccess()) ApplyState();
+        else Dispatcher.UIThread.Post(ApplyState);
     }
 }

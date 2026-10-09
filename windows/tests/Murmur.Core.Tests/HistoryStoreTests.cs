@@ -91,4 +91,49 @@ public class HistoryStoreTests
         store.Load(out _).ShouldBeEmpty();
         Directory.GetFiles(temp.Path, "*.tmp").ShouldBeEmpty();
     }
+
+    [Fact]
+    public void Prune_Keeps_Boundary_And_Newest_Entries()
+    {
+        using var temp = new TempDirectory();
+        var store = new HistoryStore(System.IO.Path.Combine(temp.Path, "history.jsonl"));
+        var now = new DateTimeOffset(2026, 10, 3, 12, 0, 0, TimeSpan.Zero);
+        var old = Entry(Guid.NewGuid(), now.AddDays(-31), "Old.");
+        var boundary = Entry(Guid.NewGuid(), now.AddDays(-30), "Boundary.");
+        var newest = Entry(Guid.NewGuid(), now.AddDays(-1), "Newest.");
+
+        store.Append(old);
+        store.Append(boundary);
+        store.Append(newest);
+        store.Prune(now, retentionDays: 30, maxEntries: 2);
+
+        store.Load(out _).ShouldBe([newest, boundary]);
+        Directory.GetFiles(temp.Path, "*.tmp").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Prune_Zero_Limits_Disable_Their_Constraint_And_Is_Idempotent()
+    {
+        using var temp = new TempDirectory();
+        var path = System.IO.Path.Combine(temp.Path, "history.jsonl");
+        var store = new HistoryStore(path);
+        var now = new DateTimeOffset(2026, 10, 3, 12, 0, 0, TimeSpan.Zero);
+        var entries = new[]
+        {
+            Entry(Guid.NewGuid(), now.AddDays(-100), "Old."),
+            Entry(Guid.NewGuid(), now.AddDays(-1), "Newest.")
+        };
+        foreach (var entry in entries)
+        {
+            store.Append(entry);
+        }
+
+        store.Prune(now, retentionDays: 0, maxEntries: 0);
+        var first = File.ReadAllText(path);
+        store.Prune(now, retentionDays: 0, maxEntries: 0);
+
+        store.Load(out _).ShouldBe(entries.OrderByDescending(entry => entry.Timestamp).ToArray());
+        File.ReadAllText(path).ShouldBe(first);
+        Directory.GetFiles(temp.Path, "*.tmp").ShouldBeEmpty();
+    }
 }

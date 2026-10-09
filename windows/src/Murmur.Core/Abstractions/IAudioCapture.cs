@@ -17,6 +17,9 @@ public interface IAudioCapture : IDisposable
     /// <summary>Fired with normalized 0..1 RMS level for UI waveform rendering.</summary>
     event Action<float>? LevelChanged;
 
+    /// <summary>Fired when the active capture session ends because of an error.</summary>
+    event Action<Exception>? CaptureFailed;
+
     /// <summary>Whether capture is currently active.</summary>
     bool IsRunning { get; }
 

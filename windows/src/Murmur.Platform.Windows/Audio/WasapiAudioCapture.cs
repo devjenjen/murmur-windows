@@ -18,6 +18,9 @@ public sealed class WasapiAudioCapture : IAudioCapture
     /// <inheritdoc />
     public event Action<float>? LevelChanged;
 
+    /// <inheritdoc />
+    public event Action<Exception>? CaptureFailed;
+
     /// <summary>Fired after final signal-health measurements are available.</summary>
     public event Action? SessionStopped;
 
@@ -115,28 +118,33 @@ public sealed class WasapiAudioCapture : IAudioCapture
                 return;
             }
 
-            if (_capture == null)
+            if (_capture != null)
             {
-                var activeDevices = GetActiveDevices();
-                var chosenId = ChooseEndpointId(_endpointId, activeDevices);
-                if (chosenId == null)
-                {
-                    throw new InvalidOperationException("No active microphone found.");
-                }
-
-                using var enumerator = new MMDeviceEnumerator();
-                var device = enumerator.GetDevice(chosenId);
-                FriendlyName = device.FriendlyName;
-                _capture = new WasapiCapture(device, useEventSync: true, audioBufferMillisecondsLength: 30);
-                _capture.DataAvailable += OnDataAvailable;
-                _capture.RecordingStopped += OnRecordingStopped;
-                var waveFormat = _capture.WaveFormat;
-                Format = new AudioCaptureFormat(
-                    waveFormat.SampleRate,
-                    waveFormat.Channels,
-                    waveFormat.BitsPerSample,
-                    waveFormat.Encoding.ToString());
+                _capture.DataAvailable -= OnDataAvailable;
+                _capture.RecordingStopped -= OnRecordingStopped;
+                _capture.Dispose();
+                _capture = null;
             }
+
+            var activeDevices = GetActiveDevices();
+            var chosenId = ChooseEndpointId(_endpointId, activeDevices);
+            if (chosenId == null)
+            {
+                throw new InvalidOperationException("No active microphone found.");
+            }
+
+            using var enumerator = new MMDeviceEnumerator();
+            var device = enumerator.GetDevice(chosenId);
+            FriendlyName = device.FriendlyName;
+            _capture = new WasapiCapture(device, useEventSync: true, audioBufferMillisecondsLength: 30);
+            _capture.DataAvailable += OnDataAvailable;
+            _capture.RecordingStopped += OnRecordingStopped;
+            var waveFormat = _capture.WaveFormat;
+            Format = new AudioCaptureFormat(
+                waveFormat.SampleRate,
+                waveFormat.Channels,
+                waveFormat.BitsPerSample,
+                waveFormat.Encoding.ToString());
 
             _normalizer = new AudioNormalizer(_capture.WaveFormat.SampleRate);
             _stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -173,6 +181,7 @@ public sealed class WasapiAudioCapture : IAudioCapture
 
     private void OnRecordingStopped(object? sender, StoppedEventArgs e)
     {
+        var failure = e.Exception;
         lock (_lock)
         {
             IsRunning = false;
@@ -184,16 +193,13 @@ public sealed class WasapiAudioCapture : IAudioCapture
             _normalizer = null;
             LevelChanged?.Invoke(0);
 
-            if (e.Exception != null)
-            {
-                _stopped?.TrySetException(e.Exception);
-            }
-            else
-            {
-                _stopped?.TrySetResult();
-            }
+            _stopped?.TrySetResult();
         }
 
+        if (failure != null)
+        {
+            CaptureFailed?.Invoke(failure);
+        }
         SessionStopped?.Invoke();
     }
 

@@ -7,20 +7,7 @@ internal static class AppLogger
         "Murmur",
         "murmur.log");
 
-    private static readonly Lock LogLock = new();
-
-    static AppLogger()
-    {
-        try
-        {
-            var dir = Path.GetDirectoryName(LogPath);
-            if (!string.IsNullOrEmpty(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-        }
-        catch { }
-    }
+    private static readonly RotatingFileLog FileLog = new(LogPath, 2L * 1024 * 1024, backupCount: 2);
 
     public static void Log(string message)
     {
@@ -28,10 +15,7 @@ internal static class AppLogger
         Console.WriteLine(line);
         try
         {
-            lock (LogLock)
-            {
-                File.AppendAllText(LogPath, line + Environment.NewLine);
-            }
+            FileLog.WriteLine(line);
         }
         catch { }
     }

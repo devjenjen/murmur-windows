@@ -11,11 +11,18 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
 {
     private readonly OnlineRecognizer _recognizer;
     private readonly Lock _lock = new();
-    private OnlineStream? _stream;
-    private Channel<float[]>? _channel;
-    private Task? _workerTask;
+    private sealed class StreamingSession(OnlineStream stream, Channel<float[]> channel)
+    {
+        public OnlineStream Stream { get; } = stream;
+        public Channel<float[]> Channel { get; } = channel;
+        public Task Worker { get; set; } = Task.CompletedTask;
+        public int Cancelled;
+    }
+
+    private StreamingSession? _session;
     private Task<string>? _closeTask;
-    private string _lastPartial = string.Empty;
+    private Task? _disposeTask;
+    private bool _disposed;
 
     /// <inheritdoc />
     public event Action<string>? PartialTranscriptChanged;
@@ -25,10 +32,14 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
     {
         var model = ModelManifest.NemotronStreaming160Ms;
         var dir = modelDir ?? ModelLocator.GetDefaultModelDirectory(model);
-        if (!ModelLocator.IsModelDownloaded(model, dir))
+        var integrity = ModelLocator.GetIntegrityStatus(model, dir);
+        if (integrity == ModelIntegrityStatus.Missing)
         {
             throw new DirectoryNotFoundException($"Nemotron streaming model files not found in: {dir}");
         }
+        if (integrity == ModelIntegrityStatus.Corrupt)
+            throw new InvalidDataException($"Nemotron streaming model integrity verification failed in: {dir}");
+        // Valid and LegacyUnverified retain the existing installation compatibility.
 
         var config = new OnlineRecognizerConfig();
         config.FeatConfig.SampleRate = 16000;
@@ -50,23 +61,32 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
     {
         lock (_lock)
         {
-            if (_stream != null || _closeTask is { IsCompleted: false })
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_session != null || _closeTask is { IsCompleted: false })
             {
                 throw new InvalidOperationException("A streaming session is already active.");
             }
 
             _closeTask = null;
 
-            _stream = _recognizer.CreateStream();
-            _stream.SetOption("language", "auto");
-            _lastPartial = string.Empty;
-            _channel = Channel.CreateUnbounded<float[]>(new UnboundedChannelOptions
+            var sessionStream = _recognizer.CreateStream();
+            try
             {
-                SingleReader = true,
-                SingleWriter = false
-            });
-
-            _workerTask = Task.Run(ProcessAudioLoopAsync);
+                sessionStream.SetOption("language", "auto");
+                var sessionChannel = Channel.CreateUnbounded<float[]>(new UnboundedChannelOptions
+                {
+                    SingleReader = true,
+                    SingleWriter = false
+                });
+                var session = new StreamingSession(sessionStream, sessionChannel);
+                _session = session;
+                session.Worker = Task.Run(() => ProcessAudioLoopAsync(session));
+            }
+            catch
+            {
+                sessionStream.Dispose();
+                throw;
+            }
         }
     }
 
@@ -75,38 +95,33 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
     {
         if (audioSamples.Length == 0) return;
 
-        var copy = audioSamples.ToArray();
         lock (_lock)
         {
-            _channel?.Writer.TryWrite(copy);
+            if (_disposed || _closeTask != null || _session is not { } session ||
+                Volatile.Read(ref session.Cancelled) != 0) return;
+            session.Channel.Writer.TryWrite(audioSamples.ToArray());
         }
     }
 
-    private async Task ProcessAudioLoopAsync()
+    private async Task ProcessAudioLoopAsync(StreamingSession session)
     {
-        Channel<float[]>? channel;
-        OnlineStream? stream;
-
-        lock (_lock)
-        {
-            channel = _channel;
-            stream = _stream;
-        }
-
-        if (channel == null || stream == null) return;
-
+        var stream = session.Stream;
+        var lastPartial = string.Empty;
         try
         {
-            await foreach (var samples in channel.Reader.ReadAllAsync().ConfigureAwait(false))
+            await foreach (var samples in session.Channel.Reader.ReadAllAsync().ConfigureAwait(false))
             {
+                if (Volatile.Read(ref session.Cancelled) != 0) return;
                 stream.AcceptWaveform(16000, samples);
-                while (_recognizer.IsReady(stream))
+                while (Volatile.Read(ref session.Cancelled) == 0 && _recognizer.IsReady(stream))
                 {
                     _recognizer.Decode(stream);
+                    if (Volatile.Read(ref session.Cancelled) != 0) return;
                     var text = _recognizer.GetResult(stream).Text ?? string.Empty;
-                    if (text.Length > 0 && !string.Equals(text, _lastPartial, StringComparison.Ordinal))
+                    if (text.Length > 0 && !string.Equals(text, lastPartial, StringComparison.Ordinal) &&
+                        Volatile.Read(ref session.Cancelled) == 0)
                     {
-                        _lastPartial = text;
+                        lastPartial = text;
                         PartialTranscriptChanged?.Invoke(text);
                     }
                 }
@@ -130,7 +145,7 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
     {
         try
         {
-            StartClosingSession(decodeFinal: false).GetAwaiter().GetResult();
+            CancelSessionAsync().GetAwaiter().GetResult();
         }
         catch
         {
@@ -138,97 +153,96 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
         }
     }
 
+    /// <inheritdoc />
+    public async Task CancelSessionAsync()
+    {
+        await StartClosingSession(decodeFinal: false).ConfigureAwait(false);
+    }
+
     private Task<string> StartClosingSession(bool decodeFinal)
     {
         lock (_lock)
         {
+            if (!decodeFinal && _session is { } cancelling)
+                Volatile.Write(ref cancelling.Cancelled, 1);
             if (_closeTask != null)
             {
                 return _closeTask;
             }
 
-            if (_stream == null)
+            if (_session is not { } session)
             {
                 return Task.FromResult(string.Empty);
             }
 
-            _channel?.Writer.TryComplete();
-            var stream = _stream;
-            var worker = _workerTask;
-            _stream = null;
-            _channel = null;
-            _workerTask = null;
-            _lastPartial = string.Empty;
-
-            var completion = new TaskCompletionSource<string>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            _closeTask = completion.Task;
-            _ = FinishClosingSessionAsync(stream, worker, decodeFinal, completion);
+            session.Channel.Writer.TryComplete();
+            _closeTask = Task.Run(() => FinishClosingSessionAsync(session, decodeFinal));
             return _closeTask;
         }
     }
 
-    private async Task FinishClosingSessionAsync(
-        OnlineStream stream,
-        Task? worker,
-        bool decodeFinal,
-        TaskCompletionSource<string> completion)
+    private async Task<string> FinishClosingSessionAsync(StreamingSession session, bool decodeFinal)
     {
-        var resultText = string.Empty;
-        Exception? failure = null;
+        var stream = session.Stream;
         try
         {
-            if (worker != null)
-            {
-                await worker.ConfigureAwait(false);
-            }
+            await session.Worker.ConfigureAwait(false);
 
-            if (decodeFinal)
+            if (decodeFinal && Volatile.Read(ref session.Cancelled) == 0)
             {
                 stream.InputFinished();
-                while (_recognizer.IsReady(stream))
+                while (Volatile.Read(ref session.Cancelled) == 0 && _recognizer.IsReady(stream))
                 {
                     _recognizer.Decode(stream);
                 }
-                resultText = _recognizer.GetResult(stream).Text ?? string.Empty;
+                if (Volatile.Read(ref session.Cancelled) == 0)
+                    return _recognizer.GetResult(stream).Text ?? string.Empty;
             }
+            return string.Empty;
         }
-        catch (Exception ex)
+        finally
         {
-            failure = ex;
-        }
-
-        try
-        {
-            stream.Dispose();
-        }
-        catch (Exception ex)
-        {
-            failure ??= ex;
-        }
-
-        if (failure == null)
-        {
-            completion.TrySetResult(resultText);
-        }
-        else
-        {
-            completion.TrySetException(failure);
+            try { stream.Dispose(); }
+            finally
+            {
+                lock (_lock)
+                {
+                    if (ReferenceEquals(_session, session)) _session = null;
+                }
+            }
         }
     }
 
     /// <inheritdoc />
     public async Task<string> TranscribeAsync(ReadOnlyMemory<float> audioSamples, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         BeginSession();
-        AcceptAudio(audioSamples);
-        return await CompleteSessionAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            AcceptAudio(audioSamples);
+            return await CompleteSessionAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            await CancelSessionAsync().ConfigureAwait(false);
+        }
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        CancelSession();
-        _recognizer.Dispose();
+        Task disposing;
+        lock (_lock)
+        {
+            _disposed = true;
+            _disposeTask ??= Task.Run(async () =>
+            {
+                try { await CancelSessionAsync().ConfigureAwait(false); }
+                finally { _recognizer.Dispose(); }
+            });
+            disposing = _disposeTask;
+        }
+        disposing.GetAwaiter().GetResult();
     }
 }

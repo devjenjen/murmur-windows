@@ -23,6 +23,12 @@ public sealed record AppSettings
     /// <summary>Default interface language.</summary>
     public const string DefaultLanguage = "en";
 
+    /// <summary>Default retention policy for newly created settings.</summary>
+    public const int DefaultHistoryRetentionDays = 30;
+
+    /// <summary>Default entry limit for newly created settings.</summary>
+    public const int DefaultHistoryMaxEntries = 1000;
+
     /// <summary>Initializes a new instance of AppSettings.</summary>
     /// <param name="microphoneEndpointId">The selected microphone endpoint ID, or null for default.</param>
     /// <param name="startWithWindows">Whether to start the application with Windows.</param>
@@ -66,6 +72,18 @@ public sealed record AppSettings
     /// <summary>Whether a short sound plays after successful text injection.</summary>
     public bool AudioFeedbackEnabled { get; init; }
 
+    /// <summary>Where completed dictation text is inserted.</summary>
+    public TextInsertionMode TextInsertionMode { get; init; } = TextInsertionMode.AtCaret;
+
+    /// <summary>Whether completed dictations are persisted in local history.</summary>
+    public bool HistoryEnabled { get; init; }
+
+    /// <summary>Maximum age of new history entries in days; zero means unlimited.</summary>
+    public int HistoryRetentionDays { get; init; } = DefaultHistoryRetentionDays;
+
+    /// <summary>Maximum number of retained history entries; zero means unlimited.</summary>
+    public int HistoryMaxEntries { get; init; } = DefaultHistoryMaxEntries;
+
     /// <summary>Available dictation profiles.</summary>
     public IReadOnlyList<DictationProfile> Profiles { get; init; } = [];
 
@@ -94,7 +112,7 @@ public sealed record AppSettings
     }
 
     /// <summary>Gets the default application settings.</summary>
-    public static AppSettings Default { get; } = new AppSettings(null, true, false).Normalize();
+    public static AppSettings Default { get; } = new AppSettings(null, false, false).Normalize();
 
     /// <summary>
     /// Returns a normalized copy of these settings with defaults and profile structure guaranteed.
@@ -162,6 +180,9 @@ public sealed record AppSettings
             HudPlacement = normalizedHud,
             SpeechModelId = normalizedModel,
             Language = normalizedLanguage,
+            TextInsertionMode = NormalizeTextInsertionMode(TextInsertionMode),
+            HistoryRetentionDays = NormalizeHistoryRetentionDays(HistoryRetentionDays),
+            HistoryMaxEntries = NormalizeHistoryMaxEntries(HistoryMaxEntries),
             ProfileToggleHotkeyId = toggleCandidate,
             Profiles = normalizedProfiles,
             ActiveProfileId = normalizedActiveId
@@ -184,6 +205,10 @@ public sealed record AppSettings
             && string.Equals(Language, other.Language, StringComparison.Ordinal)
             && RemoveFillers == other.RemoveFillers
             && AudioFeedbackEnabled == other.AudioFeedbackEnabled
+            && TextInsertionMode == other.TextInsertionMode
+            && HistoryEnabled == other.HistoryEnabled
+            && HistoryRetentionDays == other.HistoryRetentionDays
+            && HistoryMaxEntries == other.HistoryMaxEntries
             && string.Equals(ActiveProfileId, other.ActiveProfileId, StringComparison.Ordinal)
             && Profiles.SequenceEqual(other.Profiles);
     }
@@ -202,6 +227,10 @@ public sealed record AppSettings
         hash.Add(Language);
         hash.Add(RemoveFillers);
         hash.Add(AudioFeedbackEnabled);
+        hash.Add(TextInsertionMode);
+        hash.Add(HistoryEnabled);
+        hash.Add(HistoryRetentionDays);
+        hash.Add(HistoryMaxEntries);
         hash.Add(ActiveProfileId);
         for (var i = 0; i < Profiles.Count; i++)
         {
@@ -209,4 +238,15 @@ public sealed record AppSettings
         }
         return hash.ToHashCode();
     }
+
+    private static TextInsertionMode NormalizeTextInsertionMode(TextInsertionMode mode) =>
+        mode is TextInsertionMode.AtCaret or TextInsertionMode.DocumentEnd
+            ? mode
+            : TextInsertionMode.DocumentEnd;
+
+    private static int NormalizeHistoryRetentionDays(int days) =>
+        days is 0 or 7 or 30 or 90 ? days : DefaultHistoryRetentionDays;
+
+    private static int NormalizeHistoryMaxEntries(int maxEntries) =>
+        maxEntries is 0 or 1000 ? maxEntries : DefaultHistoryMaxEntries;
 }

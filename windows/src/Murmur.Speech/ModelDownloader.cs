@@ -3,51 +3,111 @@ using System.Security.Cryptography;
 
 namespace Murmur.Speech;
 
+internal interface IArchiveExtractor
+{
+    Task ExtractAsync(string archivePath, string destination, CancellationToken cancellationToken);
+}
+
+internal sealed class TarArchiveExtractor : IArchiveExtractor
+{
+    public async Task ExtractAsync(string archivePath, string destination, CancellationToken cancellationToken)
+    {
+        var tarPath = Path.Combine(Environment.SystemDirectory, "tar.exe");
+        if (!Path.IsPathFullyQualified(tarPath) || !File.Exists(tarPath))
+        {
+            throw new FileNotFoundException("Trusted system tar.exe was not found.", tarPath);
+        }
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = tarPath,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        startInfo.ArgumentList.Add("-xjf");
+        startInfo.ArgumentList.Add(archivePath);
+        startInfo.ArgumentList.Add("-C");
+        startInfo.ArgumentList.Add(destination);
+
+        using var process = new Process { StartInfo = startInfo };
+        process.Start();
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
+        var stderrTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
+
+        try
+        {
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Process exited between the cancellation and the kill check.
+            }
+
+            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
+            throw;
+        }
+
+        var stderr = await stderrTask.ConfigureAwait(false);
+        _ = await stdoutTask.ConfigureAwait(false);
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"tar.exe extraction failed with exit code {process.ExitCode}: {stderr}");
+        }
+    }
+}
+
 /// <summary>
 /// Downloads and extracts pinned speech models.
 /// </summary>
 public sealed class ModelDownloader
 {
     private readonly HttpClient _httpClient;
+    private readonly IArchiveExtractor _archiveExtractor;
 
     /// <summary>Initializes a new instance of ModelDownloader.</summary>
     public ModelDownloader(HttpClient? httpClient = null)
+        : this(httpClient, new TarArchiveExtractor())
+    {
+    }
+
+    internal ModelDownloader(HttpClient? httpClient, IArchiveExtractor archiveExtractor)
     {
         _httpClient = httpClient ?? new HttpClient();
+        _archiveExtractor = archiveExtractor ?? throw new ArgumentNullException(nameof(archiveExtractor));
     }
 
     /// <summary>Downloads and extracts the specified model archive asynchronously with progress reporting.</summary>
     public async Task DownloadModelAsync(ModelManifest model, string? targetDir = null, IProgress<double>? progress = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(model);
-        var finalDir = targetDir ?? ModelLocator.GetDefaultModelDirectory(model);
+        var finalDir = Path.GetFullPath(targetDir ?? ModelLocator.GetDefaultModelDirectory(model));
         if (ModelLocator.IsModelDownloaded(model, finalDir))
         {
             progress?.Report(1.0);
             return;
         }
 
-        var parentDir = Path.GetDirectoryName(finalDir) ?? "";
+        var parentDir = Path.GetFullPath(Path.GetDirectoryName(finalDir) ?? "");
         if (!string.IsNullOrEmpty(parentDir))
         {
             Directory.CreateDirectory(parentDir);
         }
 
-        if (Directory.Exists(finalDir))
-        {
-            var invalidDir = Path.Combine(parentDir, $"{Path.GetFileName(finalDir)}.invalid-{Guid.NewGuid():N}");
-            try
-            {
-                Directory.Move(finalDir, invalidDir);
-            }
-            catch
-            {
-                // Best effort rename
-            }
-        }
-
-        var partFile = Path.Combine(parentDir, $"{Guid.NewGuid():N}.part");
-        var stagingDir = Path.Combine(parentDir, $"{Guid.NewGuid():N}.staging");
+        EnsureEnoughDiskSpace(parentDir, finalDir, model.ArchiveSize, model.ExtractedSize);
+        var partFile = CreateChildPath(parentDir, $"{Guid.NewGuid():N}.part");
+        var stagingDir = CreateChildPath(parentDir, $"{Guid.NewGuid():N}.staging");
 
         try
         {
@@ -70,7 +130,7 @@ public sealed class ModelDownloader
                         totalRead += bytesRead;
                         if (totalBytes > 0 && progress != null)
                         {
-                            var ratio = (double)totalRead / totalBytes;
+                            var ratio = Math.Clamp((double)totalRead / totalBytes, 0.0, 1.0) * 0.75;
                             if (ratio - lastReportedRatio >= 0.005 || ratio >= 1.0)
                             {
                                 lastReportedRatio = ratio;
@@ -87,38 +147,17 @@ public sealed class ModelDownloader
                 throw new InvalidDataException($"Downloaded archive size {fileInfo.Length} did not match expected {model.ArchiveSize}.");
             }
 
+            progress?.Report(0.78);
             var actualHash = await ComputeSha256Async(partFile, ct).ConfigureAwait(false);
             if (!string.Equals(actualHash, model.ArchiveSha256, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidDataException($"SHA-256 hash mismatch: expected {model.ArchiveSha256}, got {actualHash}.");
             }
 
+            progress?.Report(0.82);
             Directory.CreateDirectory(stagingDir);
-
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "tar.exe",
-                    Arguments = $"-xjf \"{partFile}\" -C \"{stagingDir}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                }
-            };
-
-            process.Start();
-            var stderrTask = process.StandardError.ReadToEndAsync(ct);
-            var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
-            await process.WaitForExitAsync(ct).ConfigureAwait(false);
-            var stderr = await stderrTask.ConfigureAwait(false);
-            _ = await stdoutTask.ConfigureAwait(false);
-
-            if (process.ExitCode != 0)
-            {
-                throw new InvalidOperationException($"tar.exe extraction failed with exit code {process.ExitCode}: {stderr}");
-            }
+            await _archiveExtractor.ExtractAsync(partFile, stagingDir, ct).ConfigureAwait(false);
+            progress?.Report(0.9);
 
             var extractedDir = stagingDir;
             if (!File.Exists(Path.Combine(extractedDir, "encoder.int8.onnx")))
@@ -132,13 +171,8 @@ public sealed class ModelDownloader
 
             ValidateModelDirectory(extractedDir);
             await ModelIntegrityManifest.WriteAsync(model, extractedDir, ct).ConfigureAwait(false);
-
-            if (Directory.Exists(finalDir))
-            {
-                Directory.Delete(finalDir, recursive: true);
-            }
-
-            Directory.Move(extractedDir, finalDir);
+            progress?.Report(0.97);
+            ReplaceModelDirectory(finalDir, extractedDir, parentDir);
             progress?.Report(1.0);
         }
         finally
@@ -193,5 +227,86 @@ public sealed class ModelDownloader
                 throw new InvalidDataException($"Required model file is empty: {file}");
             }
         }
+    }
+
+    private static void ReplaceModelDirectory(string finalDir, string extractedDir, string parentDir)
+    {
+        var backupDir = CreateChildPath(parentDir, $"{Path.GetFileName(finalDir)}.{Guid.NewGuid():N}.previous");
+        var movedPrevious = false;
+        try
+        {
+            if (Directory.Exists(finalDir))
+            {
+                Directory.Move(finalDir, backupDir);
+                movedPrevious = true;
+            }
+
+            Directory.Move(extractedDir, finalDir);
+            if (movedPrevious && Directory.Exists(backupDir))
+            {
+                Directory.Delete(backupDir, recursive: true);
+            }
+        }
+        catch
+        {
+            if (movedPrevious && !Directory.Exists(finalDir) && Directory.Exists(backupDir))
+            {
+                Directory.Move(backupDir, finalDir);
+            }
+            throw;
+        }
+    }
+
+    private static string CreateChildPath(string parentDir, string childName)
+    {
+        var root = Path.GetFullPath(parentDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        var fullPath = Path.GetFullPath(Path.Combine(parentDir, childName));
+        if (!fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException($"Unsafe staging path: {childName}");
+        }
+        return fullPath;
+    }
+
+    private static void EnsureEnoughDiskSpace(string parentDir, string finalDir, long archiveSize, long extractedSize)
+    {
+        var root = Path.GetPathRoot(parentDir);
+        if (string.IsNullOrEmpty(root))
+        {
+            throw new IOException("Could not determine model storage volume.");
+        }
+
+        try
+        {
+            const long safetyReserve = 128L * 1024 * 1024;
+            var extractionReserve = extractedSize > 0 ? extractedSize : safetyReserve;
+            var previousModelSize = Directory.Exists(finalDir) ? GetDirectorySize(finalDir) : 0L;
+            var required = checked(archiveSize + extractionReserve + previousModelSize + safetyReserve);
+            var drive = new DriveInfo(root);
+            if (drive.AvailableFreeSpace < required)
+            {
+                throw new IOException($"Not enough free disk space for model download and extraction. Required at least {required / (1024 * 1024)} MB including the measured extraction size and previous model copy.");
+            }
+        }
+        catch (IOException)
+        {
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            throw new IOException("Could not inspect free disk space for model download.", ex);
+        }
+    }
+
+    private static long GetDirectorySize(string directory)
+    {
+        long total = 0;
+        foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+        {
+            total = checked(total + new FileInfo(file).Length);
+        }
+
+        return total;
     }
 }

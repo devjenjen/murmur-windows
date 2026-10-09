@@ -30,6 +30,14 @@ For any user-supplied ElevenLabs sound, consult the
 
 ## Dependencies
 
-Bundled third-party libraries remain under their own licenses. Package versions
-are pinned in `windows/Directory.Packages.props`; their license notices are not
-replaced by Murmur's MIT License.
+Bundled third-party libraries remain under their own licenses. The release
+inventory at
+[`windows/installer/third-party-components.json`](windows/installer/third-party-components.json)
+binds each published runtime component to its source version and copied
+license/notice files in `licenses/`. Their terms are not replaced by Murmur's
+MIT License.
+
+Release candidates are Windows x64, self-contained, and unsigned. Release
+assets contain no speech-model weights, user settings, history, logs, or
+user-supplied sounds. The app downloads the selected pinned model from GitHub
+after first run; model terms remain the user's responsibility.

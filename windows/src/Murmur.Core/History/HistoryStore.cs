@@ -68,6 +68,37 @@ public sealed class HistoryStore
         }
     }
 
+    /// <summary>Removes entries older than the retention boundary and beyond the newest-entry limit.</summary>
+    public void Prune(DateTimeOffset now, int retentionDays, int maxEntries)
+    {
+        lock (_lock)
+        {
+            var normalizedRetention = retentionDays is 0 or 7 or 30 or 90 ? retentionDays : 30;
+            var normalizedMax = maxEntries is 0 or 1000 ? maxEntries : 1000;
+            if (normalizedRetention == 0 && normalizedMax == 0) return;
+            if (!File.Exists(_path))
+            {
+                return;
+            }
+
+            var original = LoadUnsafe(out _);
+            var entries = original.AsEnumerable();
+            if (normalizedRetention > 0)
+            {
+                var cutoff = now.AddDays(-normalizedRetention);
+                entries = entries.Where(entry => entry.Timestamp >= cutoff);
+            }
+
+            if (normalizedMax > 0)
+            {
+                entries = entries.Take(normalizedMax);
+            }
+
+            var remaining = entries.ToArray();
+            if (remaining.Length != original.Length) RewriteUnsafe(remaining);
+        }
+    }
+
     private DictationHistoryEntry[] LoadUnsafe(out int skippedLineCount)
     {
         skippedLineCount = 0;

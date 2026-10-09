@@ -24,6 +24,8 @@ internal static class Win32
     public const uint VK_SCROLL = 0x91;
     public const uint VK_LCONTROL = 0xA2;
     public const uint VK_RCONTROL = 0xA3;
+    public const uint VK_SHIFT = 0x10;
+    public const uint VK_MENU = 0x12;
     public const uint LLKHF_EXTENDED = 0x01;
 
     public const uint INPUT_KEYBOARD = 1;
@@ -97,6 +99,16 @@ internal static class Win32
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern uint SendInput(uint nInputs, [In] INPUT[] pInputs, int cbSize);
+
+    [DllImport("user32.dll")]
+    public static extern short GetAsyncKeyState(int vKey);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern uint GetWindowThreadProcessId(nint hWnd, out uint processId);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsWindow(nint hWnd);
 
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT

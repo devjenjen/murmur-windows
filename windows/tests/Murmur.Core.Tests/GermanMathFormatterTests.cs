@@ -39,6 +39,46 @@ public class GermanMathFormatterTests
     }
 
     [Fact]
+    public void Spoken_Powers_Become_Superscripts()
+    {
+        var formatter = new GermanMathFormatter(MathFormatMode.Unicode);
+        formatter.Format("s quadrat").ShouldBe("s².");
+        formatter.Format("x hoch zwei").ShouldBe("x².");
+        formatter.Format("x hoch minus drei").ShouldBe("x⁻³.");
+    }
+
+    [Fact]
+    public void Compact_Letter_Two_Is_Formatted_As_Square()
+    {
+        var formatter = new GermanMathFormatter(MathFormatMode.Unicode);
+        formatter.Format("S2").ShouldBe("S².");
+    }
+
+    [Fact]
+    public void Spoken_Roots_Format_Atoms_And_Explicit_Groups()
+    {
+        var formatter = new GermanMathFormatter(MathFormatMode.Unicode);
+        formatter.Format("wurzel aus x").ShouldBe("√x.");
+        formatter.Format("wurzel aus klammer auf x plus eins klammer zu").ShouldBe("√(x + 1)");
+    }
+
+    [Fact]
+    public void Spoken_Sigma_Uses_Math_Symbols()
+    {
+        var formatter = new GermanMathFormatter(MathFormatMode.Unicode);
+        formatter.Format("sigma alpha beta").ShouldBe("σ α β.");
+        formatter.Format("großes sigma alpha beta").ShouldBe("Σ α β.");
+    }
+
+    [Fact]
+    public void Powers_And_Roots_Use_Latex_Syntax()
+    {
+        var formatter = new GermanMathFormatter(MathFormatMode.Latex);
+        formatter.Format("s quadrat plus wurzel aus x").ShouldBe(@"s^2 + \sqrt{x}");
+        formatter.Format("sigma").ShouldBe(@"\sigma.");
+    }
+
+    [Fact]
     public void Decimal_Numbers_In_Unicode_And_Latex_Mode()
     {
         var unicodeFormatter = new GermanMathFormatter(MathFormatMode.Unicode);

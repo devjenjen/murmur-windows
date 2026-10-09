@@ -21,6 +21,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\..\..\LICENSE" Link="LICENSE"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\..\NOTICE.md" Link="NOTICE.md"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\..\licenses\**\*" Link="licenses\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Murmur.Core\Murmur.Core.csproj" />
     <ProjectReference Include="..\Murmur.Speech\Murmur.Speech.csproj" />
     <ProjectReference Include="..\Murmur.Platform.Windows\Murmur.Platform.Windows.csproj" />

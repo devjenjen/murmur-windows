@@ -5,19 +5,50 @@
 .vs/
 artifacts/
 
-# Local ASR model weights. Large, redistributed under their own license, and every
-# platform fetches them itself — see docs/PARAKEET-WINDOWS.md.
+# Model weights are downloaded by the app and never shipped in source control.
 models/
 *.onnx
 *.nemo
 
-# Local agent state and exported media. Keep out of public release commits.
-/.agents/
-/.codex/
-/.impeccable/
-/*.zip
+# Local tools, agent state, recordings, and generated release artifacts.
+.agents/
+.codex/
+.superpowers/
+.impeccable/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+SKILL.md
+.idea/
+.vscode/
+TestResults/
+*.binlog
+*.trx
+*.log
+*.tmp
+*.bak
+*.zip
+*.7z
+*.exe
+*.dll
+*.wav
+*.mp3
+*.flac
+*.pcm
+*.tar
+*.tar.bz2
+*.tar.gz
+history.jsonl
+settings.json
+.env
+.env.*
+*.pfx
+*.p12
 /temp_apple_design/
-/*.wav
-/docs/superpowers/plans/2026-08-24-recording-hud-apple-lens.md
-/docs/design/
-/docs/superpowers/
+
+# Keep only public release notes from local planning and verification docs.
+/CONTRIBUTING.md
+/docs/*
+!/docs/release/
+/docs/release/*
+!/docs/release/release-notes.md

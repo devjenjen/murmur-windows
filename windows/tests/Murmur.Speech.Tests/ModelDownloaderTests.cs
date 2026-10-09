@@ -1,6 +1,9 @@
 namespace Murmur.Speech.Tests;
 
 using System.Text;
+using System.Net;
+using System.Net.Http;
+using System.Security.Cryptography;
 using Shouldly;
 using Xunit;
 
@@ -80,5 +83,105 @@ public class ModelDownloaderTests
         manifest.ModelId.ShouldBe(ModelManifest.ParakeetV3.Id);
         manifest.Files.Select(file => file.Path).ShouldBe(ModelManifest.RequiredFiles);
         manifest.Files.ShouldAllBe(file => file.Length == 4 && file.Sha256.Length == 64);
+    }
+
+    [Fact]
+    public async Task Cancellation_during_extraction_stops_child_before_cleanup()
+    {
+        using var temp = new TempDirectory();
+        var archive = Encoding.UTF8.GetBytes("archive");
+        var model = TestModel(archive);
+        var extractor = new BlockingExtractor();
+        var downloader = new ModelDownloader(
+            new HttpClient(new FixedResponseHandler(archive)),
+            extractor);
+        using var cancellation = new CancellationTokenSource();
+
+        var download = downloader.DownloadModelAsync(model, Path.Combine(temp.Path, model.Id), ct: cancellation.Token);
+        await extractor.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        cancellation.Cancel();
+
+        await Should.ThrowAsync<OperationCanceledException>(async () => await download);
+        extractor.WasCancelled.ShouldBeTrue();
+        Directory.GetFiles(temp.Path, "*.part").ShouldBeEmpty();
+        Directory.GetDirectories(temp.Path, "*.staging").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Failed_replacement_preserves_previous_valid_model()
+    {
+        using var temp = new TempDirectory();
+        var archive = Encoding.UTF8.GetBytes("archive");
+        var model = TestModel(archive);
+        var finalDir = Path.Combine(temp.Path, model.Id);
+        Directory.CreateDirectory(finalDir);
+        foreach (var file in ModelManifest.RequiredFiles)
+        {
+            await File.WriteAllTextAsync(Path.Combine(finalDir, file), "previous model content");
+        }
+        await ModelIntegrityManifest.WriteAsync(
+            model with { Id = "previous-model" },
+            finalDir);
+        await File.WriteAllTextAsync(Path.Combine(finalDir, "previous.marker"), "keep me");
+
+        var handler = new FixedResponseHandler(Encoding.UTF8.GetBytes("wrong archive"));
+        var downloader = new ModelDownloader(new HttpClient(handler), new NoOpExtractor());
+
+        await Should.ThrowAsync<InvalidDataException>(async () =>
+            await downloader.DownloadModelAsync(model, finalDir));
+
+        File.Exists(Path.Combine(finalDir, "previous.marker")).ShouldBeTrue();
+        File.ReadAllText(Path.Combine(finalDir, "tokens.txt")).ShouldBe("previous model content");
+        Directory.GetDirectories(temp.Path, "*.invalid-*").ShouldBeEmpty();
+    }
+
+    private static ModelManifest TestModel(byte[] archive) => new(
+        "test-model",
+        "Test model",
+        "https://example.invalid/model.tar.bz2",
+        archive.Length,
+        Convert.ToHexStringLower(SHA256.HashData(archive)),
+        false);
+
+    private sealed class FixedResponseHandler : HttpMessageHandler
+    {
+        private readonly byte[] _payload;
+
+        public FixedResponseHandler(byte[] payload) => _payload = payload;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(_payload)
+            };
+            response.Content.Headers.ContentLength = _payload.Length;
+            return Task.FromResult(response);
+        }
+    }
+
+    private sealed class BlockingExtractor : IArchiveExtractor
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public bool WasCancelled { get; private set; }
+
+        public async Task ExtractAsync(string archivePath, string destination, CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                WasCancelled = true;
+                throw;
+            }
+        }
+    }
+
+    private sealed class NoOpExtractor : IArchiveExtractor
+    {
+        public Task ExtractAsync(string archivePath, string destination, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

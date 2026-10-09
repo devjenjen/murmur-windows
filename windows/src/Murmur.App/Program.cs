@@ -1,5 +1,6 @@
 using Avalonia;
 using Murmur.App.Diagnostics;
+using Murmur.Platform.Windows.Startup;
 
 namespace Murmur.App;
 
@@ -8,6 +9,12 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        using var instance = SingleInstanceGuard.TryAcquire();
+        if (instance is null)
+        {
+            return;
+        }
+
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
         {
             if (e.ExceptionObject is Exception ex)

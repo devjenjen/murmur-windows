@@ -24,6 +24,9 @@
   <data name="HudTranscribing" xml:space="preserve"><value>Transcribing…</value></data>
   <data name="HudRecordingLevel" xml:space="preserve"><value>Recording level</value></data>
   <data name="HudError" xml:space="preserve"><value>Error</value></data>
+  <data name="TextTargetUnavailable" xml:space="preserve"><value>No focused text window is available. Text was not inserted.</value></data>
+  <data name="TextTargetChanged" xml:space="preserve"><value>Focus changed before insertion. Text was not inserted.</value></data>
+  <data name="TextModifierHeld" xml:space="preserve"><value>Release Ctrl, Alt, or Shift before insertion. Text was not inserted.</value></data>
   <data name="SettingsTitle" xml:space="preserve"><value>Murmur Settings</value></data>
   <data name="SettingsTabs" xml:space="preserve"><value>Settings sections</value></data>
   <data name="SetupTab" xml:space="preserve"><value>SETUP</value></data>
@@ -56,6 +59,20 @@
   <data name="Preferences" xml:space="preserve"><value>PREFERENCES</value></data>
   <data name="HudScreenPlacement" xml:space="preserve"><value>HUD Screen Placement</value></data>
   <data name="HudScreenPosition" xml:space="preserve"><value>HUD screen position</value></data>
+  <data name="TextInsertionMode" xml:space="preserve"><value>Text insertion</value></data>
+  <data name="AtCurrentCursor" xml:space="preserve"><value>At current cursor</value></data>
+  <data name="AtEndOfDocument" xml:space="preserve"><value>At end of document</value></data>
+  <data name="TextInsertionModeNote" xml:space="preserve"><value>Choose whether dictation keeps the current caret or appends at document end.</value></data>
+  <data name="HistoryEnabled" xml:space="preserve"><value>Save dictation history</value></data>
+  <data name="HistoryRetention" xml:space="preserve"><value>Keep history for</value></data>
+  <data name="HistoryMaxEntries" xml:space="preserve"><value>Keep at most</value></data>
+  <data name="HistoryRetentionNote" xml:space="preserve"><value>History stays local. Retention and entry limits apply when new history is saved; changing settings does not delete existing entries.</value></data>
+  <data name="HistoryRetentionUnlimited" xml:space="preserve"><value>Unlimited</value></data>
+  <data name="HistoryRetention7Days" xml:space="preserve"><value>7 days</value></data>
+  <data name="HistoryRetention30Days" xml:space="preserve"><value>30 days</value></data>
+  <data name="HistoryRetention90Days" xml:space="preserve"><value>90 days</value></data>
+  <data name="HistoryMaxEntriesUnlimited" xml:space="preserve"><value>Unlimited</value></data>
+  <data name="HistoryMaxEntries1000" xml:space="preserve"><value>1,000 entries</value></data>
   <data name="RemoveFillers" xml:space="preserve"><value>Remove filler words (um, uh, you know)</value></data>
   <data name="RemoveFillersAutomation" xml:space="preserve"><value>Remove filler words</value></data>
   <data name="AudioFeedback" xml:space="preserve"><value>Play optional sound after text insertion</value></data>
@@ -77,6 +94,10 @@
   <data name="Copy" xml:space="preserve"><value>Copy</value></data>
   <data name="CopyTranscription" xml:space="preserve"><value>Copy transcription</value></data>
   <data name="CopyTranscriptionTip" xml:space="preserve"><value>Copy transcription to clipboard</value></data>
+  <data name="RecoveryTranscriptTitle" xml:space="preserve"><value>Text not inserted</value></data>
+  <data name="RecoveryTranscriptNote" xml:space="preserve"><value>Focus changed or input was unavailable. Copy result explicitly, or discard it.</value></data>
+  <data name="CopyRecoveryTranscript" xml:space="preserve"><value>Copy result</value></data>
+  <data name="DiscardRecoveryTranscript" xml:space="preserve"><value>Discard result</value></data>
   <data name="Delete" xml:space="preserve"><value>Delete</value></data>
   <data name="DeleteTranscription" xml:space="preserve"><value>Delete transcription</value></data>
   <data name="DeleteTranscriptionTip" xml:space="preserve"><value>Delete transcription</value></data>
@@ -135,9 +156,16 @@
   <data name="DownloadFailed" xml:space="preserve"><value>Download failed: {0}</value></data>
   <data name="MicrophoneTestFailed" xml:space="preserve"><value>Microphone test failed: {0}</value></data>
   <data name="UpdateAvailableWithVersion" xml:space="preserve"><value>Update available: {0}</value></data>
-  <data name="ModelInstalledReady" xml:space="preserve"><value>Model installed and ready.</value></data>
+  <data name="ModelFilesInstalled" xml:space="preserve"><value>Model installed.</value></data>
+  <data name="ModelLoadFailed" xml:space="preserve"><value>Model could not be loaded: {0}. Apply to retry or download the model again.</value></data>
+  <data name="ModelLoadError" xml:space="preserve"><value>Model: load failed</value></data>
+  <data name="StatusModelInstalled" xml:space="preserve"><value>Installed. Apply to load the speech model.</value></data>
   <data name="ModelNotDownloaded" xml:space="preserve"><value>Model not downloaded ({0} MB required).</value></data>
   <data name="DownloadingProgress" xml:space="preserve"><value>Downloading: {0:P0}</value></data>
+  <data name="VerifyingModel" xml:space="preserve"><value>Verifying model...</value></data>
+  <data name="ExtractingModel" xml:space="preserve"><value>Extracting model...</value></data>
+  <data name="PreparingModel" xml:space="preserve"><value>Preparing model...</value></data>
+  <data name="SettingsSaveFailed" xml:space="preserve"><value>Settings could not be saved. Existing settings were kept.</value></data>
   <data name="DownloadingButton" xml:space="preserve"><value>Downloading...</value></data>
   <data name="InstalledButton" xml:space="preserve"><value>Installed</value></data>
   <data name="PressAnyKey" xml:space="preserve"><value>Press any key — Esc cancels</value></data>

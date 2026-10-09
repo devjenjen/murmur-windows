@@ -33,6 +33,9 @@ public static class UiText
     public static string HudTranscribing => Get(nameof(HudTranscribing));
     public static string HudRecordingLevel => Get(nameof(HudRecordingLevel));
     public static string HudError => Get(nameof(HudError));
+    public static string TextTargetUnavailable => Get(nameof(TextTargetUnavailable));
+    public static string TextTargetChanged => Get(nameof(TextTargetChanged));
+    public static string TextModifierHeld => Get(nameof(TextModifierHeld));
 
     public static string SettingsTitle => Get(nameof(SettingsTitle));
     public static string SettingsTabs => Get(nameof(SettingsTabs));
@@ -66,6 +69,20 @@ public static class UiText
     public static string Preferences => Get(nameof(Preferences));
     public static string HudScreenPlacement => Get(nameof(HudScreenPlacement));
     public static string HudScreenPosition => Get(nameof(HudScreenPosition));
+    public static string TextInsertionMode => Get(nameof(TextInsertionMode));
+    public static string AtCurrentCursor => Get(nameof(AtCurrentCursor));
+    public static string AtEndOfDocument => Get(nameof(AtEndOfDocument));
+    public static string TextInsertionModeNote => Get(nameof(TextInsertionModeNote));
+    public static string HistoryEnabled => Get(nameof(HistoryEnabled));
+    public static string HistoryRetention => Get(nameof(HistoryRetention));
+    public static string HistoryMaxEntries => Get(nameof(HistoryMaxEntries));
+    public static string HistoryRetentionNote => Get(nameof(HistoryRetentionNote));
+    public static string HistoryRetentionUnlimited => Get(nameof(HistoryRetentionUnlimited));
+    public static string HistoryRetention7Days => Get(nameof(HistoryRetention7Days));
+    public static string HistoryRetention30Days => Get(nameof(HistoryRetention30Days));
+    public static string HistoryRetention90Days => Get(nameof(HistoryRetention90Days));
+    public static string HistoryMaxEntriesUnlimited => Get(nameof(HistoryMaxEntriesUnlimited));
+    public static string HistoryMaxEntries1000 => Get(nameof(HistoryMaxEntries1000));
     public static string RemoveFillers => Get(nameof(RemoveFillers));
     public static string RemoveFillersAutomation => Get(nameof(RemoveFillersAutomation));
     public static string AudioFeedback => Get(nameof(AudioFeedback));
@@ -101,6 +118,10 @@ public static class UiText
     public static string Copy => Get(nameof(Copy));
     public static string CopyTranscription => Get(nameof(CopyTranscription));
     public static string CopyTranscriptionTip => Get(nameof(CopyTranscriptionTip));
+    public static string RecoveryTranscriptTitle => Get(nameof(RecoveryTranscriptTitle));
+    public static string RecoveryTranscriptNote => Get(nameof(RecoveryTranscriptNote));
+    public static string CopyRecoveryTranscript => Get(nameof(CopyRecoveryTranscript));
+    public static string DiscardRecoveryTranscript => Get(nameof(DiscardRecoveryTranscript));
     public static string Delete => Get(nameof(Delete));
     public static string DeleteTranscription => Get(nameof(DeleteTranscription));
     public static string DeleteTranscriptionTip => Get(nameof(DeleteTranscriptionTip));

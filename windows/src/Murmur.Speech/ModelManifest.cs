@@ -11,6 +11,9 @@ public sealed record ModelManifest(
     string ArchiveSha256,
     bool SupportsLivePreview)
 {
+    /// <summary>Measured bytes written by the pinned archive during extraction.</summary>
+    public long ExtractedSize { get; init; }
+
     /// <summary>The four required model files for Sherpa-ONNX transducer models.</summary>
     public static IReadOnlyList<string> RequiredFiles { get; } =
         ["encoder.int8.onnx", "decoder.int8.onnx", "joiner.int8.onnx", "tokens.txt"];
@@ -22,7 +25,10 @@ public sealed record ModelManifest(
         "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2",
         487_170_055,
         "5793d0fd397c5778d2cf2126994d58e9d56b1be7c04d13c7a15bb1b4eafb16bf",
-        false);
+        false)
+    {
+        ExtractedSize = 671_239_705
+    };
 
     /// <summary>Pinned Nemotron 3.5 live streaming model.</summary>
     public static ModelManifest NemotronStreaming160Ms { get; } = new(
@@ -31,7 +37,10 @@ public sealed record ModelManifest(
         "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemotron-3.5-asr-streaming-0.6b-160ms-int8-2026-06-11.tar.bz2",
         475_273_363,
         "a81909a1780d84cff16d73c15e13e67d9d81d8839faf14870d507d8499f7a61a",
-        true);
+        true)
+    {
+        ExtractedSize = 684_575_710
+    };
 
     /// <summary>All available pinned speech models.</summary>
     public static IReadOnlyList<ModelManifest> All { get; } =

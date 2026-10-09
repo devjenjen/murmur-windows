@@ -40,6 +40,7 @@ public class ModelLocatorTests
         model.Id.ShouldBe("nemotron-3.5-streaming-160ms");
         model.ArchiveSize.ShouldBe(475_273_363);
         model.ArchiveSha256.ShouldBe("a81909a1780d84cff16d73c15e13e67d9d81d8839faf14870d507d8499f7a61a");
+        model.ExtractedSize.ShouldBe(684_575_710);
         model.SupportsLivePreview.ShouldBeTrue();
     }
 

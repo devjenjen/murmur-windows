@@ -14,6 +14,7 @@ using Murmur.Platform.Windows.Audio;
 using Murmur.Core.Settings;
 using Murmur.Core.State;
 using Murmur.Dictionary;
+using Murmur.Speech;
 using Shouldly;
 using Xunit;
 
@@ -62,6 +63,23 @@ public sealed class HardeningAndResilienceTests : IDisposable
         {
             UiText.SetLanguage(UiLanguage.English);
         }
+    }
+
+    [AvaloniaFact]
+    public void HudWindow_Error_ShowsFailureMessageAndFinalTranscript()
+    {
+        var hud = new HudWindow();
+
+        hud.UpdateState(
+            new DictationState(DictationStatus.Error, Message: UiText.TextTargetChanged),
+            0,
+            "Final recovery text");
+        Dispatcher.UIThread.RunJobs();
+
+        var transcript = hud.FindControl<TextBlock>("TranscriptText");
+        transcript.ShouldNotBeNull();
+        transcript.Text!.ShouldContain(UiText.TextTargetChanged);
+        transcript.Text!.ShouldContain("Final recovery text");
     }
 
     [Fact]
@@ -143,5 +161,30 @@ public sealed class HardeningAndResilienceTests : IDisposable
 
             deMatches.ShouldBe(enMatches, $"Placeholders in key '{key}' do not match between English ({enValue}) and German ({deValue})");
         }
+    }
+
+    [Fact]
+    public void Changing_selected_model_does_not_accept_old_download_status()
+    {
+        App.AcceptDownloadUpdate(
+                selectedModelId: ModelManifest.NemotronStreaming160Ms.Id,
+                downloadModelId: ModelManifest.ParakeetV3.Id,
+                downloadGeneration: 4,
+                currentGeneration: 4)
+            .ShouldBeFalse();
+
+        App.AcceptDownloadUpdate(
+                selectedModelId: ModelManifest.ParakeetV3.Id,
+                downloadModelId: ModelManifest.ParakeetV3.Id,
+                downloadGeneration: 3,
+                currentGeneration: 4)
+            .ShouldBeFalse();
+
+        App.AcceptDownloadUpdate(
+                selectedModelId: ModelManifest.ParakeetV3.Id,
+                downloadModelId: ModelManifest.ParakeetV3.Id,
+                downloadGeneration: 4,
+                currentGeneration: 4)
+            .ShouldBeTrue();
     }
 }

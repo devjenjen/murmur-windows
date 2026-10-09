@@ -19,4 +19,7 @@ public interface IStreamingTranscriber : ITranscriber
 
     /// <summary>Cancels and releases the active streaming session.</summary>
     void CancelSession();
+
+    /// <summary>Discards queued audio and waits for native work before releasing the session.</summary>
+    Task CancelSessionAsync() => Task.Run(CancelSession);
 }

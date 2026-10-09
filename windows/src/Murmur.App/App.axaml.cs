@@ -51,6 +51,14 @@ public partial class App : Application
     private IReadOnlyList<DictionaryEntry> _dictionaryEntries = [];
 
     private DictationController? _controller;
+    private readonly SemaphoreSlim _controllerGate = new(1, 1);
+    private int _controllerGeneration;
+    private volatile bool _shuttingDown;
+    private Action? _unsubscribeControllerEvents;
+    private Task? _initializationTask;
+    private string? _controllerModelId;
+    private string? _loadingModelId;
+    private readonly Dictionary<string, string> _modelLoadErrors = new(StringComparer.OrdinalIgnoreCase);
     private LowLevelKeyboardHook? _profileToggleHook;
     private HudWindow? _hud;
     private SettingsWindow? _settingsWindow;
@@ -59,6 +67,7 @@ public partial class App : Application
     private readonly Lock _testCaptureLock = new();
     private int _testCaptureGeneration;
     private CancellationTokenSource? _downloadCts;
+    private int _downloadGeneration;
     private readonly ClickSoundPlayer _clickSoundPlayer = new();
     private string? _clickSoundPath;
     private readonly ReleaseUpdateChecker _updateChecker = new();
@@ -66,7 +75,8 @@ public partial class App : Application
     private ReleaseInfo? _availableRelease;
     private int _updateCheckInProgress;
     private NativeMenuItem? _updateAvailableMenuItem;
-    private TrayStatusKind _trayStatus = TrayStatusKind.Ready;
+    private TrayStatusKind _trayStatus = TrayStatusKind.LoadingSpeechModel;
+    private string? _recoveryTranscript;
 
     /// <inheritdoc />
     public override void Initialize()
@@ -86,7 +96,7 @@ public partial class App : Application
             _hud = new HudWindow();
             AppLogger.Log("HudWindow created.");
 
-            _ = InitializeMurmurAsync();
+            _initializationTask = InitializeMurmurAsync();
             _ = CheckForUpdatesAsync();
         }
 
@@ -96,49 +106,49 @@ public partial class App : Application
 
     private async Task InitializeMurmurAsync()
     {
-        _clickSoundPath = Path.Combine(
-            AppContext.BaseDirectory,
-            "Sounds",
-            "feedback.wav");
-
-        _settings = _settingsStore.Load().Normalize();
-        UiText.SetLanguage(_settings.Language);
-        AppLogger.Log($"Settings loaded: StartWithWindows={_settings.StartWithWindows}, SetupCompleted={_settings.SetupCompleted}, HotkeyId={_settings.HotkeyId}, HudPlacement={_settings.HudPlacement}, SpeechModelId={_settings.SpeechModelId}, Language={_settings.Language}, AudioFeedbackEnabled={_settings.AudioFeedbackEnabled}, ActiveProfileId={_settings.ActiveProfileId}");
-        var currentExecutable = Environment.ProcessPath;
-        var registeredExecutable = WindowsStartup.GetRegisteredExecutablePath();
-        var startupDiffers = currentExecutable != null && registeredExecutable != null &&
-            !string.Equals(Path.GetFullPath(currentExecutable), Path.GetFullPath(registeredExecutable), StringComparison.OrdinalIgnoreCase);
-        AppLogger.Log($"Startup executable differs from current: {startupDiffers}");
-
-        if (_settings.StartWithWindows && !WindowsStartup.IsEnabled())
+        try
         {
-            try
+            _clickSoundPath = Path.Combine(
+                AppContext.BaseDirectory,
+                "Sounds",
+                "feedback.wav");
+
+            _settings = _settingsStore.Load().Normalize();
+            UiText.SetLanguage(_settings.Language);
+            AppLogger.Log($"Settings loaded: StartWithWindows={_settings.StartWithWindows}, SetupCompleted={_settings.SetupCompleted}, HotkeyId={_settings.HotkeyId}, HudPlacement={_settings.HudPlacement}, SpeechModelId={_settings.SpeechModelId}, Language={_settings.Language}, AudioFeedbackEnabled={_settings.AudioFeedbackEnabled}, ActiveProfileId={_settings.ActiveProfileId}");
+
+            var devices = WasapiAudioCapture.GetActiveDevices();
+            AppLogger.Log($"Active audio input devices: {devices.Count}");
+            foreach (var dev in devices)
             {
-                WindowsStartup.Enable();
+                AppLogger.Log($"  Device: {dev.Name} (Default: {dev.IsDefault})");
             }
-            catch (Exception ex)
+
+            var model = ModelManifest.Get(_settings.SpeechModelId);
+            var modelAvailable = await Task.Run(() => ModelLocator.HasRequiredFiles(model));
+            if (!_settings.SetupCompleted || !modelAvailable || devices.Count == 0)
             {
-                AppLogger.LogException("WindowsStartup.Enable on init", ex);
+                AppLogger.Log("Setup incomplete or model missing. Showing settings window.");
+                if (_shuttingDown) return;
+                UpdateTrayStatus(TrayStatusKind.Error);
+                ShowSettings();
+                return;
             }
-        }
 
-        var devices = WasapiAudioCapture.GetActiveDevices();
-        AppLogger.Log($"Active audio input devices: {devices.Count}");
-        foreach (var dev in devices)
-        {
-            AppLogger.Log($"  Device: {dev.Name} (Default: {dev.IsDefault})");
+            await StartControllerAsync();
         }
-
-        var model = ModelManifest.Get(_settings.SpeechModelId);
-        var modelAvailable = await Task.Run(() => ModelLocator.IsModelDownloaded(model));
-        if (!_settings.SetupCompleted || !modelAvailable || devices.Count == 0)
+        catch (Exception ex)
         {
-            AppLogger.Log("Setup incomplete or model missing. Showing settings window.");
+            AppLogger.LogException("InitializeMurmurAsync", ex);
+            if (_shuttingDown) return;
+            UpdateTrayStatus(TrayStatusKind.Error);
             ShowSettings();
-            return;
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!_shuttingDown)
+                    _settingsWindow?.SetStatus(UiText.Format("AppError", ex.Message), isError: true);
+            });
         }
-
-        await StartControllerAsync();
     }
 
     private static ITextFormatter CreateFormatter(DictationProfile profile)
@@ -203,9 +213,11 @@ public partial class App : Application
 
         try
         {
-            _profileToggleHook = new LowLevelKeyboardHook(_settings.ProfileToggleHotkeyId);
-            _profileToggleHook.Pressed += OnProfileToggleHotkeyPressed;
-            _profileToggleHook.Start();
+            var controllerOwner = _controller;
+            var hookOwner = new LowLevelKeyboardHook(_settings.ProfileToggleHotkeyId);
+            _profileToggleHook = hookOwner;
+            hookOwner.Pressed += () => OnProfileToggleHotkeyPressed(hookOwner, controllerOwner);
+            hookOwner.Start();
             AppLogger.Log($"Profile toggle hook started: {_settings.ProfileToggleHotkeyId} (vk={toggleOption.VirtualKey})");
         }
         catch (Exception ex)
@@ -216,10 +228,12 @@ public partial class App : Application
         }
     }
 
-    private void OnProfileToggleHotkeyPressed()
+    private void OnProfileToggleHotkeyPressed(LowLevelKeyboardHook hookOwner, DictationController? controllerOwner)
     {
         Dispatcher.UIThread.Post(() =>
         {
+            if (_shuttingDown || controllerOwner == null || !ReferenceEquals(_controller, controllerOwner) ||
+                !ReferenceEquals(_profileToggleHook, hookOwner)) return;
             var nextId = string.Equals(_settings.ActiveProfileId, "standard", StringComparison.OrdinalIgnoreCase)
                 ? "math"
                 : "standard";
@@ -318,44 +332,58 @@ public partial class App : Application
 
     private async Task StartControllerAsync()
     {
+        var generation = Interlocked.Increment(ref _controllerGeneration);
+        var settings = _settings.Normalize();
+        var model = ModelManifest.Get(settings.SpeechModelId);
+        bool IsCurrentLoad() => !_shuttingDown && generation == Volatile.Read(ref _controllerGeneration);
+        await _controllerGate.WaitAsync();
+        ITranscriber? transcriber = null;
+        WasapiAudioCapture? audioCapture = null;
+        LowLevelKeyboardHook? hotkeyHook = null;
+        DictationController? candidate = null;
+        var loadingTranscriber = false;
         try
         {
+            if (!IsCurrentLoad()) return;
             _profileToggleHook?.Dispose();
             _profileToggleHook = null;
+            await DisposeControllerAsync();
+            if (!IsCurrentLoad()) return;
 
-            if (_controller != null)
+            if (!await Task.Run(() => ModelLocator.HasRequiredFiles(model)))
             {
-                _controller.TextInjected -= OnTextInjected;
-                _controller.DictationCompleted -= OnDictationCompleted;
-                _controller.Dispose();
-                _controller = null;
-            }
-
-            var model = ModelManifest.Get(_settings.SpeechModelId);
-            if (!await Task.Run(() => ModelLocator.IsModelDownloaded(model)))
-            {
-                ShowSettings();
+                if (IsCurrentLoad())
+                {
+                    UpdateTrayStatus(TrayStatusKind.Error);
+                    ShowSettings();
+                }
                 return;
             }
+            if (!IsCurrentLoad()) return;
 
-            _settings = _settings.Normalize();
-            var activeProfile = _settings.ActiveProfile;
+            var activeProfile = settings.ActiveProfile;
             var initialFormatter = CreateFormatter(activeProfile);
 
-            _hud?.SetPlacement(_settings.HudPlacement);
+            _hud?.SetPlacement(settings.HudPlacement);
+            _hud?.UpdateState(DictationState.Idle, 0, string.Empty);
             UpdateTrayStatus(TrayStatusKind.LoadingSpeechModel);
-            _settingsWindow?.SetStatus(UiText.Text("LoadingSpeechModel"));
+            _loadingModelId = model.Id;
+            _settingsWindow?.SetModelLoading(model.Id);
 
             var sw = Stopwatch.StartNew();
-            ITranscriber transcriber = model.SupportsLivePreview
+            loadingTranscriber = true;
+            transcriber = model.SupportsLivePreview
                 ? await Task.Run(() => new NemotronStreamingTranscriber(ModelLocator.GetDefaultModelDirectory(model)))
                 : await Task.Run(() => new SherpaOnnxTranscriber(ModelLocator.GetDefaultModelDirectory(model)));
+            loadingTranscriber = false;
+            if (!IsCurrentLoad()) return;
             sw.Stop();
             AppLogger.Log($"Transcriber initialized in {sw.ElapsedMilliseconds} ms (Model: {model.Id}, live_preview={model.SupportsLivePreview})");
 
-            var audioCapture = new WasapiAudioCapture(_settings.MicrophoneEndpointId);
-            audioCapture.SessionStopped += () => LogCaptureDiagnostics(audioCapture);
-            var hotkeyHook = new LowLevelKeyboardHook(_settings.HotkeyId);
+            audioCapture = new WasapiAudioCapture(settings.MicrophoneEndpointId);
+            var captureOwner = audioCapture;
+            captureOwner.SessionStopped += () => LogCaptureDiagnostics(captureOwner);
+            hotkeyHook = new LowLevelKeyboardHook(settings.HotkeyId);
             var injector = new SendInputInjector();
             DictionaryCorrector dictionaryCorrector;
             try
@@ -369,7 +397,7 @@ public partial class App : Application
                 dictionaryCorrector = new DictionaryCorrector([]);
             }
 
-            _controller = new DictationController(
+            candidate = new DictationController(
                 audioCapture,
                 hotkeyHook,
                 transcriber,
@@ -377,34 +405,15 @@ public partial class App : Application
                 model.DisplayName,
                 initialFormatter,
                 dictionaryCorrector,
-                activeProfile);
-
-            _controller.DictationCompleted += OnDictationCompleted;
-            _controller.TextInjected += OnTextInjected;
-
-            _controller.StateChanged += state =>
-            {
-                AppLogger.Log($"StateChanged: {state.Status} (Message: {state.Message ?? "none"})");
-                _hud?.UpdateState(state, _controller.Level, _controller.CurrentTranscript);
-            };
-
-            _controller.LevelChanged += level =>
-            {
-                _hud?.UpdateLevel(_controller.State.Status, level);
-            };
-
-            _controller.TranscriptChanged += t =>
-            {
-                AppLogger.Log($"TranscriptChanged: {t.Length} chars");
-                _hud?.UpdateState(_controller.State, _controller.Level, t);
-            };
-
-            _controller.MetricsRecorded += m =>
-            {
-                AppLogger.Log($"Dictation metrics: audio_ms={m.AudioDurationMs:F0} inference_ms={m.InferenceDurationMs:F0} rtf={m.RealTimeFactor:F3} chars={m.TranscriptLength}");
-            };
-
-            _controller.Start();
+                activeProfile,
+                settings.TextInsertionMode);
+            transcriber = null;
+            audioCapture = null;
+            hotkeyHook = null;
+            if (!IsCurrentLoad()) return;
+            _controller = candidate;
+            _unsubscribeControllerEvents = SubscribeControllerEvents(candidate, model.Id);
+            candidate.Start();
             AppLogger.Log("DictationController started successfully.");
 
             SetupProfileToggleHook();
@@ -418,19 +427,135 @@ public partial class App : Application
             }
 
             UpdateTrayStatus(TrayStatusKind.Ready);
-            _settingsWindow?.SetStatus(UiText.Text("Ready"));
+            _controllerModelId = model.Id;
+            _loadingModelId = null;
+            _modelLoadErrors.Remove(model.Id);
+            _settingsWindow?.SetModelLoaded(model.Id);
+            candidate = null;
         }
         catch (Exception ex)
         {
             AppLogger.LogException("StartControllerAsync", ex);
-            UpdateTrayStatus(TrayStatusKind.Error);
-            _settingsWindow?.SetStatus(UiText.Format("AppError", ex.Message), isError: true);
-            ShowSettings();
+            if (candidate != null && ReferenceEquals(_controller, candidate))
+                await DisposeControllerAsync();
+            if (IsCurrentLoad())
+            {
+                _loadingModelId = null;
+                _settingsWindow?.SetModelNotLoaded();
+                var message = loadingTranscriber
+                    ? UiText.Format("ModelLoadFailed", ex.Message) : UiText.Format("AppError", ex.Message);
+                if (loadingTranscriber) _modelLoadErrors[model.Id] = message;
+                UpdateTrayStatus(TrayStatusKind.Error);
+                ShowSettings();
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (IsCurrentLoad())
+                    {
+                        if (loadingTranscriber) _settingsWindow?.SetModelLoadError(model.Id, message);
+                        else _settingsWindow?.SetStatus(message, isError: true);
+                    }
+                });
+            }
         }
+        finally
+        {
+            try
+            {
+                if (candidate != null) await candidate.DisposeAsync();
+                try { audioCapture?.Dispose(); }
+                finally
+                {
+                    try { hotkeyHook?.Dispose(); }
+                    finally { transcriber?.Dispose(); }
+                }
+            }
+            catch (Exception ex) { AppLogger.LogException("Controller load cleanup", ex); }
+            finally { _controllerGate.Release(); }
+            if (string.Equals(_loadingModelId, model.Id, StringComparison.OrdinalIgnoreCase)) _loadingModelId = null;
+        }
+    }
+
+    private async Task DisposeControllerAsync()
+    {
+        var owner = _controller;
+        var unsubscribe = _unsubscribeControllerEvents;
+        _unsubscribeControllerEvents = null;
+        _controller = null;
+        _controllerModelId = null;
+        _settingsWindow?.SetModelNotLoaded();
+        try { if (owner != null) await owner.DisposeAsync(); }
+        finally { unsubscribe?.Invoke(); }
+    }
+
+    private Action SubscribeControllerEvents(DictationController owner, string modelId)
+    {
+        bool IsOwner() => !_shuttingDown && ReferenceEquals(_controller, owner);
+        void Post(Action action)
+        {
+            if (!IsOwner()) return;
+            Dispatcher.UIThread.Post(() => { if (IsOwner()) action(); });
+        }
+        // Persistence belongs to committed insertions, including ones shutdown is still awaiting.
+        Action<CompletedDictation> completed = OnDictationCompleted;
+        Action<CompletedDictation> injected = value => Post(() => OnTextInjected(value));
+        Action<DictationState> stateChanged = state =>
+        {
+            var text = owner.CurrentTranscript;
+            var level = owner.Level;
+            Post(() =>
+            {
+                AppLogger.Log($"StateChanged: {state.Status}");
+                if (state.Status == DictationStatus.Error && !string.IsNullOrWhiteSpace(text))
+                {
+                    _recoveryTranscript = text;
+                    _settingsWindow?.SetRecoveryTranscript(text);
+                }
+                _hud?.UpdateState(LocalizeDictationState(state), level, text);
+            });
+        };
+        Action<float> levelChanged = level =>
+        {
+            var status = owner.State.Status;
+            Post(() => _hud?.UpdateLevel(status, level));
+        };
+        Action<string> transcriptChanged = text =>
+        {
+            var state = owner.State;
+            var level = owner.Level;
+            Post(() => _hud?.UpdateState(LocalizeDictationState(state), level, text));
+        };
+        Action<DictationMetrics> metrics = value =>
+        {
+            var durationKind = value.IsStreaming ? "streaming_completion_ms" : "offline_inference_ms";
+            var status = value.ReleaseToInjectionMs.HasValue ? "injected" : value.TranscriptLength == 0 ? "empty" : "injection_failed";
+            var ratio = value.IsStreaming ? string.Empty : FormattableString.Invariant($" offline_rtf={value.RealTimeFactor:F3}");
+            var firstPartial = value.FirstPartialMs is { } partial ? FormattableString.Invariant($"{partial:F0}") : "null";
+            var releaseToInjection = value.ReleaseToInjectionMs is { } injection ? FormattableString.Invariant($"{injection:F0}") : "null";
+            AppLogger.Log(FormattableString.Invariant(
+                $"Dictation metrics: model_id={modelId} result={status} audio_ms={value.AudioDurationMs:F0} {durationKind}={value.InferenceDurationMs:F0} first_partial_ms={firstPartial} release_to_injection_ms={releaseToInjection}{ratio}"));
+        };
+        owner.DictationCompleted += completed;
+        owner.TextInjected += injected;
+        owner.StateChanged += stateChanged;
+        owner.LevelChanged += levelChanged;
+        owner.TranscriptChanged += transcriptChanged;
+        owner.MetricsRecorded += metrics;
+        return () =>
+        {
+            owner.DictationCompleted -= completed;
+            owner.TextInjected -= injected;
+            owner.StateChanged -= stateChanged;
+            owner.LevelChanged -= levelChanged;
+            owner.TranscriptChanged -= transcriptChanged;
+            owner.MetricsRecorded -= metrics;
+        };
     }
 
     private void OnTextInjected(CompletedDictation completed)
     {
+        _recoveryTranscript = null;
+        _settingsWindow?.ClearRecoveryTranscript();
+
         if (!_settings.AudioFeedbackEnabled)
         {
             return;
@@ -449,10 +574,35 @@ public partial class App : Application
         }
     }
 
+    private static DictationState LocalizeDictationState(DictationState state)
+    {
+        if (state.Status != DictationStatus.Error || string.IsNullOrWhiteSpace(state.Message))
+        {
+            return state;
+        }
+
+        var localized = state.Message switch
+        {
+            "TextTargetUnavailable" => UiText.TextTargetUnavailable,
+            "TextTargetChanged" => UiText.TextTargetChanged,
+            "TextModifierHeld" => UiText.TextModifierHeld,
+            _ => state.Message
+        };
+        return string.Equals(localized, state.Message, StringComparison.Ordinal)
+            ? state
+            : state with { Message = localized };
+    }
+
+    private void OnRecoveryTranscriptCleared()
+    {
+        _recoveryTranscript = null;
+    }
+
     private void ShowSettings()
     {
         Dispatcher.UIThread.Post(() =>
         {
+            if (_shuttingDown) return;
             if (_settingsWindow == null)
             {
                 _settingsWindow = new SettingsWindow();
@@ -464,6 +614,7 @@ public partial class App : Application
                 _settingsWindow.HistoryDeleteRequested += OnHistoryDeleteRequested;
                 _settingsWindow.HistoryClearRequested += OnHistoryClearRequested;
                 _settingsWindow.DictionaryChanged += OnDictionaryChanged;
+                _settingsWindow.RecoveryTranscriptCleared += OnRecoveryTranscriptCleared;
                 _settingsWindow.Closed += (s, e) =>
                 {
                     _ = StopMicrophoneTestAsync();
@@ -471,10 +622,24 @@ public partial class App : Application
                 };
             }
 
-            var devices = WasapiAudioCapture.GetActiveDevices();
+            IReadOnlyList<AudioInputDevice> devices;
+            string? deviceError = null;
+            try { devices = WasapiAudioCapture.GetActiveDevices(); }
+            catch (Exception ex)
+            {
+                AppLogger.LogException("ShowSettings audio devices", ex);
+                devices = [];
+                deviceError = UiText.Format("AppError", ex.Message);
+            }
             _settingsWindow.SetChoices(_settings);
+            foreach (var (modelId, error) in _modelLoadErrors)
+                _settingsWindow.SetModelLoadError(modelId, error);
+            if (_loadingModelId != null) _settingsWindow.SetModelLoading(_loadingModelId);
+            else if (_controllerModelId != null) _settingsWindow.SetModelLoaded(_controllerModelId);
             _settingsWindow.SetDevices(devices, _settings.MicrophoneEndpointId);
             _settingsWindow.SetStartWithWindows(_settings.StartWithWindows);
+            _settingsWindow.SetRecoveryTranscript(_recoveryTranscript);
+            if (deviceError != null) _settingsWindow.SetStatus(deviceError, isError: true);
             try
             {
                 _dictionaryEntries = DictionaryFile.LoadOrCreate();
@@ -493,6 +658,12 @@ public partial class App : Application
 
     private void OnDictationCompleted(CompletedDictation completed)
     {
+        var settings = Volatile.Read(ref _settings);
+        if (!settings.HistoryEnabled)
+        {
+            return;
+        }
+
         try
         {
             var id = Guid.NewGuid();
@@ -503,8 +674,12 @@ public partial class App : Application
                 completed.AudioDurationMs,
                 completed.InferenceDurationMs,
                 completed.Text));
+            _historyStore.Prune(
+                DateTimeOffset.Now,
+                settings.HistoryRetentionDays,
+                settings.HistoryMaxEntries);
             _historyError = null;
-            AppLogger.Log($"History entry saved: id={id} chars={completed.Text.Length}");
+            AppLogger.Log($"History entry saved: id={id} retention_days={settings.HistoryRetentionDays} max_entries={settings.HistoryMaxEntries}");
 
             if (_settingsWindow != null)
             {
@@ -593,7 +768,7 @@ public partial class App : Application
         AppLogger.Log($"SettingsSaveRequested: StartWithWindows={req.StartWithWindows}, HotkeyId={req.HotkeyId}, HudPlacement={req.HudPlacement}, SpeechModelId={req.SpeechModelId}, RemoveFillers={req.RemoveFillers}, Language={req.Language}, AudioFeedbackEnabled={req.AudioFeedbackEnabled}, ActiveProfileId={req.ActiveProfileId}");
 
         var prevSettings = _settings;
-        _settings = _settings with
+        var nextSettings = _settings with
         {
             MicrophoneEndpointId = req.MicrophoneEndpointId,
             StartWithWindows = req.StartWithWindows,
@@ -604,11 +779,39 @@ public partial class App : Application
             Language = req.Language,
             AudioFeedbackEnabled = req.AudioFeedbackEnabled,
             Profiles = req.Profiles ?? _settings.Profiles,
-            ActiveProfileId = !string.IsNullOrEmpty(req.ActiveProfileId) ? req.ActiveProfileId : _settings.ActiveProfileId
+            ActiveProfileId = !string.IsNullOrEmpty(req.ActiveProfileId) ? req.ActiveProfileId : _settings.ActiveProfileId,
+            TextInsertionMode = req.TextInsertionMode,
+            HistoryEnabled = req.HistoryEnabled,
+            HistoryRetentionDays = req.HistoryRetentionDays,
+            HistoryMaxEntries = req.HistoryMaxEntries
         };
-        _settings = _settings.Normalize();
+
+        nextSettings = nextSettings.Normalize();
+        try
+        {
+            _settingsStore.Save(nextSettings);
+        }
+        catch (IOException ex)
+        {
+            AppLogger.LogException("SettingsStore.Save", ex);
+            _settingsWindow?.SetStatus(UiText.Text("SettingsSaveFailed"), isError: true);
+            return;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            AppLogger.LogException("SettingsStore.Save", ex);
+            _settingsWindow?.SetStatus(UiText.Text("SettingsSaveFailed"), isError: true);
+            return;
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            AppLogger.LogException("SettingsStore.Save", ex);
+            _settingsWindow?.SetStatus(UiText.Text("SettingsSaveFailed"), isError: true);
+            return;
+        }
+
+        _settings = nextSettings;
         UiText.SetLanguage(_settings.Language);
-        _settingsStore.Save(_settings);
         RefreshTrayLocalization();
         _hud?.RefreshLocalizedLabels();
 
@@ -626,6 +829,11 @@ public partial class App : Application
         catch (Exception ex)
         {
             AppLogger.LogException("WindowsStartup", ex);
+        }
+
+        if (_controller != null && !RequiresControllerRestart(prevSettings, _settings))
+        {
+            _controller.SetTextInsertionMode(_settings.TextInsertionMode);
         }
 
         await StopMicrophoneTestAsync();
@@ -646,45 +854,96 @@ public partial class App : Application
 
     private void OnSettingsRefreshRequested()
     {
-        var devices = WasapiAudioCapture.GetActiveDevices();
-        _settingsWindow?.SetDevices(devices, _settings.MicrophoneEndpointId);
+        try
+        {
+            var devices = WasapiAudioCapture.GetActiveDevices();
+            _settingsWindow?.SetDevices(devices, _settings.MicrophoneEndpointId);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.LogException("Refresh audio devices", ex);
+            _settingsWindow?.SetDevices([], _settings.MicrophoneEndpointId);
+            _settingsWindow?.SetStatus(UiText.Format("AppError", ex.Message), isError: true);
+        }
     }
 
     private async void OnSettingsDownloadRequested(string modelId)
     {
-        if (_downloadCts != null)
+        if (_shuttingDown || _downloadCts != null)
         {
             return;
         }
 
         var model = ModelManifest.Get(modelId);
-        _downloadCts = new CancellationTokenSource();
-        var progress = new Progress<double>(p => _settingsWindow?.SetModelProgress(p));
+        var downloadCts = new CancellationTokenSource();
+        var downloadSucceeded = false;
+        var generation = Interlocked.Increment(ref _downloadGeneration);
+        _downloadCts = downloadCts;
+        bool IsCurrent() => ReferenceEquals(_downloadCts, downloadCts);
+        bool AcceptUpdate() => IsCurrent()
+            && AcceptDownloadUpdate(
+                _settingsWindow?.SelectedSpeechModelId,
+                model.Id,
+                generation,
+                Volatile.Read(ref _downloadGeneration));
+        var progress = new Progress<double>(p =>
+        {
+            if (AcceptUpdate())
+            {
+                _settingsWindow?.SetModelProgress(p);
+            }
+        });
 
         try
         {
-            _settingsWindow?.SetStatus(UiText.Format("DownloadingModel", model.DisplayName));
+            if (AcceptUpdate())
+            {
+                _settingsWindow?.SetStatus(UiText.Format("DownloadingModel", model.DisplayName));
+            }
+
             var downloader = new ModelDownloader();
-            await downloader.DownloadModelAsync(model, progress: progress, ct: _downloadCts.Token);
-            _settingsWindow?.SetStatus(UiText.Text("ModelDownloaded"));
-            _settingsWindow?.UpdateModelStatus(model.Id);
+            await downloader.DownloadModelAsync(model, progress: progress, ct: downloadCts.Token);
+            downloadSucceeded = true;
+            _modelLoadErrors.Remove(model.Id);
+            if (AcceptUpdate())
+            {
+                _settingsWindow?.SetStatus(UiText.Text("ModelDownloaded"));
+            }
         }
         catch (OperationCanceledException)
         {
-            _settingsWindow?.SetStatus(UiText.Text("DownloadCancelled"));
-            _settingsWindow?.UpdateModelStatus(model.Id);
+            if (AcceptUpdate())
+            {
+                _settingsWindow?.SetStatus(UiText.Text("DownloadCancelled"));
+            }
         }
         catch (Exception ex)
         {
             AppLogger.LogException("OnSettingsDownloadRequested", ex);
-            _settingsWindow?.SetStatus(UiText.Format("DownloadFailed", ex.Message), isError: true);
-            _settingsWindow?.UpdateModelStatus(model.Id);
+            if (AcceptUpdate())
+            {
+                _settingsWindow?.SetStatus(UiText.Format("DownloadFailed", ex.Message), isError: true);
+            }
         }
         finally
         {
-            _downloadCts?.Dispose();
-            _downloadCts = null;
+            if (IsCurrent())
+            {
+                _settingsWindow?.CompleteModelDownload(model.Id, downloadSucceeded);
+                _downloadCts = null;
+                downloadCts.Dispose();
+            }
         }
+    }
+
+    internal static bool AcceptDownloadUpdate(
+        string? selectedModelId,
+        string downloadModelId,
+        int downloadGeneration,
+        int currentGeneration)
+    {
+        return downloadGeneration == currentGeneration
+            && string.Equals(selectedModelId, downloadModelId, StringComparison.OrdinalIgnoreCase);
     }
 
     private void OnSettingsDownloadCancelRequested(object? sender, EventArgs e)
@@ -694,6 +953,7 @@ public partial class App : Application
 
     private async void OnSettingsMicrophoneTestRequested()
     {
+        if (_shuttingDown) return;
         bool isRunning;
         lock (_testCaptureLock)
         {
@@ -999,14 +1259,26 @@ public partial class App : Application
 
     private async void OnExitClick(object? sender, EventArgs e)
     {
+        if (_shuttingDown) return;
+        _shuttingDown = true;
+        Interlocked.Increment(ref _controllerGeneration);
         AppLogger.Log("App exiting via Tray Exit.");
         _updateCts.Cancel();
+        _downloadCts?.Cancel();
+        if (_initializationTask != null) await _initializationTask;
+        await StopMicrophoneTestAsync();
+        await _controllerGate.WaitAsync();
+        try
+        {
+            _profileToggleHook?.Dispose();
+            _profileToggleHook = null;
+            await DisposeControllerAsync();
+        }
+        catch (Exception ex) { AppLogger.LogException("Controller shutdown", ex); }
+        finally { _controllerGate.Release(); }
         _updateChecker.Dispose();
         _updateCts.Dispose();
-        await StopMicrophoneTestAsync();
-        _profileToggleHook?.Dispose();
-        _profileToggleHook = null;
-        _controller?.Dispose();
+        _recoveryTranscript = null;
         _clickSoundPlayer.Dispose();
         _hud?.Close();
         _settingsWindow?.Close();
