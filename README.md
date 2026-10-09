@@ -64,16 +64,16 @@ Both [Parakeet v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) and [Nemo
 
 ### Math dictation
 
-For study notes or work with numbers, you can speak numbers and formulas instead of typing them. The Math profile formats German number words, decimals, powers, and roots, among other expressions:
+For study notes or work with numbers, you can speak numbers and formulas instead of typing them. The Math profile currently requires German dictation for number words, decimals, powers, and roots. The table gives English translations of the expressions; dictate them in German when using the app.
 
-| Spoken expression | Unicode output |
+| Expression (English translation) | Unicode output |
 |---|---|
-| `fünf mal drei gleich fünfzehn` | `5 × 3 = 15.` |
-| `x gleich fünf komma null fünf` | `x = 5,05.` |
-| `x hoch zwei` | `x².` |
-| `wurzel aus x` | `√x.` |
+| Five times three equals fifteen | `5 × 3 = 15.` |
+| x equals five point zero five | `x = 5,05.` |
+| x to the power of two | `x².` |
+| Square root of x | `√x.` |
 
-In LaTeX mode, for example, `s quadrat plus wurzel aus x` becomes `s^2 + \sqrt{x}`. **F8** switches between Standard and Math profiles by default. Formatting uses fixed rules; it does not solve equations or rewrite text with a language model.
+Unicode output uses a decimal comma; LaTeX output uses a decimal point. In LaTeX mode, the German expression meaning "s squared plus the square root of x" becomes `s^2 + \sqrt{x}`. **F8** switches between Standard and Math profiles by default. Formatting uses fixed rules; it does not solve equations or rewrite text with a language model.
 
 ### Optional audio feedback
 
