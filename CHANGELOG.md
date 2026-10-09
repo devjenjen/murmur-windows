@@ -2,6 +2,14 @@
 
 Newest release first.
 
+## [0.2.2] - 2026-10-09
+
+- Publish the Windows beta with a Setup EXE, portable ZIP, build metadata, and checksums.
+- Document profiles, German math formatting, hotkeys, history controls, and recovery text in the English and German READMEs.
+- Add direct beta download links and explain how beta updates are checked manually.
+- Exclude additional personal audio formats and private key files from source control.
+- Retire the old 0.1.0 binary downloads, which lacked bundled license notices. Historical source tags remain available.
+
 ## [0.2.1] - 2026-10-09
 
 - Add automated Gitleaks scans of Git history on pushes and pull requests.
@@ -63,6 +71,7 @@ Newest release first.
 - Speech models download on first setup and are not bundled in the release assets.
 - The release does not auto-update the application.
 
-[0.1.0]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.1.0
-[0.2.0]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.2.0
-[0.2.1]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.2.1
+[0.1.0]: https://github.com/devjenjen/murmur-windows/tree/v0.1.0
+[0.2.0]: https://github.com/devjenjen/murmur-windows/tree/v0.2.0
+[0.2.1]: https://github.com/devjenjen/murmur-windows/tree/v0.2.1
+[0.2.2]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.2.2

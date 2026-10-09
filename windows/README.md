@@ -2,7 +2,7 @@
 
 Murmur is a Windows tray app for push-to-talk dictation. Hold your configured key, speak, then release it. Murmur formats the transcript and types it into the application that had focus.
 
-Release downloads include two Windows x64 packages:
+The [0.2.2 beta release](https://github.com/devjenjen/murmur-windows/releases/tag/v0.2.2) includes two Windows x64 packages:
 
 - `Murmur-Setup-vX.Y.Z.exe` installs per-user under `%LOCALAPPDATA%\Programs\Murmur`.
 - `Murmur-<version>-win-x64.zip` is portable. Extract it and run `Murmur.App.exe`; it does not create an installation.
@@ -21,11 +21,19 @@ for every device.
 
 On first run Murmur shows the setup screen. Select a microphone, push-to-talk key, and speech model, then download the selected model. The download is required before dictation can start.
 
+After setup, hold Right Ctrl to speak and release it to insert the transcript. F8 switches between the Standard and Math profiles. Both keys are configurable. Use the tray menu to open Settings or quit.
+
 Release downloads include the .NET runtime, UI libraries, and native speech engine. The .NET SDK is only needed to build the source. Python, CUDA, and a dedicated GPU are not required; recognition runs on the CPU.
 
 Allow microphone access for desktop apps in Windows privacy settings. The first model download needs internet access to GitHub; model weights are not included in Setup EXE or ZIP. Once downloaded, the model can recognize speech locally without internet. The startup update check still contacts GitHub. Extraction uses Windows 11's built-in `tar.exe`, so no separate archive utility is needed on a standard installation. Portable users must keep the EXE and all extracted libraries together.
 
-Murmur checks GitHub for a newer stable release during startup. When an update is available, its tray-menu action opens the release page. It does not download or install updates itself.
+Murmur checks GitHub for a newer stable release during startup. When an update is available, its tray-menu action opens the release page. It does not download or install updates itself. Check the Releases page manually for beta updates; the startup check excludes prereleases.
+
+## Features
+
+The [main README](../README.md#what-it-does) describes the user-facing features: Standard and German Math profiles, Unicode or LaTeX output, dictionary corrections, optional filler removal, cursor or document-end insertion, optional history with retention limits, temporary recovery text after insertion failures, microphone testing, HUD placement, English and German interface, and Windows startup.
+
+The interface language does not select the speech language. Both models detect the spoken language automatically; their model cards list German and English among the supported languages. Math formatting uses German rules.
 
 ## Local files
 
@@ -44,8 +52,8 @@ Murmur downloads pinned model archives from the sherpa-onnx releases on GitHub:
 
 | Model | Mode |
 |---|---|
-| Parakeet v3 (offline) | Final transcription after key release |
-| Nemotron 3.5 (live, 160 ms) | Live HUD preview while speaking |
+| [Parakeet v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) (offline) | Final transcription after key release |
+| [Nemotron 3.5](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b) (live, 160 ms) | Live HUD preview while speaking |
 
 Murmur loads one model at a time and checks the archive's size and SHA-256 hash
 when downloading. If files are missing or corrupt, download the model again

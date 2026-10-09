@@ -35,6 +35,13 @@ TestResults/
 *.mp3
 *.flac
 *.pcm
+*.ogg
+*.opus
+*.m4a
+*.aac
+*.aif
+*.aiff
+*.wma
 *.tar
 *.tar.bz2
 *.tar.gz
@@ -44,6 +51,8 @@ settings.json
 .env.*
 *.pfx
 *.p12
+*.pem
+*.key
 /temp_apple_design/
 
 # Keep only public release notes from local planning and verification docs.
