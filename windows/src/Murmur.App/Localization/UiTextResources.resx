@@ -75,6 +75,8 @@
   <data name="HistoryMaxEntries1000" xml:space="preserve"><value>1,000 entries</value></data>
   <data name="RemoveFillers" xml:space="preserve"><value>Remove filler words (um, uh, you know)</value></data>
   <data name="RemoveFillersAutomation" xml:space="preserve"><value>Remove filler words</value></data>
+  <data name="EnableSelfCorrection" xml:space="preserve"><value>Automatically remove self-corrections (e.g. 'Oh no, Wednesday')</value></data>
+  <data name="RestorePreviousWindowAfterInjection" xml:space="preserve"><value>Return to previous window after injection</value></data>
   <data name="AudioFeedback" xml:space="preserve"><value>Play optional sound after text insertion</value></data>
   <data name="AudioFeedbackAutomation" xml:space="preserve"><value>Audio feedback after text insertion</value></data>
   <data name="StartOnLogin" xml:space="preserve"><value>Start Murmur automatically on Windows login</value></data>

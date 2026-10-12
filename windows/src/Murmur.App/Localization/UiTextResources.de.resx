@@ -75,6 +75,8 @@
   <data name="HistoryMaxEntries1000" xml:space="preserve"><value>1.000 Einträge</value></data>
   <data name="RemoveFillers" xml:space="preserve"><value>Füllwörter entfernen (ähm, äh, weißt du)</value></data>
   <data name="RemoveFillersAutomation" xml:space="preserve"><value>Füllwörter entfernen</value></data>
+  <data name="EnableSelfCorrection" xml:space="preserve"><value>Versprecher und Selbstkorrekturen automatisch tilgen</value></data>
+  <data name="RestorePreviousWindowAfterInjection" xml:space="preserve"><value>Nach dem Einfügen zum vorherigen Fenster zurückkehren</value></data>
   <data name="AudioFeedback" xml:space="preserve"><value>Optionalen Ton nach dem Einfügen abspielen</value></data>
   <data name="AudioFeedbackAutomation" xml:space="preserve"><value>Audiofeedback nach dem Einfügen</value></data>
   <data name="StartOnLogin" xml:space="preserve"><value>Murmur automatisch bei der Windows-Anmeldung starten</value></data>
