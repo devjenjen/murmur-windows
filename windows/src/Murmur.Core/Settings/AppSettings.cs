@@ -79,7 +79,7 @@ public sealed record AppSettings
     public TextInsertionMode TextInsertionMode { get; init; } = TextInsertionMode.AtCaret;
 
     /// <summary>Whether to restore focus to the previously active window after injection.</summary>
-    public bool RestorePreviousWindowAfterInjection { get; set; }
+    public bool RestorePreviousWindowAfterInjection { get; init; }
 
     /// <summary>Whether completed dictations are persisted in local history.</summary>
     public bool HistoryEnabled { get; init; }

@@ -170,13 +170,12 @@ public sealed class LlamaSharpSpeechRepairer : ISpeechRepairer, IDisposable
         return $"<|im_start|>system\n{systemPrompt}<|im_end|>\n<|im_start|>user\n{rawTranscript}<|im_end|>\n<|im_start|>assistant\n";
     }
 
-    private static string CleanOutput(string output)
+    private static readonly char[] QuotesToTrim = ['"', '„', '“', '”', '«', '»'];
+
+    internal static string CleanOutput(string output)
     {
         string cleaned = output.Replace("<|im_end|>", "").Replace("<|im_start|>", "").Trim();
-        if (cleaned.StartsWith('"') && cleaned.EndsWith('"') && cleaned.Length >= 2)
-        {
-            cleaned = cleaned[1..^1].Trim();
-        }
+        cleaned = cleaned.Trim(QuotesToTrim).Trim();
         return cleaned;
     }
 

@@ -204,4 +204,32 @@ public class SpeechRepairerTests
         var result = await llamaRepairer.RepairAsync("Hello world");
         result.ShouldBe("Hello world");
     }
+
+    [Fact]
+    public async Task German_NichtNurSondernAuch_Returns_Untouched()
+    {
+        var input = "Das System ist nicht nur schnell, sondern auch sicher.";
+        var result = await _repairer.RepairAsync(input);
+        result.ShouldBe("Das System ist nicht nur schnell, sondern auch sicher.");
+    }
+
+    [Fact]
+    public async Task German_NichtBloßSondernAuch_Returns_Untouched()
+    {
+        var input = "Das System ist nicht bloß schnell, sondern auch sicher.";
+        var result = await _repairer.RepairAsync(input);
+        result.ShouldBe("Das System ist nicht bloß schnell, sondern auch sicher.");
+    }
+
+    [Theory]
+    [InlineData("\"Das ist ein Test.\"", "Das ist ein Test.")]
+    [InlineData("„Das ist ein Test.“", "Das ist ein Test.")]
+    [InlineData("“Das ist ein Test.”", "Das ist ein Test.")]
+    [InlineData("«Das ist ein Test.»", "Das ist ein Test.")]
+    [InlineData("„Das ist ein Test\"", "Das ist ein Test")]
+    public void LlamaSharp_CleanOutput_Trims_Typographic_Quotes(string input, string expected)
+    {
+        var result = LlamaSharpSpeechRepairer.CleanOutput(input);
+        result.ShouldBe(expected);
+    }
 }

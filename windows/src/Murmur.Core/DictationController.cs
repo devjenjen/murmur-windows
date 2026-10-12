@@ -587,7 +587,11 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
         finally
         {
             try { _hotkeySource.Dispose(); }
-            finally { _transcriber.Dispose(); }
+            finally
+            {
+                try { _transcriber.Dispose(); }
+                finally { (_speechRepairer as IDisposable)?.Dispose(); }
+            }
         }
     }
 }

@@ -223,8 +223,9 @@ public class DictationControllerTests
         }
     }
 
-    private sealed class FakeSpeechRepairer : ISpeechRepairer
+    private sealed class FakeSpeechRepairer : ISpeechRepairer, IDisposable
     {
+        public bool IsDisposed { get; private set; }
         public List<string> RepairCalls { get; } = [];
         public Func<string, string>? RepairFunc { get; set; }
         public Exception? ExceptionToThrow { get; set; }
@@ -242,6 +243,11 @@ public class DictationControllerTests
                 throw ExceptionToThrow;
             }
             return Task.FromResult(RepairFunc != null ? RepairFunc(rawTranscript) : rawTranscript);
+        }
+
+        public void Dispose()
+        {
+            IsDisposed = true;
         }
     }
 
@@ -1146,5 +1152,22 @@ public class DictationControllerTests
 
         injector.RestorePreviousWindowCalls.Count.ShouldBe(2);
         injector.RestorePreviousWindowCalls[1].ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Dispose_Disposes_SpeechRepairer_If_Disposable()
+    {
+        var repairer = new FakeSpeechRepairer();
+        var controller = new DictationController(
+            new FakeAudioCapture(),
+            new FakeHotkeySource(),
+            new FakeTranscriber("test"),
+            new FakeTextInjector(),
+            "test-engine",
+            speechRepairer: repairer);
+
+        await controller.DisposeAsync();
+
+        repairer.IsDisposed.ShouldBeTrue();
     }
 }

@@ -399,7 +399,8 @@ public partial class App : Application
                 dictionaryCorrector = new DictionaryCorrector([]);
             }
 
-            ISpeechRepairer speechRepairer = new RuleBasedSpeechRepairer();
+            var qwenDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Murmur", "models", "qwen-2.5-0.5b");
+            ISpeechRepairer speechRepairer = new LlamaSharpSpeechRepairer(qwenDir, new RuleBasedSpeechRepairer());
 
             candidate = new DictationController(
                 audioCapture,

@@ -19,7 +19,7 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex NichtSondernRegex = new(
-        @"\bnicht\s+(?<rep>.+?)\s*,?\s*sondern\s+(?<alt>[^\.,;!?]+)",
+        @"\bnicht\s+(?!nur\b|bloß\b)(?<rep>.+?)\s*,?\s*sondern\s+(?<alt>[^\.,;!?]+)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex HesitationRegex = new(
