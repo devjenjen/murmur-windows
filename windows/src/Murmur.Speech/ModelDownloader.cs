@@ -160,16 +160,17 @@ public sealed class ModelDownloader
             progress?.Report(0.9);
 
             var extractedDir = stagingDir;
-            if (!File.Exists(Path.Combine(extractedDir, "encoder.int8.onnx")))
+            var expectedFirstFile = model.RequiredFiles.Count > 0 ? model.RequiredFiles[0] : "encoder.int8.onnx";
+            if (!File.Exists(Path.Combine(extractedDir, expectedFirstFile)))
             {
                 var subdirs = Directory.GetDirectories(stagingDir);
-                if (subdirs.Length == 1 && File.Exists(Path.Combine(subdirs[0], "encoder.int8.onnx")))
+                if (subdirs.Length == 1 && File.Exists(Path.Combine(subdirs[0], expectedFirstFile)))
                 {
                     extractedDir = subdirs[0];
                 }
             }
 
-            ValidateModelDirectory(extractedDir);
+            ValidateModelDirectory(extractedDir, model);
             await ModelIntegrityManifest.WriteAsync(model, extractedDir, ct).ConfigureAwait(false);
             progress?.Report(0.97);
             ReplaceModelDirectory(finalDir, extractedDir, parentDir);
@@ -206,14 +207,15 @@ public sealed class ModelDownloader
         return Convert.ToHexStringLower(hashBytes);
     }
 
-    internal static void ValidateModelDirectory(string path)
+    internal static void ValidateModelDirectory(string path, ModelManifest? model = null)
     {
         if (!Directory.Exists(path))
         {
             throw new InvalidDataException($"Directory does not exist: {path}");
         }
 
-        foreach (var file in ModelManifest.RequiredFiles)
+        var requiredFiles = model?.RequiredFiles ?? ModelManifest.DefaultRequiredFiles;
+        foreach (var file in requiredFiles)
         {
             var filePath = Path.Combine(path, file);
             if (!File.Exists(filePath))

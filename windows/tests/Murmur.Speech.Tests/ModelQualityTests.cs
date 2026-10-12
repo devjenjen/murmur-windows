@@ -161,7 +161,7 @@ public sealed class ModelQualityTests
             var aggregate = Aggregate(cases);
             report.Models.Add(new ModelQualityReport(
                 model.Id,
-                ModelManifest.RequiredFiles.ToDictionary(file => file, file => HashFile(Path.Combine(modelDirectory, file))),
+                model.RequiredFiles.ToDictionary(file => file, file => HashFile(Path.Combine(modelDirectory, file))),
                 new FormatterFlags(RemoveFillers: false),
                 cases.GroupBy(item => item.Category, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase),
