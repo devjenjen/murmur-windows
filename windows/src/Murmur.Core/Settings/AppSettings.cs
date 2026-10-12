@@ -69,6 +69,9 @@ public sealed record AppSettings
     /// <summary>Whether filler words are removed.</summary>
     public bool RemoveFillers { get; init; } = true;
 
+    /// <summary>Whether conversational self-corrections are repaired in speech output.</summary>
+    public bool EnableSelfCorrection { get; init; } = true;
+
     /// <summary>Whether a short sound plays after successful text injection.</summary>
     public bool AudioFeedbackEnabled { get; init; }
 
@@ -207,6 +210,7 @@ public sealed record AppSettings
             && string.Equals(SpeechModelId, other.SpeechModelId, StringComparison.Ordinal)
             && string.Equals(Language, other.Language, StringComparison.Ordinal)
             && RemoveFillers == other.RemoveFillers
+            && EnableSelfCorrection == other.EnableSelfCorrection
             && AudioFeedbackEnabled == other.AudioFeedbackEnabled
             && TextInsertionMode == other.TextInsertionMode
             && HistoryEnabled == other.HistoryEnabled
@@ -230,6 +234,7 @@ public sealed record AppSettings
         hash.Add(SpeechModelId);
         hash.Add(Language);
         hash.Add(RemoveFillers);
+        hash.Add(EnableSelfCorrection);
         hash.Add(AudioFeedbackEnabled);
         hash.Add(TextInsertionMode);
         hash.Add(HistoryEnabled);
