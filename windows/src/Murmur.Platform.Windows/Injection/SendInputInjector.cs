@@ -24,7 +24,7 @@ public sealed class SendInputInjector : ITextInjector
     }
 
     /// <inheritdoc />
-    public void Insert(string text, TextInjectionTarget target, TextInsertionMode mode)
+    public void Insert(string text, TextInjectionTarget target, TextInsertionMode mode, bool restorePreviousWindow = false)
     {
         if (string.IsNullOrEmpty(text))
         {
@@ -39,10 +39,15 @@ public sealed class SendInputInjector : ITextInjector
             throw new TextInjectionException(TextInjectionFailureReason.ModifierHeld);
         }
 
-        var currentTarget = CaptureTarget();
+        var currentTarget = ReadCurrentTarget();
+        nint intermediateHandle = 0;
         if (!IsSameTarget(target, currentTarget))
         {
-            throw new TextInjectionException(TextInjectionFailureReason.TargetChanged);
+            intermediateHandle = currentTarget.WindowHandle;
+            if (!RestoreWindowFocus(target.WindowHandle))
+            {
+                throw new TextInjectionException(TextInjectionFailureReason.TargetUnavailable);
+            }
         }
 
         var array = BuildInputs(text, mode);
@@ -54,10 +59,18 @@ public sealed class SendInputInjector : ITextInjector
             throw new TextInjectionException(TextInjectionFailureReason.ModifierHeld);
         }
 
-        currentTarget = CaptureTarget();
+        currentTarget = ReadCurrentTarget();
         if (!IsSameTarget(target, currentTarget))
         {
-            throw new TextInjectionException(TextInjectionFailureReason.TargetChanged);
+            if (intermediateHandle == 0)
+            {
+                intermediateHandle = currentTarget.WindowHandle;
+            }
+
+            if (!RestoreWindowFocus(target.WindowHandle))
+            {
+                throw new TextInjectionException(TextInjectionFailureReason.TargetUnavailable);
+            }
         }
 
         var inserted = Win32.SendInput((uint)array.Length, array, Marshal.SizeOf<Win32.INPUT>());
@@ -66,6 +79,68 @@ public sealed class SendInputInjector : ITextInjector
             throw new Win32Exception(Marshal.GetLastWin32Error(),
                 $"SendInput inserted {inserted} of {array.Length} keyboard events.");
         }
+        if (restorePreviousWindow && intermediateHandle != 0 && intermediateHandle != target.WindowHandle)
+        {
+            RestoreWindowFocus(intermediateHandle);
+        }
+    }
+
+    internal static bool RestoreWindowFocus(nint windowHandle)
+    {
+        if (windowHandle == 0 || !Win32.IsWindow(windowHandle))
+        {
+            return false;
+        }
+
+        if (Win32.IsIconic(windowHandle))
+        {
+            Win32.ShowWindow(windowHandle, Win32.SW_RESTORE);
+        }
+
+        var currentForeground = Win32.GetForegroundWindow();
+        if (currentForeground == windowHandle)
+        {
+            return true;
+        }
+
+        var currentThreadId = Win32.GetCurrentThreadId();
+        var foregroundThreadId = Win32.GetWindowThreadProcessId(currentForeground, out _);
+        var targetThreadId = Win32.GetWindowThreadProcessId(windowHandle, out _);
+
+        if (foregroundThreadId != 0 && foregroundThreadId != currentThreadId)
+        {
+            Win32.AttachThreadInput(currentThreadId, foregroundThreadId, true);
+        }
+
+        if (targetThreadId != 0 && targetThreadId != currentThreadId)
+        {
+            Win32.AttachThreadInput(currentThreadId, targetThreadId, true);
+        }
+
+        Win32.SetForegroundWindow(windowHandle);
+        Win32.BringWindowToTop(windowHandle);
+
+        if (foregroundThreadId != 0 && foregroundThreadId != currentThreadId)
+        {
+            Win32.AttachThreadInput(currentThreadId, foregroundThreadId, false);
+        }
+
+        if (targetThreadId != 0 && targetThreadId != currentThreadId)
+        {
+            Win32.AttachThreadInput(currentThreadId, targetThreadId, false);
+        }
+
+        for (var i = 0; i < 10; i++)
+        {
+            if (Win32.GetForegroundWindow() == windowHandle)
+            {
+                return true;
+            }
+
+            Thread.Sleep(10);
+        }
+
+        return Win32.GetForegroundWindow() == windowHandle;
     }
 
     internal static Win32.INPUT[] BuildInputs(string text, TextInsertionMode mode)

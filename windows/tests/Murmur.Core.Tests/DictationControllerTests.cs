@@ -208,7 +208,7 @@ public class DictationControllerTests
             return CapturedTarget;
         }
 
-        public void Insert(string text, TextInjectionTarget target, TextInsertionMode mode)
+        public void Insert(string text, TextInjectionTarget target, TextInsertionMode mode, bool restorePreviousWindow = false)
         {
             if (InsertException is not null)
             {

@@ -11,5 +11,5 @@ public interface ITextInjector
     TextInjectionTarget CaptureTarget();
 
     /// <summary>Inserts text into the captured target.</summary>
-    void Insert(string text, TextInjectionTarget target, TextInsertionMode mode);
+    void Insert(string text, TextInjectionTarget target, TextInsertionMode mode, bool restorePreviousWindow = false);
 }

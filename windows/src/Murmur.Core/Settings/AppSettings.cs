@@ -75,6 +75,9 @@ public sealed record AppSettings
     /// <summary>Where completed dictation text is inserted.</summary>
     public TextInsertionMode TextInsertionMode { get; init; } = TextInsertionMode.AtCaret;
 
+    /// <summary>Whether to restore focus to the previously active window after injection.</summary>
+    public bool RestorePreviousWindowAfterInjection { get; set; }
+
     /// <summary>Whether completed dictations are persisted in local history.</summary>
     public bool HistoryEnabled { get; init; }
 
@@ -209,6 +212,7 @@ public sealed record AppSettings
             && HistoryEnabled == other.HistoryEnabled
             && HistoryRetentionDays == other.HistoryRetentionDays
             && HistoryMaxEntries == other.HistoryMaxEntries
+            && RestorePreviousWindowAfterInjection == other.RestorePreviousWindowAfterInjection
             && string.Equals(ActiveProfileId, other.ActiveProfileId, StringComparison.Ordinal)
             && Profiles.SequenceEqual(other.Profiles);
     }
@@ -231,6 +235,7 @@ public sealed record AppSettings
         hash.Add(HistoryEnabled);
         hash.Add(HistoryRetentionDays);
         hash.Add(HistoryMaxEntries);
+        hash.Add(RestorePreviousWindowAfterInjection);
         hash.Add(ActiveProfileId);
         for (var i = 0; i < Profiles.Count; i++)
         {
