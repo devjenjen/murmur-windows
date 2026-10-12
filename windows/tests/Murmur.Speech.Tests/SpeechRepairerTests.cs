@@ -122,6 +122,54 @@ public class SpeechRepairerTests
     }
 
     [Fact]
+    public async Task German_Verb_Warten_IchWarteAufDich_Returns_Untouched()
+    {
+        var input = "Ich warte auf dich.";
+        var result = await _repairer.RepairAsync(input);
+        result.ShouldBe("Ich warte auf dich.");
+    }
+
+    [Fact]
+    public async Task German_Verb_Warten_BitteWarteEinenMomentHier_Returns_Untouched()
+    {
+        var input = "Bitte warte einen Moment hier.";
+        var result = await _repairer.RepairAsync(input);
+        result.ShouldBe("Bitte warte einen Moment hier.");
+    }
+
+    [Fact]
+    public async Task German_Verb_Warten_BitteWarteHier_Returns_Untouched()
+    {
+        var input = "Bitte warte hier.";
+        var result = await _repairer.RepairAsync(input);
+        result.ShouldBe("Bitte warte hier.");
+    }
+
+    [Fact]
+    public async Task German_Preposition_AmDienstag_AchNee_AmMittwoch_NoDuplicatePreposition()
+    {
+        var input = "Wir treffen uns am Dienstag, ach nee, am Mittwoch.";
+        var result = await _repairer.RepairAsync(input);
+        result.ShouldBe("Wir treffen uns am Mittwoch.");
+    }
+
+    [Fact]
+    public async Task German_WarteEinenMoment_Disfluency_Correction()
+    {
+        var input = "Ich komme um 14 Uhr, warte einen Moment, 15 Uhr.";
+        var result = await _repairer.RepairAsync(input);
+        result.ShouldBe("Ich komme um 15 Uhr.");
+    }
+
+    [Fact]
+    public async Task German_Preposition_Preserved_When_Alteration_Has_No_Preposition()
+    {
+        var input = "Wir treffen uns am Dienstag, ach nee, Mittwoch.";
+        var result = await _repairer.RepairAsync(input);
+        result.ShouldBe("Wir treffen uns am Mittwoch.");
+    }
+
+    [Fact]
     public async Task LlamaSharp_FallsBack_WhenModelFileDoesNotExist()
     {
         var nonExistentPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".gguf");

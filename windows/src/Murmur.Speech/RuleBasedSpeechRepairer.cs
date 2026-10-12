@@ -15,7 +15,7 @@ using Murmur.Core.Abstractions;
 public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
 {
     private static readonly Regex MarkerRegex = new(
-        @"(?:[\.,;\-–—]|\.{3}|…)?\s*\b(?<marker>ach\s+nee|ach\s+ne|ach\s+nein|warte\s+mal|warte\s+kurz|warte|ich\s+meinte|oder\s+vielmehr|oder\s+besser(?:\s+gesagt)?|ach\s+ja|no\s+wait|i\s+mean|or\s+rather|scratch\s+that)\b[\s,:]*",
+        @"(?:(?:[\.,;\-–—]|\.{3}|…)\s*\b(?<marker>warte\s+(?:mal|kurz|eben|einen\s+moment|(?:eine\s+)?sekunde))\b|(?:[\.,;\-–—]|\.{3}|…)?\s*\b(?<marker>ach\s+nee|ach\s+ne|ach\s+nein|ich\s+meinte|oder\s+vielmehr|oder\s+besser(?:\s+gesagt)?|ach\s+ja|no\s+wait|i\s+mean|or\s+rather|scratch\s+that)\b)[\s,:]*",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex NichtSondernRegex = new(
@@ -216,6 +216,23 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
         // Clean any hesitation/filler word immediately before reparandum
         prefix = StripTrailingFillers(prefix);
 
+        // Prevent duplicate or conflicting prepositions when alteration already includes a preposition
+        // (e.g. prefix="Wir treffen uns am ", alteration="am Mittwoch" -> "Wir treffen uns am Mittwoch")
+        string altPrep = ExtractPreposition(alteration);
+        if (!string.IsNullOrEmpty(altPrep))
+        {
+            string trimmedPrefix = prefix.TrimEnd();
+            string prefixPrep = ExtractTrailingPreposition(trimmedPrefix);
+            if (!string.IsNullOrEmpty(prefixPrep))
+            {
+                prefix = trimmedPrefix[..^prefixPrep.Length].TrimEnd();
+                if (!string.IsNullOrEmpty(prefix))
+                {
+                    prefix += " ";
+                }
+            }
+        }
+
         // Build result
         var sb = new StringBuilder();
         if (!string.IsNullOrEmpty(prefix))
@@ -347,12 +364,32 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
         return prefix;
     }
 
+    private static readonly string[] Prepositions = new[]
+    {
+        "am", "um", "im", "in", "an", "von", "vom", "ab", "bis", "auf", "für", "fuer",
+        "zu", "zum", "zur", "nach", "vor", "bei", "beim", "mit",
+        "at", "on", "in", "to", "for", "from", "by", "until", "with"
+    };
+
     private static string ExtractPreposition(string phrase)
     {
-        string[] prepositions = new[] { "am", "um", "in", "an", "von", "bis", "at", "on", "in", "to", "for" };
-        foreach (var prep in prepositions)
+        foreach (var prep in Prepositions)
         {
             if (phrase.StartsWith(prep + " ", StringComparison.OrdinalIgnoreCase))
+            {
+                return prep;
+            }
+        }
+        return string.Empty;
+    }
+
+    private static string ExtractTrailingPreposition(string text)
+    {
+        string trimmed = text.TrimEnd();
+        foreach (var prep in Prepositions)
+        {
+            if (trimmed.EndsWith(" " + prep, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, prep, StringComparison.OrdinalIgnoreCase))
             {
                 return prep;
             }
