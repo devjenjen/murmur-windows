@@ -15,11 +15,11 @@ using Murmur.Core.Abstractions;
 public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
 {
     private static readonly Regex MarkerRegex = new(
-        @"(?:(?:[\.,;\-–—]|\.{3}|…)\s*\b(?<marker>warte\s+(?:mal|kurz|eben|einen\s+moment|(?:eine\s+)?sekunde))\b|(?:[\.,;\-–—]|\.{3}|…)?\s*\b(?<marker>ach\s+nee|ach\s+ne|ach\s+nein|ich\s+meinte|oder\s+vielmehr|oder\s+besser(?:\s+gesagt)?|ach\s+ja|no\s+wait|i\s+mean|or\s+rather|scratch\s+that)\b)[\s,:]*",
+        @"(?:(?:\s*(?:\.{2,}|…|[\.,;\-–—]))\s*\b(?<marker>warte\s+(?:mal|kurz|eben|einen\s+moment|(?:eine\s+)?sekunde))\b|(?:\s*(?:\.{2,}|…|[\.,;\-–—]))?\s*\b(?<marker>ach\s+nee|ach\s+ne|ach\s+nein|ich\s+meinte|oder\s+vielmehr|oder\s+besser(?:\s+gesagt)?|no\s+wait|i\s+mean|or\s+rather|scratch\s+that)\b)[\s,:]*",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex NichtSondernRegex = new(
-        @"\bnicht\s+(?!nur\b|bloß\b)(?<rep>.+?)\s*,?\s*sondern\s+(?<alt>[^\.,;!?]+)",
+        @"\bnicht\s+(?!nur\b|bloß\b)(?<rep>[^\.\!\?;\r\n]+?)\s*,?\s*sondern\s+(?<alt>[^\.,;!?\r\n]+)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex HesitationRegex = new(
@@ -37,20 +37,16 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
         "ja", "halt", "ähm", "äh", "eben", "so", "also", "quasi", "sozusagen", "uh", "er", "hm"
     };
 
-    private static readonly string[] Weekdays = new[]
-    {
-        "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag", "Sonnabend",
-        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
-    };
+    private static readonly Regex WeekdayRegex = new(
+        @"\b(?:Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|Sonnabend|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    private static readonly string[] RelativeTimeAdverbs = new[]
-    {
-        "vorgestern", "gestern", "heute", "morgen", "übermorgen",
-        "yesterday", "today", "tomorrow", "tonight"
-    };
+    private static readonly Regex RelativeTimeAdverbRegex = new(
+        @"\b(?:vorgestern|übermorgen|gestern|heute|morgen|yesterday|today|tomorrow|tonight)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex ClockTimeRegex = new(
-        @"\b(?:\d{1,2}(?::\d{2})?\s*(?:Uhr|am|pm|a\.m\.|p\.m\.)|\d{1,2}\s+Uhr)\b",
+        @"\b(?:\d{1,2}(?::\d{2})?\s*(?:Uhr|am|pm|a\.m\.|p\.m\.)|\d{1,2}\s+Uhr)(?!\w)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex NumberWordRegex = new(
@@ -97,7 +93,7 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
             // If alt doesn't have preposition but rep does (e.g. rep="am Dienstag", alt="Mittwoch"),
             // keep preposition
             string prep = ExtractPreposition(rep);
-            if (!string.IsNullOrEmpty(prep) && !alt.StartsWith(prep, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(prep) && string.IsNullOrEmpty(ExtractPreposition(alt)))
             {
                 alt = prep + " " + alt;
             }
@@ -108,10 +104,13 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
         }
 
         // 2. Check conversational correction markers
-        var markerMatch = MarkerRegex.Match(text);
-        if (markerMatch.Success)
+        foreach (Match markerMatch in MarkerRegex.Matches(text))
         {
-            return ApplyMarkerRepair(text, markerMatch);
+            string repaired = ApplyMarkerRepair(text, markerMatch);
+            if (!string.Equals(repaired, text, StringComparison.Ordinal))
+            {
+                return repaired;
+            }
         }
 
         // 3. Strip isolated hesitation disfluencies if present
@@ -131,7 +130,34 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
         int matchIndex = markerMatch.Index;
         int matchLength = markerMatch.Length;
 
-        string textBefore = text[..matchIndex].TrimEnd();
+        string fullBefore = text[..matchIndex].TrimEnd();
+        if (string.IsNullOrWhiteSpace(fullBefore))
+        {
+            return text;
+        }
+
+        // Constrain reparandum search to the immediately preceding sentence fragment
+        var sentenceBreakMatches = Regex.Matches(fullBefore, @"[.!?;\r\n…]+\s+");
+        string priorSentences;
+        string textBefore;
+        if (sentenceBreakMatches.Count > 0)
+        {
+            var lastBreak = sentenceBreakMatches[^1];
+            int fragmentStart = lastBreak.Index + lastBreak.Length;
+            priorSentences = fullBefore[..fragmentStart];
+            textBefore = fullBefore[fragmentStart..].TrimEnd();
+        }
+        else
+        {
+            priorSentences = string.Empty;
+            textBefore = fullBefore;
+        }
+
+        if (string.IsNullOrWhiteSpace(textBefore))
+        {
+            return text;
+        }
+
         string textAfterAll = text[(matchIndex + matchLength)..].TrimStart();
 
         // Parse textAfterAll into alteration, terminal punctuation, and remainder
@@ -165,7 +191,7 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
 
         if (string.IsNullOrWhiteSpace(alteration))
         {
-            return textBefore + punctuation + (string.IsNullOrEmpty(remainder) ? "" : " " + remainder);
+            return text;
         }
 
         // Check for German separable verb prefix at end of textBefore
@@ -176,7 +202,7 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
         if (prefixMatch.Success && SeparablePrefixes.Contains(prefixMatch.Groups["prefix"].Value))
         {
             string particle = prefixMatch.Groups["prefix"].Value;
-            if (!alteration.EndsWith(particle, StringComparison.OrdinalIgnoreCase))
+            if (!Regex.IsMatch(alteration, $@"\b{Regex.Escape(particle)}$", RegexOptions.IgnoreCase))
             {
                 trailingParticle = particle;
                 textBeforeTrimmed = textBefore[..prefixMatch.Index].TrimEnd();
@@ -184,67 +210,98 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
         }
 
         // Find reparandum in textBeforeTrimmed
-        (int repIndex, int repLength) = FindReparandum(textBeforeTrimmed, alteration);
+        (int repIndex, int repLength, bool knownCategory) = FindReparandum(textBeforeTrimmed, alteration);
 
-        string prefix;
-        if (repIndex >= 0 && repLength > 0)
+        if (repIndex < 0 || repLength <= 0)
         {
-            prefix = textBeforeTrimmed[..repIndex];
-            string matchedRep = textBeforeTrimmed.Substring(repIndex, repLength);
-
-            // If matchedRep had preposition but alteration does not, preserve preposition
-            string prep = ExtractPreposition(matchedRep);
-            if (!string.IsNullOrEmpty(prep) && !alteration.StartsWith(prep, StringComparison.OrdinalIgnoreCase))
+            bool separatorHasSentencePeriod = Regex.IsMatch(markerMatch.Value, @"(?<!\.)\.(?!\.)");
+            if (knownCategory || separatorHasSentencePeriod)
             {
-                alteration = prep + " " + alteration;
+                return text;
             }
-        }
-        else
-        {
-            // Default: replace last token
+
             var lastWordMatch = Regex.Match(textBeforeTrimmed, @"\b[a-zA-Z0-9äöüÄÖÜß\-_']+\b(?=[^\w]*$)");
-            if (lastWordMatch.Success)
+            if (!lastWordMatch.Success)
             {
-                prefix = textBeforeTrimmed[..lastWordMatch.Index];
+                return text;
             }
-            else
-            {
-                prefix = textBeforeTrimmed;
-            }
+
+            repIndex = lastWordMatch.Index;
+            repLength = lastWordMatch.Length;
+        }
+
+        string before = textBeforeTrimmed[..repIndex];
+        string matchedRep = textBeforeTrimmed.Substring(repIndex, repLength);
+        string after = textBeforeTrimmed[(repIndex + repLength)..];
+
+        // If matchedRep had preposition but alteration does not, preserve preposition
+        string prep = ExtractPreposition(matchedRep);
+        if (!string.IsNullOrEmpty(prep) && string.IsNullOrEmpty(ExtractPreposition(alteration)))
+        {
+            alteration = prep + " " + alteration;
         }
 
         // Clean any hesitation/filler word immediately before reparandum
-        prefix = StripTrailingFillers(prefix);
+        before = StripTrailingFillers(before);
 
         // Prevent duplicate or conflicting prepositions when alteration already includes a preposition
-        // (e.g. prefix="Wir treffen uns am ", alteration="am Mittwoch" -> "Wir treffen uns am Mittwoch")
         string altPrep = ExtractPreposition(alteration);
         if (!string.IsNullOrEmpty(altPrep))
         {
-            string trimmedPrefix = prefix.TrimEnd();
-            string prefixPrep = ExtractTrailingPreposition(trimmedPrefix);
-            if (!string.IsNullOrEmpty(prefixPrep))
+            string trimmedBefore = before.TrimEnd();
+            string beforePrep = ExtractTrailingPreposition(trimmedBefore);
+            if (!string.IsNullOrEmpty(beforePrep))
             {
-                prefix = trimmedPrefix[..^prefixPrep.Length].TrimEnd();
-                if (!string.IsNullOrEmpty(prefix))
+                before = trimmedBefore[..^beforePrep.Length].TrimEnd();
+                if (!string.IsNullOrEmpty(before))
                 {
-                    prefix += " ";
+                    before += " ";
+                }
+            }
+        }
+
+        // Avoid duplicating continuation suffix when alteration already restates it
+        if (!string.IsNullOrWhiteSpace(after))
+        {
+            var altWords = Regex.Matches(alteration, @"\b[a-zA-Z0-9äöüÄÖÜß\-_']+\b");
+            if (altWords.Count >= 2)
+            {
+                string lastAltWord = altWords[^1].Value;
+                var afterMatches = Regex.Matches(after, $@"\b{Regex.Escape(lastAltWord)}\b", RegexOptions.IgnoreCase);
+                if (afterMatches.Count > 0)
+                {
+                    var lastAfterMatch = afterMatches[^1];
+                    after = after[(lastAfterMatch.Index + lastAfterMatch.Length)..];
                 }
             }
         }
 
         // Build result
         var sb = new StringBuilder();
-        if (!string.IsNullOrEmpty(prefix))
+        if (!string.IsNullOrEmpty(priorSentences))
         {
-            sb.Append(prefix);
-            if (!prefix.EndsWith(' '))
+            sb.Append(priorSentences);
+        }
+
+        if (!string.IsNullOrEmpty(before))
+        {
+            sb.Append(before);
+            if (!before.EndsWith(' '))
             {
                 sb.Append(' ');
             }
         }
 
         sb.Append(alteration);
+
+        if (!string.IsNullOrWhiteSpace(after))
+        {
+            if (!after.StartsWith(' '))
+            {
+                sb.Append(' ');
+            }
+            sb.Append(after.TrimEnd());
+        }
 
         if (!string.IsNullOrEmpty(trailingParticle))
         {
@@ -266,53 +323,30 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
         return sb.ToString();
     }
 
-    private static (int index, int length) FindReparandum(string textBefore, string alteration)
+    private static (int index, int length, bool knownCategory) FindReparandum(string textBefore, string alteration)
     {
         // 1. Weekday match
-        foreach (var weekday in Weekdays)
+        if (WeekdayRegex.IsMatch(alteration))
         {
-            if (alteration.Contains(weekday, StringComparison.OrdinalIgnoreCase))
+            var matches = WeekdayRegex.Matches(textBefore);
+            if (matches.Count > 0)
             {
-                // Find last weekday in textBefore
-                int bestIndex = -1;
-                int bestLen = 0;
-                foreach (var w in Weekdays)
-                {
-                    int idx = textBefore.LastIndexOf(w, StringComparison.OrdinalIgnoreCase);
-                    if (idx > bestIndex)
-                    {
-                        bestIndex = idx;
-                        bestLen = w.Length;
-                    }
-                }
-                if (bestIndex >= 0)
-                {
-                    return (bestIndex, bestLen);
-                }
+                var last = matches[^1];
+                return (last.Index, last.Length, true);
             }
+            return (-1, 0, true);
         }
 
         // 2. Relative time adverb match
-        foreach (var adv in RelativeTimeAdverbs)
+        if (RelativeTimeAdverbRegex.IsMatch(alteration))
         {
-            if (alteration.Contains(adv, StringComparison.OrdinalIgnoreCase))
+            var matches = RelativeTimeAdverbRegex.Matches(textBefore);
+            if (matches.Count > 0)
             {
-                int bestIndex = -1;
-                int bestLen = 0;
-                foreach (var a in RelativeTimeAdverbs)
-                {
-                    int idx = textBefore.LastIndexOf(a, StringComparison.OrdinalIgnoreCase);
-                    if (idx > bestIndex)
-                    {
-                        bestIndex = idx;
-                        bestLen = a.Length;
-                    }
-                }
-                if (bestIndex >= 0)
-                {
-                    return (bestIndex, bestLen);
-                }
+                var last = matches[^1];
+                return (last.Index, last.Length, true);
             }
+            return (-1, 0, true);
         }
 
         // 3. Clock time match
@@ -322,8 +356,9 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
             if (matches.Count > 0)
             {
                 var last = matches[^1];
-                return (last.Index, last.Length);
+                return (last.Index, last.Length, true);
             }
+            return (-1, 0, true);
         }
 
         // 4. Number word match
@@ -333,22 +368,30 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
             if (matches.Count > 0)
             {
                 var last = matches[^1];
-                return (last.Index, last.Length);
+                return (last.Index, last.Length, true);
             }
+            return (-1, 0, true);
         }
 
         // 5. Prepositional phrase match
         string altPrep = ExtractPreposition(alteration);
         if (!string.IsNullOrEmpty(altPrep))
         {
-            int idx = textBefore.LastIndexOf(altPrep, StringComparison.OrdinalIgnoreCase);
-            if (idx >= 0)
+            string altRest = alteration[altPrep.Length..].Trim();
+            int wordCount = Math.Max(1, Regex.Count(altRest, @"\b[a-zA-Z0-9äöüÄÖÜß\-_']+\b"));
+            var prepPhraseRegex = new Regex(
+                $@"\b{Regex.Escape(altPrep)}(?:\s+[a-zA-Z0-9äöüÄÖÜß\-_']+){{1,{wordCount}}}\b",
+                RegexOptions.IgnoreCase);
+            var matches = prepPhraseRegex.Matches(textBefore);
+            if (matches.Count > 0)
             {
-                return (idx, textBefore.Length - idx);
+                var last = matches[^1];
+                return (last.Index, last.Length, true);
             }
+            return (-1, 0, true);
         }
 
-        return (-1, 0);
+        return (-1, 0, false);
     }
 
     private static string StripTrailingFillers(string prefix)

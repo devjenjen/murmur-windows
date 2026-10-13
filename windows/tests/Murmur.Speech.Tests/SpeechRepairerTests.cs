@@ -232,4 +232,28 @@ public class SpeechRepairerTests
         var result = LlamaSharpSpeechRepairer.CleanOutput(input);
         result.ShouldBe(expected);
     }
+
+    [Theory]
+    [InlineData("Ich brauche drei rote Ordner, ach nee, vier.", "Ich brauche vier rote Ordner.")]
+    [InlineData("Wir treffen uns am Dienstag im Büro, ach nee, Mittwoch.", "Wir treffen uns am Mittwoch im Büro.")]
+    [InlineData("Ich rufe dich übermorgen an, ach nee, morgen.", "Ich rufe dich morgen an.")]
+    [InlineData("Ich rufe dich morgen an, warte mal, übermorgen.", "Ich rufe dich übermorgen an.")]
+    [InlineData("Ich habe alles eingepackt. Ach ja, die Schlüssel fehlen noch.", "Ich habe alles eingepackt. Ach ja, die Schlüssel fehlen noch.")]
+    [InlineData("Ach ja, bitte bring die Unterlagen mit.", "Ach ja, bitte bring die Unterlagen mit.")]
+    [InlineData("Wir treffen uns am Dienstag. Ich bringe Kaffee. Ach nee, Mittwoch.", "Wir treffen uns am Dienstag. Ich bringe Kaffee. Ach nee, Mittwoch.")]
+    [InlineData("Nicht öffnen. Erst prüfen, sondern warten.", "Nicht öffnen. Erst prüfen, sondern warten.")]
+    [InlineData("Das ist nicht erlaubt. Wir warten, sondern gehen.", "Das ist nicht erlaubt. Wir warten, sondern gehen.")]
+    [InlineData("Dienstag ... ach nee, Mittwoch", "Mittwoch")]
+    [InlineData("Wir treffen uns ja Dienstag. Ach nee, Mittwoch.", "Wir treffen uns Mittwoch.")]
+    [InlineData("Wir fahren nach Amsterdam, ach nee, nach Berlin.", "Wir fahren nach Berlin.")]
+    [InlineData("Wir treffen uns am Dienstag im Büro, ach nee, am Mittwoch im Büro.", "Wir treffen uns am Mittwoch im Büro.")]
+    [InlineData("Ich brauche drei rote Ordner, ach nee, vier blaue Ordner.", "Ich brauche vier blaue Ordner.")]
+    [InlineData("Ich bringe Kaffee. Ach nee, Mittwoch.", "Ich bringe Kaffee. Ach nee, Mittwoch.")]
+    public async Task Repair_preserves_unrelated_text(string input, string expected)
+    {
+        var result = await _repairer.RepairAsync(input);
+        result.ShouldBe(expected);
+        (await _repairer.RepairAsync(result)).ShouldBe(expected);
+    }
 }
+
