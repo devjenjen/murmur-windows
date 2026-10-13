@@ -190,27 +190,62 @@ public class SendInputInjectorTests
         sent.ShouldBeFalse();
     }
 
+    [Theory]
+    [InlineData(TextInsertionMode.AtCaret)]
+    [InlineData(TextInsertionMode.DocumentEnd)]
+    public void Modifier_pressed_during_final_restore_aborts_without_sending(TextInsertionMode mode)
+    {
+        var expected = new TextInjectionTarget((nint)42, 100);
+        var intermediate = new TextInjectionTarget((nint)99, 200);
+        var readCount = 0;
+        var modifierHeld = false;
+        var sentCount = 0;
+        var restoredHandles = new List<nint>();
+        var injector = new SendInputInjector(
+            () => ++readCount == 2 ? intermediate : expected,
+            () => modifierHeld,
+            handle =>
+            {
+                restoredHandles.Add(handle);
+                modifierHeld = true;
+                return true;
+            },
+            _ => sentCount++);
+
+        var ex = Should.Throw<TextInjectionException>(() =>
+            injector.Insert("harmless test", expected, mode,
+                restorePreviousWindow: true));
+
+        ex.Reason.ShouldBe(TextInjectionFailureReason.ModifierHeld);
+        sentCount.ShouldBe(0);
+        restoredHandles.ShouldBe(new nint[] { expected.WindowHandle });
+    }
+
     [Fact]
     public void Modifier_pressed_during_restore_aborts_without_sending()
     {
         var expected = new TextInjectionTarget((nint)42, 100);
-        var wrong = new TextInjectionTarget((nint)99, 200);
-        var modCheckCount = 0;
-        var sent = false;
+        var intermediate = new TextInjectionTarget((nint)99, 200);
+        var readCount = 0;
+        var modifierHeld = false;
+        var sentCount = 0;
+        var restoredHandles = new List<nint>();
         var injector = new SendInputInjector(
-            () => expected,
-            () =>
+            () => ++readCount == 1 ? intermediate : expected,
+            () => modifierHeld,
+            handle =>
             {
-                modCheckCount++;
-                return modCheckCount > 1;
+                restoredHandles.Add(handle);
+                modifierHeld = true;
+                return true;
             },
-            _ => true,
-            _ => sent = true);
+            _ => sentCount++);
 
         var ex = Should.Throw<TextInjectionException>(() =>
             injector.Insert("secret", expected, TextInsertionMode.AtCaret));
         ex.Reason.ShouldBe(TextInjectionFailureReason.ModifierHeld);
-        sent.ShouldBeFalse();
+        sentCount.ShouldBe(0);
+        restoredHandles.ShouldBe(new nint[] { expected.WindowHandle });
     }
 
     [Fact]

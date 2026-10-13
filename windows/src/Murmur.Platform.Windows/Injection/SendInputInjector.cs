@@ -111,6 +111,11 @@ public sealed class SendInputInjector : ITextInjector
             }
         }
 
+        if (_hasHeldModifier())
+        {
+            throw new TextInjectionException(TextInjectionFailureReason.ModifierHeld);
+        }
+
         _sendInputs(array);
 
         if (restorePreviousWindow && intermediateHandle != 0 && intermediateHandle != target.WindowHandle)
