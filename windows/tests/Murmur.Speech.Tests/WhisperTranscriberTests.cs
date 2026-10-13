@@ -42,14 +42,14 @@ public class WhisperTranscriberTests
         manifest.Id.ShouldBe("whisper-v3-turbo");
         manifest.DisplayName.ShouldBe("Whisper Large-v3-Turbo (offline)");
         manifest.ArchiveUrl.ShouldBe("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-turbo.tar.bz2");
-        manifest.ArchiveSize.ShouldBe(1_036_000_000);
-        manifest.ArchiveSha256.ShouldBe("b54e7bc5be673b5df549eb4ebaa8d53b49ec96cba7b4d1ba83072b2203fa1a80");
+        manifest.ArchiveSize.ShouldBe(563_790_207);
+        manifest.ArchiveSha256.ShouldBe("b11acbbcd660b44a8e0df33724feb5aaa709cf65668f2823d59f656312544f22");
         manifest.SupportsLivePreview.ShouldBeFalse();
-        manifest.ExtractedSize.ShouldBe(1_080_000_000);
-        manifest.RequiredFiles.ShouldBe(["turbo-encoder.int8.onnx", "turbo-decoder.int8.onnx", "tokens.txt"]);
+        manifest.ExtractedSize.ShouldBe(1_037_438_452);
+        manifest.RequiredFiles.ShouldBe(["turbo-encoder.int8.onnx", "turbo-decoder.int8.onnx", "turbo-tokens.txt"]);
         manifest.RequiredFiles.ShouldContain("turbo-encoder.int8.onnx");
         manifest.RequiredFiles.ShouldContain("turbo-decoder.int8.onnx");
-        manifest.RequiredFiles.ShouldContain("tokens.txt");
+        manifest.RequiredFiles.ShouldContain("turbo-tokens.txt");
         ModelManifest.All.ShouldContain(ModelManifest.WhisperV3Turbo);
     }
 
@@ -65,7 +65,7 @@ public class WhisperTranscriberTests
     {
         using var temp = new TempDirectory();
         // Only write one file
-        File.WriteAllBytes(Path.Combine(temp.Path, "tokens.txt"), [1, 2, 3]);
+        File.WriteAllBytes(Path.Combine(temp.Path, "turbo-tokens.txt"), [1, 2, 3]);
 
         Should.Throw<DirectoryNotFoundException>(() => new SherpaOnnxWhisperTranscriber(temp.Path));
     }

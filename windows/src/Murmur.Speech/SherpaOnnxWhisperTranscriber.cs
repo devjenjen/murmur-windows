@@ -35,7 +35,7 @@ public sealed class SherpaOnnxWhisperTranscriber : ITranscriber
         config.ModelConfig.Whisper.Decoder = Path.Combine(dir, "turbo-decoder.int8.onnx");
         config.ModelConfig.Whisper.Language = "";
         config.ModelConfig.Whisper.Task = "transcribe";
-        config.ModelConfig.Tokens = Path.Combine(dir, "tokens.txt");
+        config.ModelConfig.Tokens = Path.Combine(dir, "turbo-tokens.txt");
         config.ModelConfig.NumThreads = 4;
         config.ModelConfig.Provider = "cpu";
         config.DecodingMethod = "greedy_search";

@@ -135,6 +135,25 @@ public class ModelDownloaderTests
         Directory.GetDirectories(temp.Path, "*.invalid-*").ShouldBeEmpty();
     }
 
+    [Fact]
+    public void Whisper_directory_does_not_require_transducer_joiner()
+    {
+        using var temp = new TempDirectory();
+        foreach (var file in ModelManifest.WhisperV3Turbo.RequiredFiles)
+            File.WriteAllText(Path.Combine(temp.Path, file), "data");
+        Should.NotThrow(() => ModelDownloader.ValidateModelDirectory(temp.Path, ModelManifest.WhisperV3Turbo));
+        File.Exists(Path.Combine(temp.Path, "joiner.int8.onnx")).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Whisper_directory_rejects_missing_decoder()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(Path.Combine(temp.Path, "turbo-encoder.int8.onnx"), "data");
+        File.WriteAllText(Path.Combine(temp.Path, "turbo-tokens.txt"), "data");
+        Should.Throw<InvalidDataException>(() => ModelDownloader.ValidateModelDirectory(temp.Path, ModelManifest.WhisperV3Turbo));
+    }
+
     private static ModelManifest TestModel(byte[] archive) => new(
         "test-model",
         "Test model",

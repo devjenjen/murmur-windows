@@ -50,12 +50,12 @@ public sealed record ModelManifest(
         "whisper-v3-turbo",
         "Whisper Large-v3-Turbo (offline)",
         "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-turbo.tar.bz2",
-        1_036_000_000,
-        "b54e7bc5be673b5df549eb4ebaa8d53b49ec96cba7b4d1ba83072b2203fa1a80",
+        563_790_207,
+        "b11acbbcd660b44a8e0df33724feb5aaa709cf65668f2823d59f656312544f22",
         false)
     {
-        ExtractedSize = 1_080_000_000,
-        RequiredFiles = ["turbo-encoder.int8.onnx", "turbo-decoder.int8.onnx", "tokens.txt"]
+        ExtractedSize = 1_037_438_452,
+        RequiredFiles = ["turbo-encoder.int8.onnx", "turbo-decoder.int8.onnx", "turbo-tokens.txt"]
     };
 
     /// <summary>All available pinned speech models.</summary>
