@@ -255,4 +255,37 @@ public class SpeechRepairerTests
         result.ShouldBe(expected);
         (await _repairer.RepairAsync(result)).ShouldBe(expected);
     }
+
+    // Ambiguous extra quantities and matches beyond a preposition keep the original text.
+    [Theory]
+    [InlineData(
+        "Ich brauche drei rote Ordner und Etiketten für die Ordner, ach nee, vier blaue Ordner.",
+        "Ich brauche vier blaue Ordner und Etiketten für die Ordner.")]
+    [InlineData(
+        "Ich brauche drei rote Ordner mit Etiketten für die Ordner, ach nee, vier blaue Ordner.",
+        "Ich brauche vier blaue Ordner mit Etiketten für die Ordner.")]
+    [InlineData(
+        "Ich brauche drei rote Ordner, ach nee, vier und zwei blaue Hefter.",
+        "Ich brauche drei rote Ordner, ach nee, vier und zwei blaue Hefter.")]
+    [InlineData(
+        "Wir treffen uns am Dienstag mit Peter im Büro, ach nee, Mittwoch im Büro.",
+        "Wir treffen uns am Dienstag mit Peter im Büro, ach nee, Mittwoch im Büro.")]
+    [InlineData(
+        "I need three red folders and labels for the folders, no wait, four blue folders.",
+        "I need four blue folders and labels for the folders.")]
+    [InlineData(
+        "Ich brauche drei rote Ordner und Etiketten für die Ordner, ach nee, vier.",
+        "Ich brauche vier rote Ordner und Etiketten für die Ordner.")]
+    [InlineData(
+        "Wir treffen uns am Dienstag im Büro und später im Café, ach nee, Mittwoch im Büro.",
+        "Wir treffen uns am Mittwoch im Büro und später im Café.")]
+    [InlineData(
+        "Ich brauche drei Ordner, ach nee, vier, ach nee, fünf.",
+        "Ich brauche fünf Ordner.")]
+    public async Task Repair_limits_replacement_to_supported_phrase(string input, string expected)
+    {
+        var result = await _repairer.RepairAsync(input);
+        result.ShouldBe(expected);
+        (await _repairer.RepairAsync(result)).ShouldBe(expected);
+    }
 }

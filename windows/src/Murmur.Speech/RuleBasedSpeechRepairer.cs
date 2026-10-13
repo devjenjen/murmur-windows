@@ -14,6 +14,21 @@ using Murmur.Core.Abstractions;
 /// </summary>
 public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
 {
+    private static readonly string[] Prepositions = new[]
+    {
+        "am", "um", "im", "in", "an", "von", "vom", "ab", "bis", "auf", "für", "fuer",
+        "zu", "zum", "zur", "nach", "vor", "bei", "beim", "mit",
+        "at", "on", "in", "to", "for", "from", "by", "until", "with"
+    };
+
+    private static readonly Regex WordRegex = new(
+        @"\b[a-zA-Z0-9äöüÄÖÜß\-_']+\b",
+        RegexOptions.Compiled);
+
+    private static readonly Regex ContinuationBoundaryRegex = new(
+        $@"[,.!?;:\r\n…]|\b(?:und|oder|and|or)\b|\b(?<preposition>{string.Join("|", Array.ConvertAll(Prepositions, prep => Regex.Escape(prep)))})\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     private static readonly Regex MarkerRegex = new(
         @"(?:(?:\s*(?:\.{2,}|…|[\.,;\-–—]))\s*\b(?<marker>warte\s+(?:mal|kurz|eben|einen\s+moment|(?:eine\s+)?sekunde))\b|(?:\s*(?:\.{2,}|…|[\.,;\-–—]))?\s*\b(?<marker>ach\s+nee|ach\s+ne|ach\s+nein|ich\s+meinte|oder\s+vielmehr|oder\s+besser(?:\s+gesagt)?|no\s+wait|i\s+mean|or\s+rather|scratch\s+that)\b)[\s,:]*",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -189,6 +204,19 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
             }
         }
 
+        var nextMarkerMatch = MarkerRegex.Match(textAfterAll);
+        if (nextMarkerMatch.Success && nextMarkerMatch.Index > 0)
+        {
+            string beforeNextMarker = textAfterAll[..nextMarkerMatch.Index];
+            int commaIndex = beforeNextMarker.LastIndexOf(',');
+            if (commaIndex >= 0)
+            {
+                alteration = beforeNextMarker[..commaIndex].Trim();
+                punctuation = ",";
+                remainder = textAfterAll[(commaIndex + 1)..].Trim();
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(alteration))
         {
             return text;
@@ -260,21 +288,12 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
             }
         }
 
-        // Avoid duplicating continuation suffix when alteration already restates it
-        if (!string.IsNullOrWhiteSpace(after))
+        // Consume only a validated phrase at the start of the original suffix.
+        if (!TryGetConsumedSuffixLength(alteration, after, knownCategory, out int consumedSuffixLength))
         {
-            var altWords = Regex.Matches(alteration, @"\b[a-zA-Z0-9äöüÄÖÜß\-_']+\b");
-            if (altWords.Count >= 2)
-            {
-                string lastAltWord = altWords[^1].Value;
-                var afterMatches = Regex.Matches(after, $@"\b{Regex.Escape(lastAltWord)}\b", RegexOptions.IgnoreCase);
-                if (afterMatches.Count > 0)
-                {
-                    var lastAfterMatch = afterMatches[^1];
-                    after = after[(lastAfterMatch.Index + lastAfterMatch.Length)..];
-                }
-            }
+            return text;
         }
+        after = after[consumedSuffixLength..];
 
         // Build result
         var sb = new StringBuilder();
@@ -321,6 +340,127 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
         }
 
         return sb.ToString();
+    }
+
+    private static bool TryGetConsumedSuffixLength(
+        string alteration,
+        string after,
+        bool knownCategory,
+        out int consumedLength)
+    {
+        consumedLength = 0;
+        if (string.IsNullOrWhiteSpace(after))
+        {
+            return true;
+        }
+
+        Match valueMatch = WeekdayRegex.Match(alteration);
+        bool isNumber = false;
+        if (valueMatch.Success)
+        {
+            if (RelativeTimeAdverbRegex.IsMatch(alteration) ||
+                ClockTimeRegex.IsMatch(alteration) ||
+                NumberWordRegex.IsMatch(alteration))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            valueMatch = RelativeTimeAdverbRegex.Match(alteration);
+            if (valueMatch.Success)
+            {
+                if (ClockTimeRegex.IsMatch(alteration) || NumberWordRegex.IsMatch(alteration))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                valueMatch = ClockTimeRegex.Match(alteration);
+                if (!valueMatch.Success)
+                {
+                    var numberMatches = NumberWordRegex.Matches(alteration);
+                    if (numberMatches.Count != 1)
+                    {
+                        return !knownCategory && WordRegex.Count(alteration) == 1;
+                    }
+
+                    valueMatch = numberMatches[0];
+                    isNumber = true;
+                }
+            }
+        }
+
+        string repeatedContinuation = alteration[(valueMatch.Index + valueMatch.Length)..].Trim();
+        if (string.IsNullOrEmpty(repeatedContinuation))
+        {
+            return true;
+        }
+
+        int afterOffset = after.Length - after.TrimStart().Length;
+        string trimmedAfter = after.TrimStart();
+        int leadingPhraseLength = FindLeadingPhraseLength(trimmedAfter);
+        string leadingPhrase = trimmedAfter[..leadingPhraseLength].TrimEnd();
+        if (string.Equals(leadingPhrase, repeatedContinuation, StringComparison.OrdinalIgnoreCase))
+        {
+            consumedLength = afterOffset + leadingPhrase.Length;
+            return true;
+        }
+
+        return isNumber && TryConsumeNominalContinuation(alteration, after, valueMatch, out consumedLength);
+    }
+
+    private static bool TryConsumeNominalContinuation(
+        string alteration,
+        string after,
+        Match numberMatch,
+        out int consumedLength)
+    {
+        consumedLength = 0;
+        string trimmedAlteration = alteration.Trim();
+        var numberMatches = NumberWordRegex.Matches(trimmedAlteration);
+        if (numberMatches.Count != 1 || numberMatch.Index != 0)
+        {
+            return false;
+        }
+
+        string replacementPhrase = trimmedAlteration[(numberMatch.Index + numberMatch.Length)..].Trim();
+        if (string.IsNullOrEmpty(replacementPhrase) || ContinuationBoundaryRegex.IsMatch(replacementPhrase))
+        {
+            return false;
+        }
+
+        var replacementWords = WordRegex.Matches(replacementPhrase);
+        int afterOffset = after.Length - after.TrimStart().Length;
+        string trimmedAfter = after.TrimStart();
+        int leadingPhraseLength = FindLeadingPhraseLength(trimmedAfter);
+        string leadingPhrase = trimmedAfter[..leadingPhraseLength].TrimEnd();
+        var originalWords = WordRegex.Matches(leadingPhrase);
+        if (replacementWords.Count == 0 || originalWords.Count == 0 ||
+            !string.IsNullOrEmpty(ExtractPreposition(leadingPhrase)) ||
+            !string.Equals(replacementWords[^1].Value, originalWords[^1].Value, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        consumedLength = afterOffset + leadingPhrase.Length;
+        return true;
+    }
+
+    private static int FindLeadingPhraseLength(string text)
+    {
+        foreach (Match boundary in ContinuationBoundaryRegex.Matches(text))
+        {
+            if (boundary.Index == 0 && boundary.Groups["preposition"].Success)
+            {
+                continue;
+            }
+
+            return boundary.Index;
+        }
+
+        return text.Length;
     }
 
     private static (int index, int length, bool knownCategory) FindReparandum(string textBefore, string alteration)
@@ -406,13 +546,6 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
 
         return prefix;
     }
-
-    private static readonly string[] Prepositions = new[]
-    {
-        "am", "um", "im", "in", "an", "von", "vom", "ab", "bis", "auf", "für", "fuer",
-        "zu", "zum", "zur", "nach", "vor", "bei", "beim", "mit",
-        "at", "on", "in", "to", "for", "from", "by", "until", "with"
-    };
 
     private static string ExtractPreposition(string phrase)
     {
