@@ -16,6 +16,8 @@ public class RealModelDownloadTests
     [InlineData("parakeet-v3", "en")]
     [InlineData("nemotron-3.5-streaming-160ms", "de")]
     [InlineData("nemotron-3.5-streaming-160ms", "en")]
+    [InlineData("whisper-v3-turbo", "de")]
+    [InlineData("whisper-v3-turbo", "en")]
     public async Task Download_And_Transcribe_German_And_English_Smoke_Test(string modelId, string language)
     {
         var model = ModelManifest.Get(modelId);
@@ -25,7 +27,9 @@ public class RealModelDownloadTests
 
         using ITranscriber transcriber = model.SupportsLivePreview
             ? new NemotronStreamingTranscriber(modelDirectory)
-            : new SherpaOnnxTranscriber(modelDirectory);
+            : string.Equals(model.Id, ModelManifest.WhisperV3Turbo.Id, StringComparison.OrdinalIgnoreCase)
+                ? new SherpaOnnxWhisperTranscriber(modelDirectory)
+                : new SherpaOnnxTranscriber(modelDirectory);
         var result = await transcriber.TranscribeAsync(samples);
         result.ShouldNotBeNullOrWhiteSpace();
     }
@@ -95,12 +99,12 @@ public class RealModelDownloadTests
     private static async Task<float[]> LoadFixtureAsync(ModelManifest model, string language)
     {
         var candidate = Path.Combine(ModelTestPaths.GetDirectory(model), "test_wavs", $"{language}.wav");
-        if (!File.Exists(candidate) && model.SupportsLivePreview && string.Equals(language, "en", StringComparison.OrdinalIgnoreCase))
+        if (!File.Exists(candidate))
         {
-            // Nemotron's pinned archive has no English fixture; use the pinned Parakeet
-            // English fixture after validating that model in the same isolated root.
+            // Pinned Whisper or Nemotron archives may lack a language fixture; use the pinned Parakeet
+            // fixture after validating that model in the same isolated root.
             await EnsureModelAsync(ModelManifest.ParakeetV3);
-            candidate = Path.Combine(ModelTestPaths.GetDirectory(ModelManifest.ParakeetV3), "test_wavs", "en.wav");
+            candidate = Path.Combine(ModelTestPaths.GetDirectory(ModelManifest.ParakeetV3), "test_wavs", $"{language}.wav");
         }
 
         if (!File.Exists(candidate))

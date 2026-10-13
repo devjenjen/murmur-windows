@@ -45,6 +45,7 @@ The interface language does not select the speech language. Both models detect t
 | `%LOCALAPPDATA%\Murmur\murmur.log` | application log |
 | `%LOCALAPPDATA%\Murmur\models\parakeet-v3` | Parakeet v3 model |
 | `%LOCALAPPDATA%\Murmur\models\nemotron-3.5-streaming-160ms` | Nemotron 3.5 model |
+| `%LOCALAPPDATA%\Murmur\models\whisper-v3-turbo` | Whisper Large-v3-Turbo model |
 
 ## Speech models
 
@@ -54,6 +55,7 @@ Murmur downloads pinned model archives from the sherpa-onnx releases on GitHub:
 |---|---|
 | [Parakeet v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) (offline) | Final transcription after key release |
 | [Nemotron 3.5](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b) (live, 160 ms) | Live HUD preview while speaking |
+| [Whisper Large-v3-Turbo](https://github.com/openai/whisper) (offline) | Offline transcription with multilingual accuracy |
 
 Murmur loads one model at a time and checks the archive's size and SHA-256 hash
 when downloading. If files are missing or corrupt, download the model again
@@ -76,10 +78,19 @@ dotnet build Murmur.sln --configuration Release --no-incremental -warnaserror
 dotnet test Murmur.sln --configuration Release --no-build --filter 'Category!=RealModel&Category!=QualityCorpus'
 ```
 
-This command runs the unit and UI tests used by normal CI. The release workflow
-also downloads models and runs inference tests marked `RealModel`.
-`.github/workflows/real-model.yml` runs model tests manually or nightly.
-Tests marked `QualityCorpus` require a separately supplied corpus.
+This command runs the unit and UI tests used by normal CI (fully offline, no downloads).
+
+Additional test suites:
+- **`RealModel`**: Downloads models from GitHub to the model cache and executes real CPU inference on German and English audio fixtures:
+  ```powershell
+  $env:MURMUR_TEST_MODELS_ROOT = "C:\path\to\model-cache" # optional override
+  dotnet test tests/Murmur.Speech.Tests/Murmur.Speech.Tests.csproj --filter 'Category=RealModel'
+  ```
+- **`QualityCorpus`**: Evaluates WER/CER metrics across models against a labeled reference corpus and produces a JSON quality report. Requires `MURMUR_QUALITY_CORPUS`:
+  ```powershell
+  $env:MURMUR_QUALITY_CORPUS = "C:\path\to\corpus"
+  dotnet test tests/Murmur.Speech.Tests/Murmur.Speech.Tests.csproj --filter 'Category=QualityCorpus'
+  ```
 
 The default push-to-talk key is Right Ctrl. The keyboard hook observes keys without swallowing them, and the HUD never takes focus. Windows UIPI blocks `SendInput` when the target application has higher privileges than Murmur.
 

@@ -15,7 +15,6 @@ using Xunit;
 using Xunit.Abstractions;
 
 [Collection("Real model inference")]
-[Trait("Category", "QualityCorpus")]
 public sealed class ModelQualityTests
 {
     private static readonly JsonSerializerOptions ReportJsonOptions = new() { WriteIndented = true };
@@ -119,10 +118,21 @@ public sealed class ModelQualityTests
     }
 
     [Fact]
+    public void Quality_factory_selects_Whisper()
+    {
+        var missing = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var ex = Should.Throw<DirectoryNotFoundException>(() =>
+            CreateTranscriber(ModelManifest.WhisperV3Turbo, missing));
+        ex.Message.ShouldContain("Whisper");
+    }
+
+    [Fact]
+    [Trait("Category", "QualityCorpus")]
     public async Task Model_quality_report()
     {
         var corpusDirectory = Environment.GetEnvironmentVariable("MURMUR_QUALITY_CORPUS");
-        if (string.IsNullOrWhiteSpace(corpusDirectory)) return;
+        if (string.IsNullOrWhiteSpace(corpusDirectory))
+            throw new InvalidOperationException("Set MURMUR_QUALITY_CORPUS before running Category=QualityCorpus.");
 
         var corpus = QualityCorpus.Load(corpusDirectory);
         var dictionaryPath = Environment.GetEnvironmentVariable("MURMUR_QUALITY_DICTIONARY");
@@ -190,9 +200,12 @@ public sealed class ModelQualityTests
         _output.WriteLine($"quality-report={outputPath}");
     }
 
-    private static ITranscriber CreateTranscriber(ModelManifest model, string modelDirectory) => model.SupportsLivePreview
-        ? new NemotronStreamingTranscriber(modelDirectory)
-        : new SherpaOnnxTranscriber(modelDirectory);
+    private static ITranscriber CreateTranscriber(ModelManifest model, string modelDirectory) =>
+        model.SupportsLivePreview
+            ? new NemotronStreamingTranscriber(modelDirectory)
+            : string.Equals(model.Id, ModelManifest.WhisperV3Turbo.Id, StringComparison.OrdinalIgnoreCase)
+                ? new SherpaOnnxWhisperTranscriber(modelDirectory)
+                : new SherpaOnnxTranscriber(modelDirectory);
 
     private static ErrorMetrics Metrics(string reference, string hypothesis) => new(
         TextErrorRate.WordErrorRate(reference, hypothesis),
