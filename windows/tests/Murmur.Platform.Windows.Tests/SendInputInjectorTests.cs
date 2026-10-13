@@ -101,4 +101,182 @@ public class SendInputInjectorTests
         copy.RestorePreviousWindowAfterInjection.ShouldBeFalse();
         settings.Equals(copy).ShouldBeFalse();
     }
+
+    [Fact]
+    public void Successful_focus_restore_does_not_allow_wrong_process()
+    {
+        var expected = new TextInjectionTarget((nint)42, 100);
+        var wrong = new TextInjectionTarget((nint)42, 101);
+        var sent = false;
+        var injector = new SendInputInjector(
+            () => wrong, () => false, _ => true, _ => sent = true);
+        var ex = Should.Throw<TextInjectionException>(() =>
+            injector.Insert("secret", expected, TextInsertionMode.AtCaret));
+        ex.Reason.ShouldBe(TextInjectionFailureReason.TargetChanged);
+        sent.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Restore_fails_when_restoreWindowFocus_returns_false()
+    {
+        var expected = new TextInjectionTarget((nint)42, 100);
+        var wrong = new TextInjectionTarget((nint)99, 200);
+        var sent = false;
+        var injector = new SendInputInjector(
+            () => wrong, () => false, _ => false, _ => sent = true);
+        var ex = Should.Throw<TextInjectionException>(() =>
+            injector.Insert("secret", expected, TextInsertionMode.AtCaret));
+        ex.Reason.ShouldBe(TextInjectionFailureReason.TargetUnavailable);
+        sent.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Target_disappears_after_restore_throws_TargetChanged()
+    {
+        var expected = new TextInjectionTarget((nint)42, 100);
+        var readCount = 0;
+        var sent = false;
+        var injector = new SendInputInjector(
+            () =>
+            {
+                readCount++;
+                return readCount == 1 ? new TextInjectionTarget((nint)99, 200) : default;
+            },
+            () => false,
+            _ => true,
+            _ => sent = true);
+
+        var ex = Should.Throw<TextInjectionException>(() =>
+            injector.Insert("secret", expected, TextInsertionMode.AtCaret));
+        ex.Reason.ShouldBe(TextInjectionFailureReason.TargetChanged);
+        sent.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Initial_target_correct_then_pid_changes_before_send_throws_TargetChanged()
+    {
+        var expected = new TextInjectionTarget((nint)42, 100);
+        var readCount = 0;
+        var sent = false;
+        var injector = new SendInputInjector(
+            () =>
+            {
+                readCount++;
+                return readCount == 1 ? expected : new TextInjectionTarget((nint)42, 999);
+            },
+            () => false,
+            _ => true,
+            _ => sent = true);
+
+        var ex = Should.Throw<TextInjectionException>(() =>
+            injector.Insert("secret", expected, TextInsertionMode.AtCaret));
+        ex.Reason.ShouldBe(TextInjectionFailureReason.TargetChanged);
+        sent.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Modifier_held_at_start_aborts_without_restoring_or_sending()
+    {
+        var expected = new TextInjectionTarget((nint)42, 100);
+        var restored = false;
+        var sent = false;
+        var injector = new SendInputInjector(
+            () => expected, () => true, _ => restored = true, _ => sent = true);
+
+        var ex = Should.Throw<TextInjectionException>(() =>
+            injector.Insert("secret", expected, TextInsertionMode.AtCaret));
+        ex.Reason.ShouldBe(TextInjectionFailureReason.ModifierHeld);
+        restored.ShouldBeFalse();
+        sent.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Modifier_pressed_during_restore_aborts_without_sending()
+    {
+        var expected = new TextInjectionTarget((nint)42, 100);
+        var wrong = new TextInjectionTarget((nint)99, 200);
+        var modCheckCount = 0;
+        var sent = false;
+        var injector = new SendInputInjector(
+            () => expected,
+            () =>
+            {
+                modCheckCount++;
+                return modCheckCount > 1;
+            },
+            _ => true,
+            _ => sent = true);
+
+        var ex = Should.Throw<TextInjectionException>(() =>
+            injector.Insert("secret", expected, TextInsertionMode.AtCaret));
+        ex.Reason.ShouldBe(TextInjectionFailureReason.ModifierHeld);
+        sent.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Successful_injection_without_window_switch()
+    {
+        var expected = new TextInjectionTarget((nint)42, 100);
+        var restoredHandles = new List<nint>();
+        var sentCount = 0;
+        var injector = new SendInputInjector(
+            () => expected,
+            () => false,
+            h => { restoredHandles.Add(h); return true; },
+            _ => sentCount++);
+
+        injector.Insert("test", expected, TextInsertionMode.AtCaret);
+        sentCount.ShouldBe(1);
+        restoredHandles.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Successful_injection_with_focus_restoration_and_previous_window_return()
+    {
+        var expected = new TextInjectionTarget((nint)42, 100);
+        var intermediate = new TextInjectionTarget((nint)99, 200);
+        var restoredHandles = new List<nint>();
+        var sentCount = 0;
+        var readCount = 0;
+
+        var injector = new SendInputInjector(
+            () =>
+            {
+                readCount++;
+                // 1st call: intermediate window is active
+                // 2nd call: expected target is restored
+                // 3rd call: expected target remains active
+                return readCount == 1 ? intermediate : expected;
+            },
+            () => false,
+            h => { restoredHandles.Add(h); return true; },
+            _ => sentCount++);
+
+        injector.Insert("test", expected, TextInsertionMode.AtCaret, restorePreviousWindow: true);
+        sentCount.ShouldBe(1);
+        restoredHandles.Count.ShouldBe(2);
+        restoredHandles[0].ShouldBe((nint)42);
+        restoredHandles[1].ShouldBe((nint)99);
+    }
+
+    [Fact]
+    public void Empty_text_does_not_call_restore_or_send()
+    {
+        var expected = new TextInjectionTarget((nint)42, 100);
+        var restored = false;
+        var sent = false;
+        var read = false;
+
+        var injector = new SendInputInjector(
+            () => { read = true; return expected; },
+            () => false,
+            _ => restored = true,
+            _ => sent = true);
+
+        injector.Insert("", expected, TextInsertionMode.AtCaret, restorePreviousWindow: true);
+        read.ShouldBeFalse();
+        restored.ShouldBeFalse();
+        sent.ShouldBeFalse();
+    }
 }
+

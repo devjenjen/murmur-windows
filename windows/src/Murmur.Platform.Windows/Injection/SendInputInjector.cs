@@ -11,10 +11,42 @@ namespace Murmur.Platform.Windows.Injection;
 /// </summary>
 public sealed class SendInputInjector : ITextInjector
 {
+    private readonly Func<TextInjectionTarget> _readCurrentTarget;
+    private readonly Func<bool> _hasHeldModifier;
+    private readonly Func<nint, bool> _restoreWindowFocus;
+    private readonly Action<Win32.INPUT[]> _sendInputs;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SendInputInjector"/> class.
+    /// </summary>
+    public SendInputInjector()
+        : this(
+            ReadCurrentTarget,
+            () => HasHeldModifier(
+                Win32.GetAsyncKeyState((int)Win32.VK_CONTROL),
+                Win32.GetAsyncKeyState((int)Win32.VK_MENU),
+                Win32.GetAsyncKeyState((int)Win32.VK_SHIFT)),
+            RestoreWindowFocus,
+            SendInputs)
+    {
+    }
+
+    internal SendInputInjector(
+        Func<TextInjectionTarget> readCurrentTarget,
+        Func<bool> hasHeldModifier,
+        Func<nint, bool> restoreWindowFocus,
+        Action<Win32.INPUT[]> sendInputs)
+    {
+        _readCurrentTarget = readCurrentTarget ?? throw new ArgumentNullException(nameof(readCurrentTarget));
+        _hasHeldModifier = hasHeldModifier ?? throw new ArgumentNullException(nameof(hasHeldModifier));
+        _restoreWindowFocus = restoreWindowFocus ?? throw new ArgumentNullException(nameof(restoreWindowFocus));
+        _sendInputs = sendInputs ?? throw new ArgumentNullException(nameof(sendInputs));
+    }
+
     /// <inheritdoc />
     public TextInjectionTarget CaptureTarget()
     {
-        var target = ReadCurrentTarget();
+        var target = _readCurrentTarget();
         if (target.WindowHandle == 0 || target.ProcessId == 0)
         {
             throw new TextInjectionException(TextInjectionFailureReason.TargetUnavailable);
@@ -31,35 +63,35 @@ public sealed class SendInputInjector : ITextInjector
             return;
         }
 
-        if (HasHeldModifier(
-                Win32.GetAsyncKeyState((int)Win32.VK_CONTROL),
-                Win32.GetAsyncKeyState((int)Win32.VK_MENU),
-                Win32.GetAsyncKeyState((int)Win32.VK_SHIFT)))
+        if (_hasHeldModifier())
         {
             throw new TextInjectionException(TextInjectionFailureReason.ModifierHeld);
         }
 
-        var currentTarget = ReadCurrentTarget();
+        var currentTarget = _readCurrentTarget();
         nint intermediateHandle = 0;
         if (!IsSameTarget(target, currentTarget))
         {
             intermediateHandle = currentTarget.WindowHandle;
-            if (!RestoreWindowFocus(target.WindowHandle))
+            if (!_restoreWindowFocus(target.WindowHandle))
             {
                 throw new TextInjectionException(TextInjectionFailureReason.TargetUnavailable);
+            }
+
+            currentTarget = _readCurrentTarget();
+            if (!IsSameTarget(target, currentTarget))
+            {
+                throw new TextInjectionException(TextInjectionFailureReason.TargetChanged);
             }
         }
 
         var array = BuildInputs(text, mode);
-        if (HasHeldModifier(
-                Win32.GetAsyncKeyState((int)Win32.VK_CONTROL),
-                Win32.GetAsyncKeyState((int)Win32.VK_MENU),
-                Win32.GetAsyncKeyState((int)Win32.VK_SHIFT)))
+        if (_hasHeldModifier())
         {
             throw new TextInjectionException(TextInjectionFailureReason.ModifierHeld);
         }
 
-        currentTarget = ReadCurrentTarget();
+        currentTarget = _readCurrentTarget();
         if (!IsSameTarget(target, currentTarget))
         {
             if (intermediateHandle == 0)
@@ -67,21 +99,33 @@ public sealed class SendInputInjector : ITextInjector
                 intermediateHandle = currentTarget.WindowHandle;
             }
 
-            if (!RestoreWindowFocus(target.WindowHandle))
+            if (!_restoreWindowFocus(target.WindowHandle))
             {
                 throw new TextInjectionException(TextInjectionFailureReason.TargetUnavailable);
             }
+
+            currentTarget = _readCurrentTarget();
+            if (!IsSameTarget(target, currentTarget))
+            {
+                throw new TextInjectionException(TextInjectionFailureReason.TargetChanged);
+            }
         }
 
+        _sendInputs(array);
+
+        if (restorePreviousWindow && intermediateHandle != 0 && intermediateHandle != target.WindowHandle)
+        {
+            _restoreWindowFocus(intermediateHandle);
+        }
+    }
+
+    private static void SendInputs(Win32.INPUT[] array)
+    {
         var inserted = Win32.SendInput((uint)array.Length, array, Marshal.SizeOf<Win32.INPUT>());
         if (inserted != array.Length)
         {
             throw new Win32Exception(Marshal.GetLastWin32Error(),
                 $"SendInput inserted {inserted} of {array.Length} keyboard events.");
-        }
-        if (restorePreviousWindow && intermediateHandle != 0 && intermediateHandle != target.WindowHandle)
-        {
-            RestoreWindowFocus(intermediateHandle);
         }
     }
 
