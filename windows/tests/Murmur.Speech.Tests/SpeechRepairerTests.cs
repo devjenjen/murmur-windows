@@ -256,4 +256,3 @@ public class SpeechRepairerTests
         (await _repairer.RepairAsync(result)).ShouldBe(expected);
     }
 }
-
