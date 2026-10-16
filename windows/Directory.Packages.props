@@ -16,7 +16,7 @@
 
     <!-- Audio. PINNED TO 2.3.0 ON PURPOSE.
          NAudio 3.x targets net9.0+ only and will not restore here. -->
-    <PackageVersion Include="NAudio" Version="2.3.0" />
+    <PackageVersion Include="NAudio" Version="3.2.0" />
 
     <!-- UI. Avalonia provides the desktop UI and headless test support used here. -->
     <PackageVersion Include="Avalonia" Version="11.3.20" />
