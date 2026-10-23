@@ -33,8 +33,8 @@ public sealed record ModelIntegrityManifest(int Version, string ModelId, IReadOn
         ArgumentNullException.ThrowIfNull(model);
         if (!Directory.Exists(directory)) throw new DirectoryNotFoundException(directory);
 
-        var files = new List<ModelIntegrityFile>(ModelManifest.RequiredFiles.Count);
-        foreach (var relativePath in ModelManifest.RequiredFiles)
+        var files = new List<ModelIntegrityFile>(model.RequiredFiles.Count);
+        foreach (var relativePath in model.RequiredFiles)
         {
             var path = ResolveSafePath(directory, relativePath);
             if (!File.Exists(path)) throw new InvalidDataException($"Missing required model file: {relativePath}");
@@ -62,7 +62,7 @@ public sealed record ModelIntegrityManifest(int Version, string ModelId, IReadOn
             return false;
         }
 
-        var required = ModelManifest.RequiredFiles.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var required = model.RequiredFiles.ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (Files.Count != required.Count)
         {
             return false;

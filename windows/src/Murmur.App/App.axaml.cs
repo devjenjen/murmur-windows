@@ -154,7 +154,7 @@ public partial class App : Application
     private static ITextFormatter CreateFormatter(DictationProfile profile)
     {
         return profile.FormatterKind == ProfileFormatterKind.Math
-            ? new GermanMathFormatter(profile.MathMode, profile.RemoveFillers)
+            ? new MathFormatter(profile.MathMode, profile.RemoveFillers)
             : new RuleBasedFormatter(profile.RemoveFillers);
     }
 
@@ -374,7 +374,9 @@ public partial class App : Application
             loadingTranscriber = true;
             transcriber = model.SupportsLivePreview
                 ? await Task.Run(() => new NemotronStreamingTranscriber(ModelLocator.GetDefaultModelDirectory(model)))
-                : await Task.Run(() => new SherpaOnnxTranscriber(ModelLocator.GetDefaultModelDirectory(model)));
+                : string.Equals(model.Id, ModelManifest.WhisperV3Turbo.Id, StringComparison.OrdinalIgnoreCase)
+                    ? await Task.Run(() => new SherpaOnnxWhisperTranscriber(ModelLocator.GetDefaultModelDirectory(model)))
+                    : await Task.Run(() => new SherpaOnnxTranscriber(ModelLocator.GetDefaultModelDirectory(model)));
             loadingTranscriber = false;
             if (!IsCurrentLoad()) return;
             sw.Stop();
@@ -397,6 +399,9 @@ public partial class App : Application
                 dictionaryCorrector = new DictionaryCorrector([]);
             }
 
+            var qwenDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Murmur", "models", "qwen-2.5-0.5b");
+            ISpeechRepairer speechRepairer = new LlamaSharpSpeechRepairer(qwenDir, new RuleBasedSpeechRepairer());
+
             candidate = new DictationController(
                 audioCapture,
                 hotkeyHook,
@@ -406,7 +411,10 @@ public partial class App : Application
                 initialFormatter,
                 dictionaryCorrector,
                 activeProfile,
-                settings.TextInsertionMode);
+                settings.TextInsertionMode,
+                speechRepairer,
+                settings.EnableSelfCorrection,
+                settings.RestorePreviousWindowAfterInjection);
             transcriber = null;
             audioCapture = null;
             hotkeyHook = null;
@@ -783,7 +791,9 @@ public partial class App : Application
             TextInsertionMode = req.TextInsertionMode,
             HistoryEnabled = req.HistoryEnabled,
             HistoryRetentionDays = req.HistoryRetentionDays,
-            HistoryMaxEntries = req.HistoryMaxEntries
+            HistoryMaxEntries = req.HistoryMaxEntries,
+            EnableSelfCorrection = req.EnableSelfCorrection,
+            RestorePreviousWindowAfterInjection = req.RestorePreviousWindowAfterInjection
         };
 
         nextSettings = nextSettings.Normalize();
@@ -834,6 +844,8 @@ public partial class App : Application
         if (_controller != null && !RequiresControllerRestart(prevSettings, _settings))
         {
             _controller.SetTextInsertionMode(_settings.TextInsertionMode);
+            _controller.SetSelfCorrectionEnabled(_settings.EnableSelfCorrection);
+            _controller.SetRestorePreviousWindow(_settings.RestorePreviousWindowAfterInjection);
         }
 
         await StopMicrophoneTestAsync();

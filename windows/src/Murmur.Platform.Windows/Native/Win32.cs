@@ -36,6 +36,7 @@ internal static class Win32
     public const int WS_EX_NOACTIVATE = 0x08000000;
     public const int WS_EX_TOOLWINDOW = 0x00000080;
     public const int WS_EX_TRANSPARENT = 0x00000020;
+    public const int SW_RESTORE = 9;
 
     public delegate nint HookProc(int nCode, nint wParam, nint lParam);
 
@@ -121,6 +122,29 @@ internal static class Win32
 
     [DllImport("user32.dll")]
     public static extern nint GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetForegroundWindow(nint hWnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, [MarshalAs(UnmanagedType.Bool)] bool fAttach);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool BringWindowToTop(nint hWnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool ShowWindow(nint hWnd, int nCmdShow);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsIconic(nint hWnd);
+
+    [DllImport("kernel32.dll")]
+    public static extern uint GetCurrentThreadId();
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

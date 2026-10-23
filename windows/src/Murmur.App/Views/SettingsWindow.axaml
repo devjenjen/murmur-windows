@@ -361,6 +361,16 @@
                                                       Classes="lensToggle"
                                                       AutomationProperties.Name="{x:Static localization:UiText.RemoveFillersAutomation}" />
 
+                                        <ToggleSwitch x:Name="EnableSelfCorrectionCheckBox"
+                                                      Content="{x:Static localization:UiText.EnableSelfCorrection}"
+                                                      Classes="lensToggle"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.EnableSelfCorrection}" />
+
+                                        <ToggleSwitch x:Name="RestorePreviousWindowCheckBox"
+                                                      Content="{x:Static localization:UiText.RestorePreviousWindowAfterInjection}"
+                                                      Classes="lensToggle"
+                                                      AutomationProperties.Name="{x:Static localization:UiText.RestorePreviousWindowAfterInjection}" />
+
                                         <ToggleSwitch x:Name="AudioFeedbackCheckBox"
                                                       Content="{x:Static localization:UiText.AudioFeedback}"
                                                       Classes="lensToggle"

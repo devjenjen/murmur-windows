@@ -8,7 +8,9 @@ license and notice texts are in `licenses/`:
 - NAudio.
 - SkiaSharp and HarfBuzzSharp, including their bundled third-party notices.
 - sherpa-onnx and the ONNX Runtime native library it distributes.
-- .NET and Windows Desktop runtime packs.
+- LLamaSharp and its native CPU backend runtime (llama.cpp).
+- CommunityToolkit.HighPerformance.
+- .NET and Windows Desktop runtime packs and extensions.
 - Inter font assets.
 
 The [release inventory](https://github.com/devjenjen/murmur-windows/blob/main/windows/installer/third-party-components.json)

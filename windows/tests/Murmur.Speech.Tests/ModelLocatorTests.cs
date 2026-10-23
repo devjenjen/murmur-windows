@@ -57,7 +57,7 @@ public class ModelLocatorTests
     public void Completeness_All_Non_Empty_Files_Passes()
     {
         using var temp = new TempDirectory();
-        foreach (var file in ModelManifest.RequiredFiles)
+        foreach (var file in ModelManifest.DefaultRequiredFiles)
         {
             File.WriteAllText(Path.Combine(temp.Path, file), "data");
         }
@@ -69,7 +69,7 @@ public class ModelLocatorTests
     public void Completeness_Empty_Encoder_Fails()
     {
         using var temp = new TempDirectory();
-        foreach (var file in ModelManifest.RequiredFiles)
+        foreach (var file in ModelManifest.DefaultRequiredFiles)
         {
             var content = file == "encoder.int8.onnx" ? "" : "data";
             File.WriteAllText(Path.Combine(temp.Path, file), content);
@@ -165,7 +165,7 @@ public class ModelLocatorTests
 
     private static void WriteRequiredFiles(string directory)
     {
-        foreach (var file in ModelManifest.RequiredFiles)
+        foreach (var file in ModelManifest.DefaultRequiredFiles)
         {
             File.WriteAllText(Path.Combine(directory, file), "data");
         }

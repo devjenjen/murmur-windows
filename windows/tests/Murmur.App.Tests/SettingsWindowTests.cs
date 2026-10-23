@@ -157,6 +157,12 @@ public class SettingsWindowTests
         var removeFillers = window.FindControl<ToggleSwitch>("RemoveFillersCheckBox");
         removeFillers.ShouldNotBeNull();
 
+        var selfCorrection = window.FindControl<ToggleSwitch>("EnableSelfCorrectionCheckBox");
+        selfCorrection.ShouldNotBeNull();
+
+        var restoreWindow = window.FindControl<ToggleSwitch>("RestorePreviousWindowCheckBox");
+        restoreWindow.ShouldNotBeNull();
+
         var audioFeedback = window.FindControl<ToggleSwitch>("AudioFeedbackCheckBox");
         audioFeedback.ShouldNotBeNull();
 
@@ -1325,5 +1331,125 @@ public class SettingsWindowTests
         textBlocks.ShouldContain(tb => tb.Text != null && tb.Text.Contains("audio"));
 
         window.Close();
+    }
+
+    [AvaloniaFact]
+    public void SettingsWindow_Initializes_SelfCorrection_And_RestorePreviousWindow_From_AppSettings()
+    {
+        var window = new SettingsWindow();
+        var settingsFalseTrue = AppSettings.Default with
+        {
+            EnableSelfCorrection = false,
+            RestorePreviousWindowAfterInjection = true
+        };
+
+        window.LoadSettings(settingsFalseTrue);
+        Dispatcher.UIThread.RunJobs();
+
+        var selfCorrection = window.FindControl<ToggleSwitch>("EnableSelfCorrectionCheckBox");
+        var restoreWindow = window.FindControl<ToggleSwitch>("RestorePreviousWindowCheckBox");
+
+        selfCorrection.ShouldNotBeNull();
+        restoreWindow.ShouldNotBeNull();
+        selfCorrection.IsChecked.ShouldBe(false);
+        restoreWindow.IsChecked.ShouldBe(true);
+
+        var settingsTrueFalse = AppSettings.Default with
+        {
+            EnableSelfCorrection = true,
+            RestorePreviousWindowAfterInjection = false
+        };
+
+        window.LoadSettings(settingsTrueFalse);
+        Dispatcher.UIThread.RunJobs();
+
+        selfCorrection.IsChecked.ShouldBe(true);
+        restoreWindow.IsChecked.ShouldBe(false);
+    }
+
+    [AvaloniaFact]
+    public void SettingsWindow_ApplyToSettings_Saves_ModifiedValues()
+    {
+        var window = new SettingsWindow();
+        window.LoadSettings(AppSettings.Default with
+        {
+            EnableSelfCorrection = true,
+            RestorePreviousWindowAfterInjection = false
+        });
+        Dispatcher.UIThread.RunJobs();
+
+        var selfCorrection = window.FindControl<ToggleSwitch>("EnableSelfCorrectionCheckBox")!;
+        var restoreWindow = window.FindControl<ToggleSwitch>("RestorePreviousWindowCheckBox")!;
+
+        selfCorrection.IsChecked = false;
+        restoreWindow.IsChecked = true;
+
+        var result = window.ApplyToSettings(AppSettings.Default);
+        result.EnableSelfCorrection.ShouldBeFalse();
+        result.RestorePreviousWindowAfterInjection.ShouldBeTrue();
+    }
+
+    [AvaloniaFact]
+    public void SettingsWindow_SaveRequested_Includes_SelfCorrection_And_RestorePreviousWindow()
+    {
+        var window = new SettingsWindow();
+        window.SetDevices([new AudioInputDevice("dev-1", "Default Mic", true)], "dev-1");
+        window.LoadSettings(AppSettings.Default with
+        {
+            SpeechModelId = "parakeet-v3",
+            HotkeyId = "vk:162",
+            EnableSelfCorrection = true,
+            RestorePreviousWindowAfterInjection = false
+        });
+        window.SetModelProgress(1.0);
+        Dispatcher.UIThread.RunJobs();
+
+        SettingsSaveRequest? savedRequest = null;
+        window.SaveRequested += req => savedRequest = req;
+
+        var selfCorrection = window.FindControl<ToggleSwitch>("EnableSelfCorrectionCheckBox")!;
+        var restoreWindow = window.FindControl<ToggleSwitch>("RestorePreviousWindowCheckBox")!;
+        selfCorrection.IsChecked = false;
+        restoreWindow.IsChecked = true;
+
+        var saveButton = window.FindControl<Button>("SaveButton")!;
+        saveButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+
+        savedRequest.ShouldNotBeNull();
+        savedRequest!.EnableSelfCorrection.ShouldBeFalse();
+        savedRequest.RestorePreviousWindowAfterInjection.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Localization_SelfCorrection_And_RestoreWindow_Resolve_In_English_And_German()
+    {
+        UiText.SetLanguage("en");
+        UiText.EnableSelfCorrection.ShouldBe("Automatically remove self-corrections (e.g. 'Oh no, Wednesday')");
+        UiText.RestorePreviousWindowAfterInjection.ShouldBe("Return to previous window after injection");
+
+        UiText.SetLanguage("de");
+        UiText.EnableSelfCorrection.ShouldBe("Versprecher und Selbstkorrekturen automatisch tilgen");
+        UiText.RestorePreviousWindowAfterInjection.ShouldBe("Nach dem Einfügen zum vorherigen Fenster zurückkehren");
+
+        UiText.SetLanguage("en");
+    }
+
+    [Fact]
+    public void App_WiresUp_WhisperTranscriber_SpeechRepairer_And_ControllerSettings()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Murmur.sln")))
+        {
+            root = root.Parent;
+        }
+
+        root.ShouldNotBeNull();
+        var appSource = File.ReadAllText(Path.Combine(root!.FullName, "src", "Murmur.App", "App.axaml.cs"));
+
+        appSource.ShouldContain("SherpaOnnxWhisperTranscriber");
+        appSource.ShouldContain("RuleBasedSpeechRepairer");
+        appSource.ShouldContain("_controller.SetSelfCorrectionEnabled");
+        appSource.ShouldContain("_controller.SetRestorePreviousWindow");
     }
 }

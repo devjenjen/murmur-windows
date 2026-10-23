@@ -96,8 +96,9 @@ public sealed class RuleBasedFormatter : ITextFormatter
         var capitalizeNext = true;
         var protectNextLetter = false;
 
-        foreach (var c in text)
+        for (var i = 0; i < text.Length; i++)
         {
+            var c = text[i];
             if (c == ProtectedLetterMarker)
             {
                 protectNextLetter = true;
@@ -120,7 +121,8 @@ public sealed class RuleBasedFormatter : ITextFormatter
             else
             {
                 sb.Append(c);
-                if (c is '.' or '!' or '?')
+                if (c is '!' or '?'
+                    || c == '.' && (i == 0 || i == text.Length - 1 || !char.IsDigit(text[i - 1]) || !char.IsDigit(text[i + 1])))
                 {
                     capitalizeNext = true;
                 }

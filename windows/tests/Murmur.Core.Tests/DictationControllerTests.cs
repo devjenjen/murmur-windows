@@ -194,6 +194,7 @@ public class DictationControllerTests
 
         public List<string> Injected { get; } = [];
         public List<(TextInjectionTarget Target, TextInsertionMode Mode)> InjectionMetadata { get; } = [];
+        public List<bool> RestorePreviousWindowCalls { get; } = [];
         public TextInjectionTarget CapturedTarget { get; set; } = new(1, 2);
         public Exception? CaptureException { get; set; }
         public Exception? InsertException { get; set; }
@@ -208,7 +209,7 @@ public class DictationControllerTests
             return CapturedTarget;
         }
 
-        public void Insert(string text, TextInjectionTarget target, TextInsertionMode mode)
+        public void Insert(string text, TextInjectionTarget target, TextInsertionMode mode, bool restorePreviousWindow = false)
         {
             if (InsertException is not null)
             {
@@ -217,7 +218,36 @@ public class DictationControllerTests
 
             Injected.Add(text);
             InjectionMetadata.Add((target, mode));
+            RestorePreviousWindowCalls.Add(restorePreviousWindow);
             _onInsert?.Invoke(text);
+        }
+    }
+
+    private sealed class FakeSpeechRepairer : ISpeechRepairer, IDisposable
+    {
+        public bool IsDisposed { get; private set; }
+        public List<string> RepairCalls { get; } = [];
+        public Func<string, string>? RepairFunc { get; set; }
+        public Exception? ExceptionToThrow { get; set; }
+
+        public FakeSpeechRepairer(Func<string, string>? repairFunc = null)
+        {
+            RepairFunc = repairFunc;
+        }
+
+        public Task<string> RepairAsync(string rawTranscript, CancellationToken cancellationToken = default)
+        {
+            RepairCalls.Add(rawTranscript);
+            if (ExceptionToThrow != null)
+            {
+                throw ExceptionToThrow;
+            }
+            return Task.FromResult(RepairFunc != null ? RepairFunc(rawTranscript) : rawTranscript);
+        }
+
+        public void Dispose()
+        {
+            IsDisposed = true;
         }
     }
 
@@ -779,8 +809,10 @@ public class DictationControllerTests
         partials[^1].ShouldBeEmpty();
     }
 
-    [Fact]
-    public async Task UpdateProfile_Uses_Math_Formatter_For_Next_Dictation()
+    [Theory]
+    [InlineData("x plus y gleich z")]
+    [InlineData("x plus y equals z")]
+    public async Task UpdateProfile_Uses_Math_Formatter_For_Next_Dictation(string transcript)
     {
         var audio = new FakeAudioCapture();
         var hotkey = new FakeHotkeySource();
@@ -790,7 +822,7 @@ public class DictationControllerTests
         using var controller = new DictationController(
             audio,
             hotkey,
-            new FakeTranscriber("x plus y gleich z"),
+            new FakeTranscriber(transcript),
             injector,
             "test-engine");
 
@@ -800,7 +832,7 @@ public class DictationControllerTests
             Name = "Mathe",
             FormatterKind = ProfileFormatterKind.Math
         };
-        var mathFormatter = new GermanMathFormatter(MathFormatMode.Unicode);
+        var mathFormatter = new MathFormatter(MathFormatMode.Unicode);
 
         controller.UpdateProfile(mathProfile, mathFormatter);
         controller.Start();
@@ -835,7 +867,7 @@ public class DictationControllerTests
             Name = "Mathe",
             FormatterKind = ProfileFormatterKind.Math
         };
-        controller.UpdateProfile(mathProfile, new GermanMathFormatter());
+        controller.UpdateProfile(mathProfile, new MathFormatter());
 
         controller.CurrentProfile.ShouldBe(mathProfile);
         notifiedProfile.ShouldBe(mathProfile);
@@ -882,7 +914,7 @@ public class DictationControllerTests
             Name = "Mathe",
             FormatterKind = ProfileFormatterKind.Math
         };
-        controller.UpdateProfile(mathProfile, new GermanMathFormatter(MathFormatMode.Unicode));
+        controller.UpdateProfile(mathProfile, new MathFormatter(MathFormatMode.Unicode));
 
         // Release first dictation and ungate stop
         hotkey.Release();
@@ -925,7 +957,7 @@ public class DictationControllerTests
             Name = "Mathe",
             FormatterKind = ProfileFormatterKind.Math
         };
-        controller.UpdateProfile(mathProfile, new GermanMathFormatter(MathFormatMode.Unicode));
+        controller.UpdateProfile(mathProfile, new MathFormatter(MathFormatMode.Unicode));
         controller.SetDictionary([DictionaryEntry.Correction("cloud code", "Claude Code")]);
 
         controller.Start();
@@ -936,5 +968,206 @@ public class DictationControllerTests
 
         injector.Injected.Count.ShouldBe(1);
         injector.Injected[0].ShouldBe("Claude Code.");
+    }
+
+    [Fact]
+    public async Task SpeechRepairer_Repairs_Raw_Speech_Before_Formatting()
+    {
+        var audio = new FakeAudioCapture();
+        var hotkey = new FakeHotkeySource();
+        var injector = new FakeTextInjector();
+        var repairer = new FakeSpeechRepairer(raw => raw.Replace("today no wait tomorrow", "tomorrow"));
+
+        using var controller = new DictationController(
+            audio,
+            hotkey,
+            new FakeTranscriber("meeting today no wait tomorrow"),
+            injector,
+            "test-engine",
+            speechRepairer: repairer);
+
+        controller.Start();
+        hotkey.Press();
+        audio.EmitChunk([0.1f]);
+        hotkey.Release();
+        await Task.Delay(100);
+
+        repairer.RepairCalls.Single().ShouldBe("meeting today no wait tomorrow");
+        injector.Injected.Single().ShouldBe("Meeting tomorrow.");
+    }
+
+    [Fact]
+    public async Task Disabled_SelfCorrection_Does_Not_Call_SpeechRepairer()
+    {
+        var audio = new FakeAudioCapture();
+        var hotkey = new FakeHotkeySource();
+        var injector = new FakeTextInjector();
+        var repairer = new FakeSpeechRepairer(_ => "repaired");
+
+        using var controller = new DictationController(
+            audio,
+            hotkey,
+            new FakeTranscriber("raw speech text"),
+            injector,
+            "test-engine",
+            speechRepairer: repairer);
+
+        controller.SetSelfCorrectionEnabled(false);
+        controller.Start();
+        hotkey.Press();
+        audio.EmitChunk([0.1f]);
+        hotkey.Release();
+        await Task.Delay(100);
+
+        repairer.RepairCalls.ShouldBeEmpty();
+        injector.Injected.Single().ShouldBe("Raw speech text.");
+    }
+
+    [Fact]
+    public async Task SpeechRepairer_Exception_Gracefully_Falls_Back_To_Raw_Transcript()
+    {
+        var audio = new FakeAudioCapture();
+        var hotkey = new FakeHotkeySource();
+        var injector = new FakeTextInjector();
+        var repairer = new FakeSpeechRepairer
+        {
+            ExceptionToThrow = new InvalidOperationException("Repair model crashed")
+        };
+
+        using var controller = new DictationController(
+            audio,
+            hotkey,
+            new FakeTranscriber("fallback speech text"),
+            injector,
+            "test-engine",
+            speechRepairer: repairer);
+
+        controller.Start();
+        hotkey.Press();
+        audio.EmitChunk([0.1f]);
+        hotkey.Release();
+        await Task.Delay(100);
+
+        controller.State.Status.ShouldBe(DictationStatus.Idle);
+        repairer.RepairCalls.Single().ShouldBe("fallback speech text");
+        injector.Injected.Single().ShouldBe("Fallback speech text.");
+    }
+
+    [Fact]
+    public async Task SpeechRepairer_Returning_Empty_Falls_Back_To_Raw_Transcript()
+    {
+        var audio = new FakeAudioCapture();
+        var hotkey = new FakeHotkeySource();
+        var injector = new FakeTextInjector();
+        var repairer = new FakeSpeechRepairer(_ => "   ");
+
+        using var controller = new DictationController(
+            audio,
+            hotkey,
+            new FakeTranscriber("original speech"),
+            injector,
+            "test-engine",
+            speechRepairer: repairer);
+
+        controller.Start();
+        hotkey.Press();
+        audio.EmitChunk([0.1f]);
+        hotkey.Release();
+        await Task.Delay(100);
+
+        injector.Injected.Single().ShouldBe("Original speech.");
+    }
+
+    [Fact]
+    public async Task SetSpeechRepairer_Updates_Repairer_For_Next_Dictation()
+    {
+        var audio = new FakeAudioCapture();
+        var hotkey = new FakeHotkeySource();
+        var injector = new FakeTextInjector();
+        var repairer = new FakeSpeechRepairer(_ => "repaired text");
+
+        using var controller = new DictationController(
+            audio,
+            hotkey,
+            new FakeTranscriber("first run"),
+            injector,
+            "test-engine");
+
+        controller.Start();
+
+        // 1st run: no repairer
+        hotkey.Press();
+        audio.EmitChunk([0.1f]);
+        var firstIdle = WaitForStatusAsync(controller, DictationStatus.Idle);
+        hotkey.Release();
+        await firstIdle;
+
+        injector.Injected[0].ShouldBe("First run.");
+
+        // Attach repairer
+        controller.SetSpeechRepairer(repairer);
+
+        // 2nd run: repairer active
+        hotkey.Press();
+        audio.EmitChunk([0.1f]);
+        var secondIdle = WaitForStatusAsync(controller, DictationStatus.Idle);
+        hotkey.Release();
+        await secondIdle;
+
+        repairer.RepairCalls.Single().ShouldBe("first run");
+        injector.Injected[1].ShouldBe("Repaired text.");
+    }
+
+    [Fact]
+    public async Task RestorePreviousWindow_Is_Passed_To_TextInjector()
+    {
+        var audio = new FakeAudioCapture();
+        var hotkey = new FakeHotkeySource();
+        var injector = new FakeTextInjector();
+
+        using var controller = new DictationController(
+            audio,
+            hotkey,
+            new FakeTranscriber("test restore window"),
+            injector,
+            "test-engine");
+
+        controller.SetRestorePreviousWindow(true);
+        controller.Start();
+
+        hotkey.Press();
+        audio.EmitChunk([0.1f]);
+        hotkey.Release();
+        await Task.Delay(100);
+
+        injector.RestorePreviousWindowCalls.Single().ShouldBeTrue();
+
+        // Second run with restore disabled
+        controller.SetRestorePreviousWindow(false);
+        hotkey.Press();
+        audio.EmitChunk([0.1f]);
+        var idleWait = WaitForStatusAsync(controller, DictationStatus.Idle);
+        hotkey.Release();
+        await idleWait;
+
+        injector.RestorePreviousWindowCalls.Count.ShouldBe(2);
+        injector.RestorePreviousWindowCalls[1].ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Dispose_Disposes_SpeechRepairer_If_Disposable()
+    {
+        var repairer = new FakeSpeechRepairer();
+        var controller = new DictationController(
+            new FakeAudioCapture(),
+            new FakeHotkeySource(),
+            new FakeTranscriber("test"),
+            new FakeTextInjector(),
+            "test-engine",
+            speechRepairer: repairer);
+
+        await controller.DisposeAsync();
+
+        repairer.IsDisposed.ShouldBeTrue();
     }
 }

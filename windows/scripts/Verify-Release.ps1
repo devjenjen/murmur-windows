@@ -328,7 +328,7 @@ function Write-VerificationReport
     $lines.Add('- Unsigned Windows binaries require SmartScreen wording and owner acceptance before publication.')
 
     New-Item -ItemType Directory -Path (Split-Path -Parent $reportPath) -Force | Out-Null
-    Set-Content -LiteralPath $reportPath -Value $lines -Encoding utf8NoBOM
+    [System.IO.File]::WriteAllLines($reportPath, $lines, (New-Object System.Text.UTF8Encoding $false))
 }
 
 try
@@ -410,7 +410,9 @@ try
 
     try
     {
-        $audit = $auditJson | ConvertFrom-Json -Depth 100
+        $convertParams = @{}
+        if ((Get-Command ConvertFrom-Json).Parameters.ContainsKey('Depth')) { $convertParams['Depth'] = 100 }
+        $audit = $auditJson | ConvertFrom-Json @convertParams
     }
     catch
     {
@@ -475,3 +477,5 @@ catch
     Write-Error $script:FailureMessage
     exit 1
 }
+
+

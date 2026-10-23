@@ -2,6 +2,26 @@
 
 Newest release first.
 
+## [Unreleased]
+
+## [0.3.0] - 2026-10-23
+
+### Added
+
+- Bilingual Math Dictation (DE & EN): unified `MathFormatter` and new `EnglishNumberParser` supporting whole numbers from 0 through 999, decimal numbers, powers, square roots, fractions, and Greek symbols in both Unicode and LaTeX modes.
+- Whisper Large-v3-Turbo speech model: third offline model option integrated via `SherpaOnnxWhisperTranscriber`, featuring dynamic manifest integrity verification and multilingual accuracy.
+- Conversational self-correction & speech repair: `ISpeechRepairer` pipeline before formatting with deterministic `RuleBasedSpeechRepairer` for German and English ("nicht X sondern Y", "ich meinte", "scratch that", hesitation removals) and optional `LlamaSharpSpeechRepairer`.
+- User settings for self-correction: localized toggle `EnableSelfCorrection` in Settings and DictationController pipeline.
+- Target window focus protection: `SendInputInjector` automatically restores target window focus before text insertion if active focus changed during dictation, with modifier key safety rechecks.
+- Full LLamaSharp bundling: bundled `LLamaSharp` (0.22.0) and `LLamaSharp.Backend.Cpu` native runtimes (`llama.dll`, `ggml*.dll`, `llava_shared.dll`) with third-party license inventory and publish support.
+
+### Fixed
+
+- Numeric operand parsing in spoken roots (`wurzel aus 9` / `square root of 9` -> `\sqrt{9}`).
+- Prevention of false-positive matches on German verbs like "warten" in speech repair.
+- Window handle and process verification on focus restoration to prevent typing into unauthorized applications.
+- Re-check modifiers before `SendInput` execution to prevent stuck modifier keys.
+
 ## [0.2.2] - 2026-10-09
 
 - Publish the Windows beta with a Setup EXE, portable ZIP, build metadata, and checksums.
@@ -75,3 +95,4 @@ Newest release first.
 [0.2.0]: https://github.com/devjenjen/murmur-windows/tree/v0.2.0
 [0.2.1]: https://github.com/devjenjen/murmur-windows/tree/v0.2.1
 [0.2.2]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.2.2
+[0.3.0]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.3.0

@@ -49,7 +49,7 @@ public class ModelDownloaderTests
     public void ValidateModelDirectory_Throws_When_Empty_File()
     {
         using var temp = new TempDirectory();
-        foreach (var file in ModelManifest.RequiredFiles)
+        foreach (var file in ModelManifest.DefaultRequiredFiles)
         {
             var content = file == "joiner.int8.onnx" ? "" : "data";
             File.WriteAllText(Path.Combine(temp.Path, file), content);
@@ -71,7 +71,7 @@ public class ModelDownloaderTests
     public async Task Integrity_manifest_is_written_for_every_required_file()
     {
         using var temp = new TempDirectory();
-        foreach (var file in ModelManifest.RequiredFiles)
+        foreach (var file in ModelManifest.DefaultRequiredFiles)
         {
             await File.WriteAllTextAsync(Path.Combine(temp.Path, file), "data");
         }
@@ -81,7 +81,7 @@ public class ModelDownloaderTests
         var manifest = ModelIntegrityManifest.Read(Path.Combine(temp.Path, ModelIntegrityManifest.FileName));
         manifest.Version.ShouldBe(ModelIntegrityManifest.CurrentVersion);
         manifest.ModelId.ShouldBe(ModelManifest.ParakeetV3.Id);
-        manifest.Files.Select(file => file.Path).ShouldBe(ModelManifest.RequiredFiles);
+        manifest.Files.Select(file => file.Path).ShouldBe(ModelManifest.ParakeetV3.RequiredFiles);
         manifest.Files.ShouldAllBe(file => file.Length == 4 && file.Sha256.Length == 64);
     }
 
@@ -115,7 +115,7 @@ public class ModelDownloaderTests
         var model = TestModel(archive);
         var finalDir = Path.Combine(temp.Path, model.Id);
         Directory.CreateDirectory(finalDir);
-        foreach (var file in ModelManifest.RequiredFiles)
+        foreach (var file in ModelManifest.DefaultRequiredFiles)
         {
             await File.WriteAllTextAsync(Path.Combine(finalDir, file), "previous model content");
         }
@@ -133,6 +133,25 @@ public class ModelDownloaderTests
         File.Exists(Path.Combine(finalDir, "previous.marker")).ShouldBeTrue();
         File.ReadAllText(Path.Combine(finalDir, "tokens.txt")).ShouldBe("previous model content");
         Directory.GetDirectories(temp.Path, "*.invalid-*").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Whisper_directory_does_not_require_transducer_joiner()
+    {
+        using var temp = new TempDirectory();
+        foreach (var file in ModelManifest.WhisperV3Turbo.RequiredFiles)
+            File.WriteAllText(Path.Combine(temp.Path, file), "data");
+        Should.NotThrow(() => ModelDownloader.ValidateModelDirectory(temp.Path, ModelManifest.WhisperV3Turbo));
+        File.Exists(Path.Combine(temp.Path, "joiner.int8.onnx")).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Whisper_directory_rejects_missing_decoder()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(Path.Combine(temp.Path, "turbo-encoder.int8.onnx"), "data");
+        File.WriteAllText(Path.Combine(temp.Path, "turbo-tokens.txt"), "data");
+        Should.Throw<InvalidDataException>(() => ModelDownloader.ValidateModelDirectory(temp.Path, ModelManifest.WhisperV3Turbo));
     }
 
     private static ModelManifest TestModel(byte[] archive) => new(

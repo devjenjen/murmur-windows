@@ -25,7 +25,7 @@ public class ModelBenchmarkTests
         var process = Process.GetCurrentProcess();
         var cpuBefore = process.TotalProcessorTime;
         var peakWorkingSet = process.WorkingSet64;
-        var modelSizeBytes = ModelManifest.RequiredFiles
+        var modelSizeBytes = model.RequiredFiles
             .Select(file => new FileInfo(Path.Combine(modelDirectory, file)).Length)
             .Sum();
 

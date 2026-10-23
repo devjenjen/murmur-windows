@@ -4,16 +4,16 @@
 
 Murmur is a Windows dictation app. Hold your push-to-talk key, speak, then release it. Murmur formats the transcript and types it into the focused application.
 
-The Math profile also lets you dictate numbers and formulas in German and insert them in mathematical notation.
+The Math profile accepts spoken numbers and math expressions in German or English. The interface language does not affect which language it accepts.
 
 Murmur is a separate, AI-assisted Windows adaptation inspired by [per-simmons/murmur-youtube](https://github.com/per-simmons/murmur-youtube).
 
 ## Download and first run
 
-Download [Murmur 0.2.2 beta](https://github.com/devjenjen/murmur-windows/releases/tag/v0.2.2) for Windows 11 x64:
+Download [Murmur 0.3.0 beta](https://github.com/devjenjen/murmur-windows/releases/tag/v0.3.0) for Windows 11 x64:
 
-- [Setup EXE](https://github.com/devjenjen/murmur-windows/releases/download/v0.2.2/Murmur-Setup-v0.2.2.exe) installs Murmur for the current user.
-- [Portable ZIP](https://github.com/devjenjen/murmur-windows/releases/download/v0.2.2/Murmur-0.2.2-win-x64.zip): extract it and run `Murmur.App.exe`; it does not install Murmur.
+- [Setup EXE](https://github.com/devjenjen/murmur-windows/releases/download/v0.3.0/Murmur-Setup-v0.3.0.exe) installs Murmur for the current user.
+- [Portable ZIP](https://github.com/devjenjen/murmur-windows/releases/download/v0.3.0/Murmur-0.3.0-win-x64.zip): extract it and run `Murmur.App.exe`; it does not install Murmur.
 - `build-info.json` records the source commit and build details. `SHA256SUMS.txt` contains checksums for the downloads.
 
 The installer is unsigned, so Windows SmartScreen may show a warning. Murmur opens its setup screen on first run. Choose a microphone, hotkey, and model, then download the selected speech model. After setup, hold **Right Ctrl** to speak and release it to insert the text. You can change this key in Settings. Murmur stays in the system tray; open Settings or quit from its tray menu.
@@ -29,8 +29,8 @@ You only need the .NET SDK if you build from source. Murmur extracts models with
 
 Murmur checks for a newer stable release at startup. If it finds one, the tray menu offers an action that opens that release page. It does not update itself. Beta releases are excluded from this check; check the [Releases page](https://github.com/devjenjen/murmur-windows/releases) manually for beta updates.
 
-The model archives are about 465 MiB (Parakeet) and 453 MiB (Nemotron). Their
-extracted files use about 640 MiB and 653 MiB in the local release measurement.
+The model archives are about 465 MiB (Parakeet), 453 MiB (Nemotron), and 538 MiB (Whisper Turbo).
+Their extracted files use about 640 MiB, 653 MiB, and 989 MiB in the local release measurement.
 Allow extra free disk space for downloading and extraction. RAM use and speed
 depend on the model, audio session, and PC; there is no guaranteed RAM minimum
 or speed for every device.
@@ -51,29 +51,32 @@ Speech and transcripts stay on the PC; they are not uploaded to a speech service
 ## What it does
 
 - Captures microphone audio while your configured push-to-talk key is held.
-- Runs Parakeet v3 for a final transcript after key release, or Nemotron 3.5 for live transcript previews in the recording overlay. One model is resident at a time.
+- Runs Parakeet v3 or Whisper Large-v3-Turbo for final transcripts after key release, or Nemotron 3.5 for live transcript previews in the recording overlay. One model is resident at a time.
 - Offers Standard and Math profiles. **F8** switches profiles by default; you can change that key or switch through Settings and the tray menu.
-- Converts spoken German numbers and math expressions into digits and mathematical symbols in the Math profile. Choose Unicode or LaTeX output.
+- Converts supported German and English number words and math expressions into digits and mathematical symbols in the Math profile. Choose Unicode or LaTeX output.
+- Performs conversational self-correction and speech repair (filtering slips of the tongue, filler words, and repair markers like "nicht X sondern Y", "ich meinte", "scratch that") with a configurable toggle in Settings.
+- Restores focus to the target window before typing if the active window changed during recording, preventing accidental text insertion into other applications.
 - Applies punctuation and optional filler removal, with a separate filler setting for each profile. Your personal dictionary supplies text corrections before insertion; edit or disable its entries in Settings.
 - Types at the current cursor or the end of the document. If insertion fails after transcription, Settings offers the finished text for copying. This recovery text is temporary and does not survive an app restart.
 - Keeps an optional dictation history with copying and deletion of individual entries or the whole history. Choose 7, 30, or 90 days of retention, or no age limit, and a 1,000-entry limit or no entry limit. History is disabled by default.
 - Shows a recording overlay without taking focus from the target application; its screen position is configurable.
 - Lets you select and test a microphone, choose an English or German interface, and enable startup with Windows.
 
-Both [Parakeet v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) and [Nemotron 3.5](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b) list German and English among their supported languages. Recognition detects the spoken language automatically; changing the interface language does not change the speech model. The math formatting rules are German.
+All three speech models ([Parakeet v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), [Nemotron 3.5](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b), and [Whisper Large-v3-Turbo](https://huggingface.co/openai/whisper-large-v3-turbo)) support German and English among their languages. Recognition detects the spoken language automatically. The Math profile accepts either language, regardless of the interface language.
 
 ### Math dictation
 
-For study notes or work with numbers, you can speak numbers and formulas instead of typing them. The Math profile currently requires German dictation for number words, decimals, powers, and roots. The table gives English translations of the expressions; dictate them in German when using the app.
+The Math profile accepts supported German and English number words and math expressions. English whole-number words are supported from 0 through 999; larger values can be dictated as digits. Unicode keeps German decimal commas and English decimal points. LaTeX uses a decimal point for both.
 
-| Expression (English translation) | Unicode output |
+| Spoken phrase | Unicode output |
 |---|---|
-| Five times three equals fifteen | `5 × 3 = 15.` |
-| x equals five point zero five | `x = 5,05.` |
-| x to the power of two | `x².` |
-| Square root of x | `√x.` |
+| `five times three equals fifteen` | `5 × 3 = 15.` |
+| `x equals five point zero five` | `x = 5.05.` |
+| `x to the power of two` | `x².` |
+| `square root of x` | `√x.` |
+| `x gleich fünf komma null fünf` | `x = 5,05.` |
 
-Unicode output uses a decimal comma; LaTeX output uses a decimal point. In LaTeX mode, the German expression meaning "s squared plus the square root of x" becomes `s^2 + \sqrt{x}`. **F8** switches between Standard and Math profiles by default. Formatting uses fixed rules; it does not solve equations or rewrite text with a language model.
+In LaTeX mode, `s squared plus square root of x` becomes `s^2 + \sqrt{x}`. **F8** switches between Standard and Math profiles by default. Formatting uses fixed rules; it does not solve equations or rewrite text with a language model.
 
 ### Optional audio feedback
 

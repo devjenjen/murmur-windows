@@ -85,6 +85,8 @@ public static class UiText
     public static string HistoryMaxEntries1000 => Get(nameof(HistoryMaxEntries1000));
     public static string RemoveFillers => Get(nameof(RemoveFillers));
     public static string RemoveFillersAutomation => Get(nameof(RemoveFillersAutomation));
+    public static string EnableSelfCorrection => Get(nameof(EnableSelfCorrection));
+    public static string RestorePreviousWindowAfterInjection => Get(nameof(RestorePreviousWindowAfterInjection));
     public static string AudioFeedback => Get(nameof(AudioFeedback));
     public static string AudioFeedbackAutomation => Get(nameof(AudioFeedbackAutomation));
     public static string StartOnLogin => Get(nameof(StartOnLogin));

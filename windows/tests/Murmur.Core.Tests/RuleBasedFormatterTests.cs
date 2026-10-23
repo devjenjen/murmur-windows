@@ -74,4 +74,11 @@ public class RuleBasedFormatterTests
     {
         new RuleBasedFormatter().Format("\u200Cx = 5").ShouldBe("x = 5.");
     }
+
+    [Fact]
+    public void Decimal_Points_Do_Not_Trigger_Sentence_Capitalization()
+    {
+        new RuleBasedFormatter().Format("value 5.05 remains stable. next sentence")
+            .ShouldBe("Value 5.05 remains stable. Next sentence.");
+    }
 }

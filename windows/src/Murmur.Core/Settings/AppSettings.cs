@@ -69,11 +69,17 @@ public sealed record AppSettings
     /// <summary>Whether filler words are removed.</summary>
     public bool RemoveFillers { get; init; } = true;
 
+    /// <summary>Whether conversational self-corrections are repaired in speech output.</summary>
+    public bool EnableSelfCorrection { get; init; }
+
     /// <summary>Whether a short sound plays after successful text injection.</summary>
     public bool AudioFeedbackEnabled { get; init; }
 
     /// <summary>Where completed dictation text is inserted.</summary>
     public TextInsertionMode TextInsertionMode { get; init; } = TextInsertionMode.AtCaret;
+
+    /// <summary>Whether to restore focus to the previously active window after injection.</summary>
+    public bool RestorePreviousWindowAfterInjection { get; init; }
 
     /// <summary>Whether completed dictations are persisted in local history.</summary>
     public bool HistoryEnabled { get; init; }
@@ -204,11 +210,13 @@ public sealed record AppSettings
             && string.Equals(SpeechModelId, other.SpeechModelId, StringComparison.Ordinal)
             && string.Equals(Language, other.Language, StringComparison.Ordinal)
             && RemoveFillers == other.RemoveFillers
+            && EnableSelfCorrection == other.EnableSelfCorrection
             && AudioFeedbackEnabled == other.AudioFeedbackEnabled
             && TextInsertionMode == other.TextInsertionMode
             && HistoryEnabled == other.HistoryEnabled
             && HistoryRetentionDays == other.HistoryRetentionDays
             && HistoryMaxEntries == other.HistoryMaxEntries
+            && RestorePreviousWindowAfterInjection == other.RestorePreviousWindowAfterInjection
             && string.Equals(ActiveProfileId, other.ActiveProfileId, StringComparison.Ordinal)
             && Profiles.SequenceEqual(other.Profiles);
     }
@@ -226,11 +234,13 @@ public sealed record AppSettings
         hash.Add(SpeechModelId);
         hash.Add(Language);
         hash.Add(RemoveFillers);
+        hash.Add(EnableSelfCorrection);
         hash.Add(AudioFeedbackEnabled);
         hash.Add(TextInsertionMode);
         hash.Add(HistoryEnabled);
         hash.Add(HistoryRetentionDays);
         hash.Add(HistoryMaxEntries);
+        hash.Add(RestorePreviousWindowAfterInjection);
         hash.Add(ActiveProfileId);
         for (var i = 0; i < Profiles.Count; i++)
         {

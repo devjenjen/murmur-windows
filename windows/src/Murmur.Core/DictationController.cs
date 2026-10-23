@@ -16,7 +16,9 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
         DictationProfile Profile,
         ITextFormatter Formatter,
         DictionaryCorrector Dictionary,
-        TextInsertionMode InsertionMode);
+        TextInsertionMode InsertionMode,
+        bool EnableSelfCorrection = true,
+        bool RestorePreviousWindow = false);
 
     private sealed class ActiveSessionState(RuntimeState runtime, TextInjectionTarget target)
     {
@@ -40,6 +42,7 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
     private readonly IStreamingTranscriber? _streamingTranscriber;
     private readonly ITextInjector _textInjector;
     private readonly string _engine;
+    private volatile ISpeechRepairer? _speechRepairer;
 
     private RuntimeState _runtimeState;
     private ActiveSessionState? _activeSessionState;
@@ -97,13 +100,17 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
         ITextFormatter? formatter = null,
         DictionaryCorrector? dictionaryCorrector = null,
         DictationProfile? profile = null,
-        TextInsertionMode insertionMode = TextInsertionMode.AtCaret)
+        TextInsertionMode insertionMode = TextInsertionMode.AtCaret,
+        ISpeechRepairer? speechRepairer = null,
+        bool enableSelfCorrection = true,
+        bool restorePreviousWindow = false)
     {
         _audioCapture = audioCapture ?? throw new ArgumentNullException(nameof(audioCapture));
         _hotkeySource = hotkeySource ?? throw new ArgumentNullException(nameof(hotkeySource));
         _transcriber = transcriber ?? throw new ArgumentNullException(nameof(transcriber));
         _streamingTranscriber = transcriber as IStreamingTranscriber;
         _textInjector = textInjector ?? throw new ArgumentNullException(nameof(textInjector));
+        _speechRepairer = speechRepairer;
         _engine = string.IsNullOrWhiteSpace(engine)
             ? throw new ArgumentException("Engine display name is required.", nameof(engine))
             : engine;
@@ -115,7 +122,9 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
             initialProfile,
             initialFormatter,
             initialDictionary,
-            NormalizeInsertionMode(insertionMode));
+            NormalizeInsertionMode(insertionMode),
+            enableSelfCorrection,
+            restorePreviousWindow);
 
         _hotkeySource.Pressed += OnHotkeyPressed;
         _hotkeySource.Released += OnHotkeyReleased;
@@ -151,7 +160,7 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(formatter);
 
         var current = Volatile.Read(ref _runtimeState);
-        Volatile.Write(ref _runtimeState, new RuntimeState(profile, formatter, current.Dictionary, current.InsertionMode));
+        Volatile.Write(ref _runtimeState, current with { Profile = profile, Formatter = formatter });
         ProfileChanged?.Invoke(profile);
     }
 
@@ -160,22 +169,34 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(entries);
         var current = Volatile.Read(ref _runtimeState);
-        Volatile.Write(ref _runtimeState, new RuntimeState(
-            current.Profile,
-            current.Formatter,
-            new DictionaryCorrector(entries),
-            current.InsertionMode));
+        Volatile.Write(ref _runtimeState, current with { Dictionary = new DictionaryCorrector(entries) });
     }
 
     /// <summary>Sets the insertion mode for the next dictation session.</summary>
     public void SetTextInsertionMode(TextInsertionMode mode)
     {
         var current = Volatile.Read(ref _runtimeState);
-        Volatile.Write(ref _runtimeState, new RuntimeState(
-            current.Profile,
-            current.Formatter,
-            current.Dictionary,
-            NormalizeInsertionMode(mode)));
+        Volatile.Write(ref _runtimeState, current with { InsertionMode = NormalizeInsertionMode(mode) });
+    }
+
+    /// <summary>Sets the speech repairer for conversational self-correction.</summary>
+    public void SetSpeechRepairer(ISpeechRepairer? speechRepairer)
+    {
+        _speechRepairer = speechRepairer;
+    }
+
+    /// <summary>Enables or disables conversational self-correction for subsequent dictations.</summary>
+    public void SetSelfCorrectionEnabled(bool enabled)
+    {
+        var current = Volatile.Read(ref _runtimeState);
+        Volatile.Write(ref _runtimeState, current with { EnableSelfCorrection = enabled });
+    }
+
+    /// <summary>Sets whether focus should be restored to the previously active window after text injection.</summary>
+    public void SetRestorePreviousWindow(bool restore)
+    {
+        var current = Volatile.Read(ref _runtimeState);
+        Volatile.Write(ref _runtimeState, current with { RestorePreviousWindow = restore });
     }
 
     /// <summary>Stops capture and listeners, waiting for session work. Use StopAsync on UI threads.</summary>
@@ -320,7 +341,32 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
                 return;
             }
 
-            var cleaned = session.Runtime.Formatter.Format(raw);
+            var repaired = raw;
+            var repairer = _speechRepairer;
+            if (session.Runtime.EnableSelfCorrection && repairer != null)
+            {
+                try
+                {
+                    var repairResult = await repairer.RepairAsync(raw, cancellationToken).ConfigureAwait(false);
+                    if (!string.IsNullOrWhiteSpace(repairResult))
+                    {
+                        repaired = repairResult;
+                    }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch
+                {
+                    // Graceful fallback to raw on repairer exception
+                    repaired = raw;
+                }
+            }
+
+            if (!IsCurrentSession(session)) return;
+
+            var cleaned = session.Runtime.Formatter.Format(repaired);
             var (corrected, _) = session.Runtime.Dictionary.Apply(cleaned);
             if (string.IsNullOrWhiteSpace(corrected))
             {
@@ -340,7 +386,7 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
             // SendInput invokes keyboard hooks. Holding the session lock here deadlocks our own hook.
             try
             {
-                _textInjector.Insert(corrected, session.Target, session.Runtime.InsertionMode);
+                _textInjector.Insert(corrected, session.Target, session.Runtime.InsertionMode, session.Runtime.RestorePreviousWindow);
                 session.InjectedAt = Stopwatch.GetTimestamp();
             }
             catch (Exception ex) { error = GetErrorMessage(ex, "Text insertion error"); }
@@ -541,7 +587,11 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
         finally
         {
             try { _hotkeySource.Dispose(); }
-            finally { _transcriber.Dispose(); }
+            finally
+            {
+                try { _transcriber.Dispose(); }
+                finally { (_speechRepairer as IDisposable)?.Dispose(); }
+            }
         }
     }
 }

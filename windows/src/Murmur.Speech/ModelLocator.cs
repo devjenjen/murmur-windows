@@ -28,7 +28,7 @@ public static class ModelLocator
         ArgumentNullException.ThrowIfNull(model);
         var dir = modelDirectory ?? GetDefaultModelDirectory(model);
         if (!Directory.Exists(dir)) return false;
-        foreach (var file in ModelManifest.RequiredFiles)
+        foreach (var file in model.RequiredFiles)
         {
             var path = Path.Combine(dir, file);
             if (!File.Exists(path) || new FileInfo(path).Length == 0) return false;

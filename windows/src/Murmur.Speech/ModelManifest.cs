@@ -14,9 +14,12 @@ public sealed record ModelManifest(
     /// <summary>Measured bytes written by the pinned archive during extraction.</summary>
     public long ExtractedSize { get; init; }
 
-    /// <summary>The four required model files for Sherpa-ONNX transducer models.</summary>
-    public static IReadOnlyList<string> RequiredFiles { get; } =
+    /// <summary>The default four required model files for Sherpa-ONNX transducer models.</summary>
+    public static IReadOnlyList<string> DefaultRequiredFiles { get; } =
         ["encoder.int8.onnx", "decoder.int8.onnx", "joiner.int8.onnx", "tokens.txt"];
+
+    /// <summary>The required model files for this speech model.</summary>
+    public IReadOnlyList<string> RequiredFiles { get; init; } = DefaultRequiredFiles;
 
     /// <summary>Pinned Parakeet v3 offline model.</summary>
     public static ModelManifest ParakeetV3 { get; } = new(
@@ -42,9 +45,22 @@ public sealed record ModelManifest(
         ExtractedSize = 684_575_710
     };
 
+    /// <summary>Pinned Whisper Large-v3-Turbo offline model.</summary>
+    public static ModelManifest WhisperV3Turbo { get; } = new(
+        "whisper-v3-turbo",
+        "Whisper Large-v3-Turbo (offline)",
+        "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-turbo.tar.bz2",
+        563_790_207,
+        "b11acbbcd660b44a8e0df33724feb5aaa709cf65668f2823d59f656312544f22",
+        false)
+    {
+        ExtractedSize = 1_037_438_452,
+        RequiredFiles = ["turbo-encoder.int8.onnx", "turbo-decoder.int8.onnx", "turbo-tokens.txt"]
+    };
+
     /// <summary>All available pinned speech models.</summary>
     public static IReadOnlyList<ModelManifest> All { get; } =
-        [ParakeetV3, NemotronStreaming160Ms];
+        [ParakeetV3, NemotronStreaming160Ms, WhisperV3Turbo];
 
     /// <summary>Gets a model manifest by ID, or defaults to Parakeet v3.</summary>
     public static ModelManifest Get(string? id) =>

@@ -33,7 +33,9 @@ public sealed record SettingsSaveRequest(
     TextInsertionMode TextInsertionMode = TextInsertionMode.DocumentEnd,
     bool HistoryEnabled = false,
     int HistoryRetentionDays = AppSettings.DefaultHistoryRetentionDays,
-    int HistoryMaxEntries = AppSettings.DefaultHistoryMaxEntries);
+    int HistoryMaxEntries = AppSettings.DefaultHistoryMaxEntries,
+    bool EnableSelfCorrection = true,
+    bool RestorePreviousWindowAfterInjection = false);
 
 /// <summary>
 /// Settings and first-run setup window.
@@ -151,6 +153,66 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>Loads settings into the window controls.</summary>
+    public void LoadSettings(AppSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        SetChoices(settings);
+        RunOnUiThread(() =>
+        {
+            EnableSelfCorrectionCheckBox.IsChecked = settings.EnableSelfCorrection;
+            RestorePreviousWindowCheckBox.IsChecked = settings.RestorePreviousWindowAfterInjection;
+        });
+    }
+
+    /// <summary>Applies current window control values to an AppSettings instance.</summary>
+    public AppSettings ApplyToSettings(AppSettings current)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        SaveCurrentControlValuesToProfile();
+        var isMath = string.Equals(_selectedProfileId, "math", StringComparison.OrdinalIgnoreCase);
+        var activeProfile = _profiles.Length > (isMath ? 1 : 0)
+            ? _profiles[isMath ? 1 : 0]
+            : new DictationProfile();
+
+        var hudPlacement = HudPlacements[4].Id;
+        if (HudPlacementComboBox.SelectedIndex >= 0 && HudPlacementComboBox.SelectedIndex < HudPlacements.Length)
+        {
+            hudPlacement = HudPlacements[HudPlacementComboBox.SelectedIndex].Id;
+        }
+
+        var insertionMode = TextInsertionModeComboBox.SelectedIndex == 0
+            ? TextInsertionMode.AtCaret
+            : TextInsertionMode.DocumentEnd;
+        var historyRetentionDays = HistoryRetentionComboBox.SelectedIndex switch
+        {
+            0 => 0,
+            1 => 7,
+            3 => 90,
+            _ => 30
+        };
+        var historyMaxEntries = HistoryMaxEntriesComboBox.SelectedIndex == 0 ? 0 : 1000;
+
+        return current with
+        {
+            HotkeyId = !string.IsNullOrWhiteSpace(_selectedHotkeyId) ? _selectedHotkeyId : current.HotkeyId,
+            HudPlacement = hudPlacement,
+            SpeechModelId = !string.IsNullOrWhiteSpace(SelectedModelId) ? SelectedModelId : current.SpeechModelId,
+            RemoveFillers = activeProfile.RemoveFillers,
+            Language = LanguageComboBox.SelectedIndex == 1 ? UiLanguage.German : UiLanguage.English,
+            AudioFeedbackEnabled = AudioFeedbackCheckBox.IsChecked ?? false,
+            Profiles = _profiles.Length > 0 ? _profiles : current.Profiles,
+            ActiveProfileId = !string.IsNullOrWhiteSpace(_selectedProfileId) ? _selectedProfileId : current.ActiveProfileId,
+            TextInsertionMode = insertionMode,
+            HistoryEnabled = HistoryEnabledCheckBox.IsChecked ?? false,
+            HistoryRetentionDays = historyRetentionDays,
+            HistoryMaxEntries = historyMaxEntries,
+            StartWithWindows = StartWithWindowsCheckBox.IsChecked ?? current.StartWithWindows,
+            EnableSelfCorrection = EnableSelfCorrectionCheckBox.IsChecked ?? true,
+            RestorePreviousWindowAfterInjection = RestorePreviousWindowCheckBox.IsChecked ?? false
+        };
+    }
+
     /// <summary>Populates hotkey, hud placement, and speech model choices from current settings.</summary>
     public void SetChoices(AppSettings settings, bool isFirstRun = false)
     {
@@ -175,6 +237,8 @@ public partial class SettingsWindow : Window
                     : hotkey.DisplayName;
                 HotkeyTextBox.Text = _selectedHotkeyName;
                 AudioFeedbackCheckBox.IsChecked = normalized.AudioFeedbackEnabled;
+                EnableSelfCorrectionCheckBox.IsChecked = normalized.EnableSelfCorrection;
+                RestorePreviousWindowCheckBox.IsChecked = normalized.RestorePreviousWindowAfterInjection;
                 LanguageComboBox.ItemsSource = new[] { UiText.English, UiText.German };
                 LanguageComboBox.SelectedIndex = string.Equals(normalized.Language, UiLanguage.German, StringComparison.OrdinalIgnoreCase) ? 1 : 0;
 
@@ -1244,7 +1308,9 @@ public partial class SettingsWindow : Window
             insertionMode,
             HistoryEnabledCheckBox.IsChecked ?? false,
             historyRetentionDays,
-            historyMaxEntries));
+            historyMaxEntries,
+            EnableSelfCorrectionCheckBox.IsChecked ?? true,
+            RestorePreviousWindowCheckBox.IsChecked ?? false));
     }
 
     private void OnCloseButtonClick(object? sender, RoutedEventArgs e) => Close();
