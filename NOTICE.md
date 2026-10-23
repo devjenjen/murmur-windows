@@ -10,6 +10,7 @@ portable ZIP contain no model weights. Each model has its own license:
 
 - [Parakeet v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3): CC BY 4.0.
 - [Nemotron 3.5](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b): OpenMDW-1.1.
+- [Whisper Large-v3-Turbo](https://huggingface.co/openai/whisper-large-v3-turbo): MIT.
 
 Read the linked model cards for the terms that apply when downloading or using
 these models.
