@@ -274,7 +274,8 @@
                                                 "llava_shared.dll"
                                             ],
                            "licenseFiles":  [
-                                                "licenses/LLamaSharp.MIT.txt"
+                                                "licenses/LLamaSharp.MIT.txt",
+                                                "licenses/llama.cpp.MIT.txt"
                                             ]
                        },
                        {

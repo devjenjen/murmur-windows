@@ -70,7 +70,7 @@ public sealed record AppSettings
     public bool RemoveFillers { get; init; } = true;
 
     /// <summary>Whether conversational self-corrections are repaired in speech output.</summary>
-    public bool EnableSelfCorrection { get; init; } = true;
+    public bool EnableSelfCorrection { get; init; }
 
     /// <summary>Whether a short sound plays after successful text injection.</summary>
     public bool AudioFeedbackEnabled { get; init; }

@@ -105,17 +105,22 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
             string rep = nichtMatch.Groups["rep"].Value.Trim();
             string alt = nichtMatch.Groups["alt"].Value.Trim();
 
-            // If alt doesn't have preposition but rep does (e.g. rep="am Dienstag", alt="Mittwoch"),
-            // keep preposition
-            string prep = ExtractPreposition(rep);
-            if (!string.IsNullOrEmpty(prep) && string.IsNullOrEmpty(ExtractPreposition(alt)))
+            // Only repair when both reparandum and alteration belong to a recognized category (e.g. date/time/number/prep phrase)
+            (_, _, bool knownCategory) = FindReparandum(rep, alt);
+            if (knownCategory)
             {
-                alt = prep + " " + alt;
-            }
+                // If alt doesn't have preposition but rep does (e.g. rep="am Dienstag", alt="Mittwoch"),
+                // keep preposition
+                string prep = ExtractPreposition(rep);
+                if (!string.IsNullOrEmpty(prep) && string.IsNullOrEmpty(ExtractPreposition(alt)))
+                {
+                    alt = prep + " " + alt;
+                }
 
-            string before = text[..nichtMatch.Index];
-            string after = text[(nichtMatch.Index + nichtMatch.Length)..];
-            return before + alt + after;
+                string before = text[..nichtMatch.Index];
+                string after = text[(nichtMatch.Index + nichtMatch.Length)..];
+                return before + alt + after;
+            }
         }
 
         // 2. Check conversational correction markers
@@ -254,8 +259,21 @@ public sealed class RuleBasedSpeechRepairer : ISpeechRepairer
                 return text;
             }
 
-            repIndex = lastWordMatch.Index;
-            repLength = lastWordMatch.Length;
+            string altWord = alteration.Trim();
+            string lastWord = lastWordMatch.Value;
+            // Only fall back to single-word replacement if both are capitalized proper nouns (e.g. Alice -> Bob, Jack -> Jill)
+            // and neither is a common lower-case word or pronoun (e.g. "I love you, I mean it")
+            if (WordRegex.Count(altWord) == 1 &&
+                char.IsUpper(altWord[0]) &&
+                char.IsUpper(lastWord[0]))
+            {
+                repIndex = lastWordMatch.Index;
+                repLength = lastWordMatch.Length;
+            }
+            else
+            {
+                return text;
+            }
         }
 
         string before = textBeforeTrimmed[..repIndex];

@@ -122,6 +122,30 @@ public class SpeechRepairerTests
     }
 
     [Fact]
+    public async Task English_Idiom_IMeanIt_Returns_Untouched()
+    {
+        var input = "I love you, I mean it.";
+        var result = await _repairer.RepairAsync(input);
+        result.ShouldBe("I love you, I mean it.");
+    }
+
+    [Fact]
+    public async Task German_Contrast_NichtTechnikSondernOrganisation_Returns_Untouched()
+    {
+        var input = "Das Problem ist nicht die Technik, sondern die Organisation.";
+        var result = await _repairer.RepairAsync(input);
+        result.ShouldBe("Das Problem ist nicht die Technik, sondern die Organisation.");
+    }
+
+    [Fact]
+    public async Task German_Contrast_NichtMuedeSondernHungrig_Returns_Untouched()
+    {
+        var input = "Ich bin nicht müde, sondern hungrig.";
+        var result = await _repairer.RepairAsync(input);
+        result.ShouldBe("Ich bin nicht müde, sondern hungrig.");
+    }
+
+    [Fact]
     public async Task German_Verb_Warten_IchWarteAufDich_Returns_Untouched()
     {
         var input = "Ich warte auf dich.";
