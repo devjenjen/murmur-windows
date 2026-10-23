@@ -32,7 +32,9 @@ $resolver = Join-Path $PSScriptRoot 'Resolve-ReleaseVersion.ps1'
 $resolved = & $resolver -Tag $Tag -RepositoryDirectory $RepositoryDirectory
 $packagePath = [IO.Path]::GetFullPath($PackageListPath)
 if (-not (Test-Path -LiteralPath $packagePath -PathType Leaf)) { Fail "Package list missing: '$packagePath'." }
-try { $packages = Get-Content -LiteralPath $packagePath -Raw | ConvertFrom-Json -Depth 100 }
+$convertParams = @{}
+if ((Get-Command ConvertFrom-Json).Parameters.ContainsKey('Depth')) { $convertParams['Depth'] = 100 }
+try { $packages = Get-Content -LiteralPath $packagePath -Raw | ConvertFrom-Json @convertParams }
 catch { Fail "Package list is invalid JSON: '$packagePath'." }
 
 $models = @(
@@ -71,5 +73,8 @@ $output = [ordered]@{
 $outputFile = [IO.Path]::GetFullPath($OutputPath)
 $outputDirectory = Split-Path -Parent $outputFile
 New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
-$output | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $outputFile -Encoding utf8NoBOM
+$outputJson = $output | ConvertTo-Json -Depth 100
+[System.IO.File]::WriteAllText($outputFile, $outputJson, (New-Object System.Text.UTF8Encoding $false))
 Write-Output "Build info written: $outputFile"
+
+
