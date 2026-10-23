@@ -10,13 +10,11 @@ Murmur ist eine eigenständige, KI-unterstützte Windows-Anpassung, inspiriert v
 
 ## Download und erster Start
 
-Hier gibt es [Murmur 0.2.2 Beta](https://github.com/devjenjen/murmur-windows/releases/tag/v0.2.2) für Windows 11 x64:
+Hier gibt es [Murmur 0.3.0 Beta](https://github.com/devjenjen/murmur-windows/releases/tag/v0.3.0) für Windows 11 x64:
 
-- [Setup-EXE](https://github.com/devjenjen/murmur-windows/releases/download/v0.2.2/Murmur-Setup-v0.2.2.exe): installiert Murmur für das aktuelle Benutzerkonto.
-- [Portable-ZIP](https://github.com/devjenjen/murmur-windows/releases/download/v0.2.2/Murmur-0.2.2-win-x64.zip): Archiv entpacken und `Murmur.App.exe` starten; es wird nichts installiert.
+- [Setup-EXE](https://github.com/devjenjen/murmur-windows/releases/download/v0.3.0/Murmur-Setup-v0.3.0.exe): installiert Murmur für das aktuelle Benutzerkonto.
+- [Portable-ZIP](https://github.com/devjenjen/murmur-windows/releases/download/v0.3.0/Murmur-0.3.0-win-x64.zip): Archiv entpacken und `Murmur.App.exe` starten; es wird nichts installiert.
 - `build-info.json` enthält den Quellcode-Commit und Build-Angaben. `SHA256SUMS.txt` enthält die Prüfsummen der Downloads.
-
-Englische Mathediktate sind im aktuellen Quellstand verfügbar. Die Downloads für v0.2.2 verwenden weiterhin nur deutsche Mathe-Regeln.
 
 Der Installer ist nicht signiert. Windows SmartScreen kann deshalb eine Warnung anzeigen. Beim ersten Start öffnet Murmur die Einrichtung. Mikrofon, Taste und Sprachmodell wählen, dann das gewählte Modell herunterladen. Nach der Einrichtung **rechte Strg-Taste** zum Sprechen gedrückt halten und zum Einfügen loslassen. Die Taste lässt sich in den Einstellungen ändern. Murmur bleibt im Infobereich der Taskleiste; über das Tray-Menü öffnest du die Einstellungen oder beendest das Programm.
 
@@ -31,8 +29,8 @@ Das .NET SDK brauchst du nur beim Kompilieren des Quellcodes. Murmur entpackt Mo
 
 Murmur prüft beim Start auf eine neuere stabile Version. Bei einem Treffer öffnet ein Eintrag im Tray-Menü die zugehörige Release-Seite. Updates werden nicht selbst installiert. Beta-Versionen berücksichtigt diese Prüfung nicht; Beta-Updates findest du manuell auf der [Releases-Seite](https://github.com/devjenjen/murmur-windows/releases).
 
-Die Modellarchive sind etwa 465 MiB (Parakeet) und 453 MiB (Nemotron) groß.
-Entpackt belegen sie in der lokalen Release-Messung etwa 640 MiB und 653 MiB.
+Die Modellarchive sind etwa 465 MiB (Parakeet), 453 MiB (Nemotron) und 538 MiB (Whisper Turbo) groß.
+Entpackt belegen sie in der lokalen Release-Messung etwa 640 MiB, 653 MiB und 989 MiB.
 Plane zusätzlichen freien Speicher für Download und Entpacken ein. RAM-Bedarf
 und Geschwindigkeit hängen vom Modell, der Audiositzung und dem PC ab;
 garantierte Werte für jedes Gerät gibt es nicht.
@@ -53,22 +51,24 @@ Audio und Transkripte bleiben auf dem PC; sie werden nicht an einen Spracherkenn
 ## Funktionen
 
 - Nimmt Mikrofon-Audio auf, solange die eingestellte Push-to-Talk-Taste gedrückt ist.
-- Nutzt Parakeet v3 für fertige Transkripte nach dem Loslassen oder Nemotron 3.5 für Live-Textvorschauen im Aufnahmefenster. Nur ein Modell liegt gleichzeitig im Speicher.
+- Nutzt Parakeet v3 oder Whisper Large-v3-Turbo für fertige Transkripte nach dem Loslassen oder Nemotron 3.5 für Live-Textvorschauen im Aufnahmefenster. Nur ein Modell liegt gleichzeitig im Speicher.
 - Bietet Standard- und Matheprofil. **F8** wechselt standardmäßig das Profil; Taste ändern oder Profil über Einstellungen und Tray-Menü wählen.
 - Wandelt unterstützte gesprochene deutsche und englische Zahlen und Matheausdrücke im Matheprofil in Ziffern und mathematische Zeichen um. Als Ausgabe kannst du Unicode oder LaTeX wählen.
+- Behebt Versprecher und filtert Füllwörter vor der Textformatierung (automatische Selbstkorrektur bei "nicht X sondern Y", "ich meinte", "oder besser", "scratch that", "ähm", etc.) mit abschaltbarem Schalter in den Einstellungen.
+- Stellt bei App-Wechseln während des Sprechens den Fokus automatisch auf das Zielfenster wieder her, bevor getippt wird, und verhindert Fehleingaben in andere Programme.
 - Setzt Satzzeichen und entfernt auf Wunsch Füllwörter, getrennt für jedes Profil. Das persönliche Wörterbuch korrigiert Text vor dem Einfügen; Einträge lassen sich in den Einstellungen bearbeiten oder deaktivieren.
 - Fügt Text am Cursor oder Dokumentende ein. Scheitert das Einfügen nach der Erkennung, bieten die Einstellungen den fertigen Text zum Kopieren an. Dieser Rettungstext ist vorübergehend und bleibt nach einem Neustart der App nicht erhalten.
 - Speichert auf Wunsch einen Diktatverlauf. Einträge lassen sich kopieren und einzeln oder vollständig löschen. Wählbar sind 7, 30 oder 90 Tage Aufbewahrung oder keine Altersgrenze sowie maximal 1.000 Einträge oder keine Eintragsgrenze. Bei Neuinstallationen ist der Verlauf deaktiviert.
 - Zeigt ein Aufnahmefenster, ohne dem Zielprogramm den Fokus zu nehmen. Seine Bildschirmposition lässt sich einstellen.
 - Erlaubt Mikrofonwahl und Mikrofontest, englische oder deutsche Oberfläche sowie Autostart mit Windows.
 
-Die Modellkarten von [Parakeet v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) und [Nemotron 3.5](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b) nennen Deutsch und Englisch als unterstützte Sprachen. Die Erkennung bestimmt die gesprochene Sprache automatisch. Das Matheprofil akzeptiert beide Sprachen, unabhängig von der Oberflächensprache.
+Alle drei Sprachmodelle ([Parakeet v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), [Nemotron 3.5](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b) und [Whisper Large-v3-Turbo](https://huggingface.co/openai/whisper-large-v3-turbo)) unterstützen Deutsch und Englisch. Die Erkennung bestimmt die gesprochene Sprache automatisch. Das Matheprofil akzeptiert beide Sprachen, unabhängig von der Oberflächensprache.
 
 ### Mathe diktieren
 
 Das Matheprofil akzeptiert unterstützte deutsche und englische Zahlwörter und Matheausdrücke. Englische Zahlwörter werden für ganze Zahlen von 0 bis 999 erkannt; größere Zahlen kannst du als Ziffern diktieren. Unicode behält deutsche Dezimalkommas und englische Dezimalpunkte. LaTeX verwendet für beide einen Dezimalpunkt.
 
-| Gesprochener Ausdruck (aktueller Quellstand) | Ausgabe im Unicode-Modus |
+| Gesprochener Ausdruck | Ausgabe im Unicode-Modus |
 |---|---|
 | `fünf mal drei gleich fünfzehn` | `5 × 3 = 15.` |
 | `x gleich fünf komma null fünf` | `x = 5,05.` |

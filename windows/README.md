@@ -2,7 +2,7 @@
 
 Murmur is a Windows tray app for push-to-talk dictation. Hold your configured key, speak, then release it. Murmur formats the transcript and types it into the application that had focus.
 
-The [0.2.2 beta release](https://github.com/devjenjen/murmur-windows/releases/tag/v0.2.2) includes two Windows x64 packages:
+The [0.3.0 beta release](https://github.com/devjenjen/murmur-windows/releases/tag/v0.3.0) includes two Windows x64 packages:
 
 - `Murmur-Setup-vX.Y.Z.exe` installs per-user under `%LOCALAPPDATA%\Programs\Murmur`.
 - `Murmur-<version>-win-x64.zip` is portable. Extract it and run `Murmur.App.exe`; it does not create an installation.
@@ -11,8 +11,8 @@ The [0.2.2 beta release](https://github.com/devjenjen/murmur-windows/releases/ta
 The Setup EXE is unsigned. SmartScreen may warn before it runs.
 
 The supported beta target is Windows 11 x64. Model archives are about 465 MiB
-(Parakeet) and 453 MiB (Nemotron). Extracted files use about 640 MiB and 653 MiB
-in the local release measurement. The downloader checks free space for the
+(Parakeet), 453 MiB (Nemotron), and 538 MiB (Whisper Turbo). Extracted files use about 640 MiB, 653 MiB,
+and 989 MiB in the local release measurement. The downloader checks free space for the
 archive and extraction, but other programs can still use that space during a
 download. RAM use depends on the model and PC; there is no guaranteed minimum
 for every device.
@@ -31,9 +31,9 @@ Murmur checks GitHub for a newer stable release during startup. When an update i
 
 ## Features
 
-The [main README](../README.md#what-it-does) describes the user-facing features: Standard and Math profiles with German and English dictation, Unicode or LaTeX output, dictionary corrections, optional filler removal, cursor or document-end insertion, optional history with retention limits, temporary recovery text after insertion failures, microphone testing, HUD placement, English and German interface, and Windows startup.
+The [main README](../README.md#what-it-does) describes the user-facing features: Standard and Math profiles with German and English dictation, Unicode or LaTeX output, conversational speech repair, target window focus restoration, dictionary corrections, optional filler removal, cursor or document-end insertion, optional history with retention limits, temporary recovery text after insertion failures, microphone testing, HUD placement, English and German interface, and Windows startup.
 
-The interface language does not select the speech language. Both models detect the spoken language automatically; their model cards list German and English among the supported languages. The current source accepts both languages in the Math profile, regardless of interface language. English number words cover whole numbers from 0 through 999. Formatting uses fixed rules and does not solve equations. The v0.2.2 downloads still use German math rules.
+The interface language does not select the speech language. All three models detect the spoken language automatically; their model cards list German and English among the supported languages. Murmur accepts both languages in the Math profile, regardless of interface language. English number words cover whole numbers from 0 through 999. Formatting uses fixed rules and does not solve equations.
 
 ## Local files
 

@@ -10,7 +10,7 @@ body:
     id: version
     attributes:
       label: App version or commit
-      placeholder: 0.2.2 beta / SHA
+      placeholder: 0.3.0 beta / SHA
     validations:
       required: true
   - type: input
@@ -24,7 +24,7 @@ body:
     id: model
     attributes:
       label: Speech model
-      placeholder: Parakeet v3 or Nemotron 3.5
+      placeholder: Parakeet v3, Nemotron 3.5, or Whisper Large-v3-Turbo
     validations:
       required: true
   - type: textarea

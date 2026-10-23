@@ -39,7 +39,7 @@
 
     <Company>devjenjen</Company>
     <Product>Murmur</Product>
-    <VersionPrefix>0.2.2</VersionPrefix>
+    <VersionPrefix>0.3.0</VersionPrefix>
     <Copyright>Copyright © 2026 devjenjen</Copyright>
   </PropertyGroup>
 </Project>
