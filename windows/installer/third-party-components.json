@@ -1,253 +1,320 @@
 {
-  "schemaVersion": 1,
-  "allowedRuntimeGlobs": [
-    "Accessibility.dll",
-    "Avalonia*.dll",
-    "av_libglesv2.dll",
-    "clr*.dll",
-    "clretwrc.dll",
-    "coreclr.dll",
-    "createdump.exe",
-    "HarfBuzzSharp.dll",
-    "host*.dll",
-    "libHarfBuzzSharp.dll",
-    "libSkiaSharp.dll",
-    "Microsoft*.dll",
-    "MicroCom.Runtime.dll",
-    "mscor*.dll",
-    "msquic.dll",
-    "Murmur.*.dll",
-    "Murmur.*.xml",
-    "Murmur.App.exe",
-    "Murmur.App.deps.json",
-    "Murmur.App.runtimeconfig.json",
-    "Murmur.App.xml",
-    "NAudio*.dll",
-    "netstandard.dll",
-    "onnxruntime.dll",
-    "sherpa-onnx*.dll",
-    "SkiaSharp.dll",
-    "System*.dll",
-    "Tmds.DBus.Protocol.dll",
-    "WindowsBase.dll"
-  ],
-  "components": [
-    {
-      "component": "Avalonia UI",
-      "version": "11.3.20",
-      "sourceUrl": "https://github.com/AvaloniaUI/Avalonia/tree/984c3b833f29806eb159fb7f12a6132e936b75df",
-      "license": "MIT",
-      "packageIds": [
-        "Avalonia",
-        "Avalonia.Desktop",
-        "Avalonia.FreeDesktop",
-        "Avalonia.Native",
-        "Avalonia.Remote.Protocol",
-        "Avalonia.Skia",
-        "Avalonia.Themes.Fluent",
-        "Avalonia.Win32",
-        "Avalonia.X11"
-      ],
-      "runtimeFiles": [
-        "Avalonia*.dll"
-      ],
-      "licenseFiles": [
-        "licenses/Avalonia.MIT.txt",
-        "licenses/Avalonia.NOTICE.md"
-      ]
-    },
-    {
-      "component": "ANGLE Windows native payload",
-      "version": "2.1.25547.20250602",
-      "sourceUrl": "https://github.com/AvaloniaUI/angle/",
-      "license": "BSD-3-Clause",
-      "packageIds": [
-        "Avalonia.Angle.Windows.Natives"
-      ],
-      "runtimeFiles": [
-        "av_libglesv2.dll"
-      ],
-      "licenseFiles": [
-        "licenses/ANGLE.BSD-3-Clause.txt"
-      ]
-    },
-    {
-      "component": "HarfBuzzSharp",
-      "version": "8.3.1.1",
-      "sourceUrl": "https://github.com/mono/SkiaSharp/",
-      "license": "MIT",
-      "packageIds": [
-        "HarfBuzzSharp",
-        "HarfBuzzSharp.NativeAssets.Win32"
-      ],
-      "runtimeFiles": [
-        "HarfBuzzSharp.dll",
-        "libHarfBuzzSharp.dll"
-      ],
-      "licenseFiles": [
-        "licenses/HarfBuzzSharp.MIT.txt",
-        "licenses/HarfBuzzSharp.THIRD-PARTY-NOTICES.txt"
-      ]
-    },
-    {
-      "component": "MicroCom.Runtime",
-      "version": "0.11.0",
-      "sourceUrl": "https://github.com/kekekeks/MicroCom/",
-      "license": "MIT",
-      "packageIds": [
-        "MicroCom.Runtime"
-      ],
-      "runtimeFiles": [
-        "MicroCom.Runtime.dll"
-      ],
-      "licenseFiles": [
-        "licenses/MicroCom.MIT.txt"
-      ]
-    },
-    {
-      "component": "NAudio",
-      "version": "2.3.0",
-      "sourceUrl": "https://github.com/naudio/NAudio/tree/v2.3.0",
-      "license": "MIT",
-      "packageIds": [
-        "NAudio",
-        "NAudio.Asio",
-        "NAudio.Core",
-        "NAudio.Midi",
-        "NAudio.Wasapi",
-        "NAudio.WinForms",
-        "NAudio.WinMM"
-      ],
-      "runtimeFiles": [
-        "NAudio*.dll"
-      ],
-      "licenseFiles": [
-        "licenses/NAudio.MIT.txt"
-      ]
-    },
-    {
-      "component": "ONNX Runtime native payload",
-      "version": "1.27.1",
-      "sourceUrl": "https://github.com/microsoft/onnxruntime/tree/v1.27.1",
-      "license": "MIT",
-      "packageIds": [],
-      "runtimeFiles": [
-        "onnxruntime.dll"
-      ],
-      "licenseFiles": [
-        "licenses/ONNXRuntime.MIT.txt",
-        "licenses/ONNXRuntime.THIRD-PARTY-NOTICES.txt"
-      ]
-    },
-    {
-      "component": "sherpa-onnx",
-      "version": "1.13.5",
-      "sourceUrl": "https://github.com/k2-fsa/sherpa-onnx/tree/v1.13.5",
-      "license": "Apache-2.0",
-      "packageIds": [
-        "org.k2fsa.sherpa.onnx",
-        "org.k2fsa.sherpa.onnx.runtime.win-x64"
-      ],
-      "runtimeFiles": [
-        "sherpa-onnx.dll",
-        "sherpa-onnx-c-api.dll"
-      ],
-      "licenseFiles": [
-        "licenses/sherpa-onnx.Apache-2.0.txt"
-      ]
-    },
-    {
-      "component": "SkiaSharp",
-      "version": "2.88.9",
-      "sourceUrl": "https://github.com/mono/SkiaSharp/tree/2.88.9",
-      "license": "MIT",
-      "packageIds": [
-        "SkiaSharp",
-        "SkiaSharp.NativeAssets.Win32"
-      ],
-      "runtimeFiles": [
-        "SkiaSharp.dll",
-        "libSkiaSharp.dll"
-      ],
-      "licenseFiles": [
-        "licenses/SkiaSharp.MIT.txt",
-        "licenses/SkiaSharp.THIRD-PARTY-NOTICES.txt"
-      ]
-    },
-    {
-      "component": "Tmds.DBus.Protocol",
-      "version": "0.21.3",
-      "sourceUrl": "https://github.com/tmds/Tmds.DBus/",
-      "license": "MIT",
-      "packageIds": [
-        "Tmds.DBus.Protocol"
-      ],
-      "runtimeFiles": [
-        "Tmds.DBus.Protocol.dll"
-      ],
-      "licenseFiles": [
-        "licenses/Tmds.DBus.MIT.txt"
-      ]
-    },
-    {
-      "component": "Inter font assets",
-      "version": "11.3.20",
-      "sourceUrl": "https://github.com/rsms/inter/",
-      "license": "OFL-1.1",
-      "packageIds": [
-        "Avalonia.Fonts.Inter"
-      ],
-      "runtimeFiles": [
-        "Avalonia.Fonts.Inter.dll"
-      ],
-      "licenseFiles": [
-        "licenses/Inter.OFL-1.1.txt",
-        "licenses/Avalonia.MIT.txt"
-      ]
-    },
-    {
-      "component": ".NET Core runtime",
-      "version": "10.0.12",
-      "sourceUrl": "https://github.com/dotnet/dotnet/tree/v10.0.12",
-      "license": "MIT",
-      "packageIds": [
-        "runtimepack.Microsoft.NETCore.App.Runtime.win-x64"
-      ],
-      "runtimeFiles": [
-        "System*.dll",
-        "Microsoft*.dll",
-        "Accessibility.dll",
-        "WindowsBase.dll",
-        "netstandard.dll",
-        "mscor*.dll",
-        "coreclr.dll",
-        "clr*.dll",
-        "clretwrc.dll",
-        "host*.dll",
-        "createdump.exe",
-        "msquic.dll"
-      ],
-      "licenseFiles": [
-        "licenses/dotnet-runtime.MIT.txt",
-        "licenses/dotnet-runtime.THIRD-PARTY-NOTICES.txt"
-      ]
-    },
-    {
-      "component": "Windows Desktop runtime",
-      "version": "10.0.12",
-      "sourceUrl": "https://github.com/dotnet/dotnet/tree/v10.0.12",
-      "license": "MIT",
-      "packageIds": [
-        "runtimepack.Microsoft.WindowsDesktop.App.Runtime.win-x64"
-      ],
-      "runtimeFiles": [
-        "System.Windows.Forms*.dll",
-        "WindowsBase.dll",
-        "Accessibility.dll"
-      ],
-      "licenseFiles": [
-        "licenses/dotnet-windowsdesktop.MIT.txt"
-      ]
-    }
-  ]
+    "schemaVersion":  1,
+    "allowedRuntimeGlobs":  [
+                                "Accessibility.dll",
+                                "av_libglesv2.dll",
+                                "Avalonia*.dll",
+                                "clr*.dll",
+                                "clretwrc.dll",
+                                "CommunityToolkit*.dll",
+                                "coreclr.dll",
+                                "createdump.exe",
+                                "ggml*.dll",
+                                "HarfBuzzSharp.dll",
+                                "host*.dll",
+                                "libHarfBuzzSharp.dll",
+                                "libSkiaSharp.dll",
+                                "llama*.dll",
+                                "LLamaSharp*.dll",
+                                "llava_shared.dll",
+                                "MicroCom.Runtime.dll",
+                                "Microsoft*.dll",
+                                "mscor*.dll",
+                                "msquic.dll",
+                                "Murmur.*.dll",
+                                "Murmur.*.xml",
+                                "Murmur.App.deps.json",
+                                "Murmur.App.exe",
+                                "Murmur.App.runtimeconfig.json",
+                                "Murmur.App.xml",
+                                "NAudio*.dll",
+                                "netstandard.dll",
+                                "onnxruntime.dll",
+                                "sherpa-onnx*.dll",
+                                "SkiaSharp.dll",
+                                "System*.dll",
+                                "Tmds.DBus.Protocol.dll",
+                                "WindowsBase.dll"
+                            ],
+    "components":  [
+                       {
+                           "component":  "Avalonia UI",
+                           "version":  "11.3.20",
+                           "sourceUrl":  "https://github.com/AvaloniaUI/Avalonia/tree/984c3b833f29806eb159fb7f12a6132e936b75df",
+                           "license":  "MIT",
+                           "packageIds":  [
+                                              "Avalonia",
+                                              "Avalonia.Desktop",
+                                              "Avalonia.FreeDesktop",
+                                              "Avalonia.Native",
+                                              "Avalonia.Remote.Protocol",
+                                              "Avalonia.Skia",
+                                              "Avalonia.Themes.Fluent",
+                                              "Avalonia.Win32",
+                                              "Avalonia.X11"
+                                          ],
+                           "runtimeFiles":  [
+                                                "Avalonia*.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/Avalonia.MIT.txt",
+                                                "licenses/Avalonia.NOTICE.md"
+                                            ]
+                       },
+                       {
+                           "component":  "ANGLE Windows native payload",
+                           "version":  "2.1.25547.20250602",
+                           "sourceUrl":  "https://github.com/AvaloniaUI/angle/",
+                           "license":  "BSD-3-Clause",
+                           "packageIds":  [
+                                              "Avalonia.Angle.Windows.Natives"
+                                          ],
+                           "runtimeFiles":  [
+                                                "av_libglesv2.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/ANGLE.BSD-3-Clause.txt"
+                                            ]
+                       },
+                       {
+                           "component":  "HarfBuzzSharp",
+                           "version":  "8.3.1.1",
+                           "sourceUrl":  "https://github.com/mono/SkiaSharp/",
+                           "license":  "MIT",
+                           "packageIds":  [
+                                              "HarfBuzzSharp",
+                                              "HarfBuzzSharp.NativeAssets.Win32"
+                                          ],
+                           "runtimeFiles":  [
+                                                "HarfBuzzSharp.dll",
+                                                "libHarfBuzzSharp.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/HarfBuzzSharp.MIT.txt",
+                                                "licenses/HarfBuzzSharp.THIRD-PARTY-NOTICES.txt"
+                                            ]
+                       },
+                       {
+                           "component":  "MicroCom.Runtime",
+                           "version":  "0.11.0",
+                           "sourceUrl":  "https://github.com/kekekeks/MicroCom/",
+                           "license":  "MIT",
+                           "packageIds":  [
+                                              "MicroCom.Runtime"
+                                          ],
+                           "runtimeFiles":  [
+                                                "MicroCom.Runtime.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/MicroCom.MIT.txt"
+                                            ]
+                       },
+                       {
+                           "component":  "NAudio",
+                           "version":  "2.3.0",
+                           "sourceUrl":  "https://github.com/naudio/NAudio/tree/v2.3.0",
+                           "license":  "MIT",
+                           "packageIds":  [
+                                              "NAudio",
+                                              "NAudio.Asio",
+                                              "NAudio.Core",
+                                              "NAudio.Midi",
+                                              "NAudio.Wasapi",
+                                              "NAudio.WinForms",
+                                              "NAudio.WinMM"
+                                          ],
+                           "runtimeFiles":  [
+                                                "NAudio*.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/NAudio.MIT.txt"
+                                            ]
+                       },
+                       {
+                           "component":  "ONNX Runtime native payload",
+                           "version":  "1.27.1",
+                           "sourceUrl":  "https://github.com/microsoft/onnxruntime/tree/v1.27.1",
+                           "license":  "MIT",
+                           "packageIds":  [
+
+                                          ],
+                           "runtimeFiles":  [
+                                                "onnxruntime.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/ONNXRuntime.MIT.txt",
+                                                "licenses/ONNXRuntime.THIRD-PARTY-NOTICES.txt"
+                                            ]
+                       },
+                       {
+                           "component":  "sherpa-onnx",
+                           "version":  "1.13.5",
+                           "sourceUrl":  "https://github.com/k2-fsa/sherpa-onnx/tree/v1.13.5",
+                           "license":  "Apache-2.0",
+                           "packageIds":  [
+                                              "org.k2fsa.sherpa.onnx",
+                                              "org.k2fsa.sherpa.onnx.runtime.win-x64"
+                                          ],
+                           "runtimeFiles":  [
+                                                "sherpa-onnx.dll",
+                                                "sherpa-onnx-c-api.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/sherpa-onnx.Apache-2.0.txt"
+                                            ]
+                       },
+                       {
+                           "component":  "SkiaSharp",
+                           "version":  "2.88.9",
+                           "sourceUrl":  "https://github.com/mono/SkiaSharp/tree/2.88.9",
+                           "license":  "MIT",
+                           "packageIds":  [
+                                              "SkiaSharp",
+                                              "SkiaSharp.NativeAssets.Win32"
+                                          ],
+                           "runtimeFiles":  [
+                                                "SkiaSharp.dll",
+                                                "libSkiaSharp.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/SkiaSharp.MIT.txt",
+                                                "licenses/SkiaSharp.THIRD-PARTY-NOTICES.txt"
+                                            ]
+                       },
+                       {
+                           "component":  "Tmds.DBus.Protocol",
+                           "version":  "0.21.3",
+                           "sourceUrl":  "https://github.com/tmds/Tmds.DBus/",
+                           "license":  "MIT",
+                           "packageIds":  [
+                                              "Tmds.DBus.Protocol"
+                                          ],
+                           "runtimeFiles":  [
+                                                "Tmds.DBus.Protocol.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/Tmds.DBus.MIT.txt"
+                                            ]
+                       },
+                       {
+                           "component":  "Inter font assets",
+                           "version":  "11.3.20",
+                           "sourceUrl":  "https://github.com/rsms/inter/",
+                           "license":  "OFL-1.1",
+                           "packageIds":  [
+                                              "Avalonia.Fonts.Inter"
+                                          ],
+                           "runtimeFiles":  [
+                                                "Avalonia.Fonts.Inter.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/Inter.OFL-1.1.txt",
+                                                "licenses/Avalonia.MIT.txt"
+                                            ]
+                       },
+                       {
+                           "component":  ".NET Core runtime",
+                           "version":  "10.0.12",
+                           "sourceUrl":  "https://github.com/dotnet/dotnet/tree/v10.0.12",
+                           "license":  "MIT",
+                           "packageIds":  [
+                                              "runtimepack.Microsoft.NETCore.App.Runtime.win-x64"
+                                          ],
+                           "runtimeFiles":  [
+                                                "System*.dll",
+                                                "Microsoft*.dll",
+                                                "Accessibility.dll",
+                                                "WindowsBase.dll",
+                                                "netstandard.dll",
+                                                "mscor*.dll",
+                                                "coreclr.dll",
+                                                "clr*.dll",
+                                                "clretwrc.dll",
+                                                "host*.dll",
+                                                "createdump.exe",
+                                                "msquic.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/dotnet-runtime.MIT.txt",
+                                                "licenses/dotnet-runtime.THIRD-PARTY-NOTICES.txt"
+                                            ]
+                       },
+                       {
+                           "component":  "Windows Desktop runtime",
+                           "version":  "10.0.12",
+                           "sourceUrl":  "https://github.com/dotnet/dotnet/tree/v10.0.12",
+                           "license":  "MIT",
+                           "packageIds":  [
+                                              "runtimepack.Microsoft.WindowsDesktop.App.Runtime.win-x64"
+                                          ],
+                           "runtimeFiles":  [
+                                                "System.Windows.Forms*.dll",
+                                                "WindowsBase.dll",
+                                                "Accessibility.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/dotnet-windowsdesktop.MIT.txt"
+                                            ]
+                       },
+                       {
+                           "component":  "LLamaSharp",
+                           "version":  "0.22.0",
+                           "sourceUrl":  "https://github.com/SciSharp/LLamaSharp/tree/064b05bc90d097e9278a01d90c587c07052e569b",
+                           "license":  "MIT",
+                           "packageIds":  [
+                                              "LLamaSharp",
+                                              "LLamaSharp.Backend.Cpu"
+                                          ],
+                           "runtimeFiles":  [
+                                                "LLamaSharp.dll",
+                                                "llama.dll",
+                                                "ggml-base.dll",
+                                                "ggml-cpu.dll",
+                                                "ggml.dll",
+                                                "llava_shared.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/LLamaSharp.MIT.txt"
+                                            ]
+                       },
+                       {
+                           "component":  "CommunityToolkit.HighPerformance",
+                           "version":  "8.4.0",
+                           "sourceUrl":  "https://github.com/CommunityToolkit/dotnet/tree/638b41dad30dffabb123a39aa38eabc7e3721371",
+                           "license":  "MIT",
+                           "packageIds":  [
+                                              "CommunityToolkit.HighPerformance"
+                                          ],
+                           "runtimeFiles":  [
+                                                "CommunityToolkit.HighPerformance.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/CommunityToolkit.MIT.txt"
+                                            ]
+                       },
+                       {
+                           "component":  "Microsoft .NET Extensions and Libraries",
+                           "version":  "9.0.3",
+                           "sourceUrl":  "https://github.com/dotnet/runtime",
+                           "license":  "MIT",
+                           "packageIds":  [
+                                              "Microsoft.Bcl.AsyncInterfaces",
+                                              "Microsoft.Extensions.AI.Abstractions",
+                                              "Microsoft.Extensions.DependencyInjection.Abstractions",
+                                              "Microsoft.Extensions.Logging.Abstractions",
+                                              "System.Numerics.Tensors"
+                                          ],
+                           "runtimeFiles":  [
+                                                "Microsoft.Bcl.AsyncInterfaces.dll",
+                                                "Microsoft.Extensions.AI.Abstractions.dll",
+                                                "Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+                                                "Microsoft.Extensions.Logging.Abstractions.dll",
+                                                "System.Numerics.Tensors.dll"
+                                            ],
+                           "licenseFiles":  [
+                                                "licenses/dotnet-runtime.MIT.txt",
+                                                "licenses/dotnet-runtime.THIRD-PARTY-NOTICES.txt"
+                                            ]
+                       }
+                   ]
 }
