@@ -45,6 +45,11 @@ $models = @(
         id = 'nemotron-3.5-streaming-160ms'
         archiveSize = 475273363
         archiveSha256 = 'a81909a1780d84cff16d73c15e13e67d9d81d8839faf14870d507d8499f7a61a'
+    },
+    [ordered]@{
+        id = 'whisper-v3-turbo'
+        archiveSize = 563790207
+        archiveSha256 = 'b11acbbcd660b44a8e0df33724feb5aaa709cf65668f2823d59f656312544f22'
     }
 )
 
