@@ -24,6 +24,72 @@ public class StudioHudTests
         .GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(instance);
 
     [AvaloniaFact]
+    public void RecordingPulse_BrightDimBrightWithoutRestartingOnTranscriptUpdates()
+    {
+        var hud = new HudWindow { RequestedThemeVariant = ThemeVariant.Dark, IsReducedMotion = () => false };
+        try
+        {
+            hud.UpdateState(DictationState.Listening, .5f, "first");
+            var stroke = Part<Border>(hud, "RecordingStroke");
+            stroke.ShouldNotBeNull();
+            hud.AdvanceRimVisuals(TimeSpan.Zero);
+            stroke.Opacity.ShouldBe(1);
+            hud.AdvanceRimVisuals(TimeSpan.FromSeconds(.6));
+            stroke.Opacity.ShouldBe(.55, .0001);
+            hud.UpdateState(DictationState.Listening, .5f, "next words");
+            hud.AdvanceRimVisuals(TimeSpan.FromSeconds(.6));
+            stroke.Opacity.ShouldBe(.55, .0001);
+            hud.AdvanceRimVisuals(TimeSpan.FromSeconds(1.2));
+            stroke.Opacity.ShouldBe(1, .0001);
+            Field(hud, "_recordingAnimating").ShouldBe(true);
+            hud.IsRainbowAnimating.ShouldBeFalse();
+            var red = stroke.BorderBrush.ShouldBeAssignableTo<ISolidColorBrush>()!;
+            red.Color.R.ShouldBeGreaterThan((byte)230);
+        }
+        finally { hud.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void RecordingPulse_StopsOnLifecycleChangesAndReducedMotion()
+    {
+        foreach (var ending in new[] { "starting", "finishing", "idle", "error", "hidden", "close", "reduced" })
+        {
+            var reduced = false;
+            var hud = new HudWindow { IsReducedMotion = () => reduced };
+            try
+            {
+                hud.UpdateState(DictationState.Listening, .5f, "words");
+                hud.AdvanceRimVisuals(TimeSpan.Zero);
+                hud.AdvanceRimVisuals(TimeSpan.FromSeconds(.6));
+                switch (ending)
+                {
+                    case "starting": hud.UpdateState(DictationState.Starting, 0, ""); break;
+                    case "finishing": hud.UpdateState(DictationState.Finishing, 0, "words"); break;
+                    case "idle": hud.UpdateState(DictationState.Idle, 0, ""); break;
+                    case "error": hud.UpdateState(DictationState.ErrorState("lost"), 0, ""); break;
+                    case "hidden": hud.Hide(); break;
+                    case "close": hud.Close(); break;
+                    case "reduced": reduced = true; hud.UpdateState(DictationState.Listening, .5f, "words"); break;
+                }
+                Field(hud, "_recordingAnimating").ShouldBe(false);
+                var stroke = Part<Border>(hud, "RecordingStroke");
+                var opacity = stroke.Opacity;
+                hud.AdvanceRimVisuals(TimeSpan.FromSeconds(1.2));
+                stroke.Opacity.ShouldBe(opacity);
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+                Dispatcher.UIThread.RunJobs();
+                if (ending != "finishing") Field(hud, "_rimFrameRequested").ShouldBe(false);
+                if (reduced)
+                {
+                    stroke.Opacity.ShouldBe(1);
+                    Part<VUMeterControl>(hud, "HudMeter").IsAnimationRunning.ShouldBeFalse();
+                }
+            }
+            finally { hud.Close(); }
+        }
+    }
+
+    [AvaloniaFact]
     public async Task LateLevelUpdates_CannotUndoLatestLifecycleState()
     {
         var hud = new HudWindow { IsReducedMotion = () => false };
@@ -166,7 +232,7 @@ public class StudioHudTests
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
                 Dispatcher.UIThread.RunJobs();
                 hud.IsRainbowAnimating.ShouldBeFalse();
-                Field(hud, "_rainbowFrameRequested").ShouldBe(false);
+                Field(hud, "_rimFrameRequested").ShouldBe(false);
                 Field(hud, "_processingTimer").ShouldBeNull();
                 meter.IsAnimationRunning.ShouldBeFalse();
                 meter.CurrentPosition.ShouldBe(0);
@@ -204,7 +270,7 @@ public class StudioHudTests
             rim.Opacity.ShouldBe(1);
             rim.Transitions.ShouldBeNull();
             hud.IsRainbowAnimating.ShouldBeFalse();
-            Field(hud, "_rainbowFrameRequested").ShouldBe(false);
+            Field(hud, "_rimFrameRequested").ShouldBe(false);
             Field(hud, "_processingTimer").ShouldBeNull();
             Field(hud, "_contentRevealTimer").ShouldBeNull();
             Part<Border>(hud, "HudContentSurface").Opacity.ShouldBe(1);
@@ -290,7 +356,7 @@ public class StudioHudTests
                 Part<Panel>(hud, "RainbowRim").Transitions.ShouldBeNull();
                 Field(hud, "_processingTimer").ShouldBeNull();
                 Field(hud, "_contentRevealTimer").ShouldBeNull();
-                Field(hud, "_rainbowFrameRequested").ShouldBe(false);
+                Field(hud, "_rimFrameRequested").ShouldBe(false);
             }
             var brush = (ConicGradientBrush)Part<Panel>(hud, "RainbowRim").Resources["HudRainbowBrush"]!;
             var dots = DotNames
@@ -311,19 +377,19 @@ public class StudioHudTests
     public void HudBallistics_AttackHoldReleaseAreMonotoneAndTimeStepIndependent()
     {
         var meter = new VUMeterControl { UseHudPalette = true, IsActive = true, Level = .8f };
-        meter.StepBallistics(.09);
+        meter.StepBallistics(.035);
         meter.CurrentPosition.ShouldBeInRange(.75, .8);
         var peak = meter.CurrentPosition;
         meter.Level = 0;
-        meter.StepBallistics(.10);
+        meter.StepBallistics(.020);
         meter.CurrentPosition.ShouldBe(peak);
-        meter.HoldRemainingSeconds.ShouldBe(.08, .000001);
+        meter.HoldRemainingSeconds.ShouldBe(.020, .000001);
         var split = new VUMeterControl { UseHudPalette = true, IsActive = true, Level = .8f };
-        split.StepBallistics(.09);
+        split.StepBallistics(.035);
         split.Level = 0;
-        split.StepBallistics(.18);
+        split.StepBallistics(.040);
         split.StepBallistics(.02);
-        meter.StepBallistics(.10);
+        meter.StepBallistics(.040);
         meter.CurrentPosition.ShouldBe(split.CurrentPosition, .000001);
         var previous = meter.CurrentPosition;
         for (var i = 0; i < 100; i++)
@@ -333,6 +399,21 @@ public class StudioHudTests
             previous = meter.CurrentPosition;
         }
         meter.CurrentPosition.ShouldBe(0);
+    }
+
+    [AvaloniaFact]
+    public void HudBallistics_FollowsShortSyllablesInsteadOfHoldingOldPeak()
+    {
+        var meter = new VUMeterControl { UseHudPalette = true, IsActive = true };
+        for (var syllable = 0; syllable < 3; syllable++)
+        {
+            meter.Level = .8f;
+            meter.StepBallistics(.035);
+            meter.CurrentPosition.ShouldBeGreaterThan(.75);
+            meter.Level = 0;
+            meter.StepBallistics(.160);
+            meter.CurrentPosition.ShouldBeLessThan(.09);
+        }
     }
 
     [AvaloniaFact]

@@ -33,14 +33,13 @@
                        Classes="hudRecordingRim"
                        Margin="-1"
                        IsHitTestVisible="False">
-                    <Border CornerRadius="{Binding #HudSurface.CornerRadius}"
+                    <Border x:Name="RecordingWash" CornerRadius="{Binding #HudSurface.CornerRadius}"
                             BorderThickness="4"
-                            BorderBrush="{DynamicResource RecordLampBrush}"
-                            Opacity="0.12" />
-                    <Border CornerRadius="{Binding #HudSurface.CornerRadius}"
+                            BorderBrush="{DynamicResource HudRecordingEdgeBrush}"
+                            Opacity="0.30" />
+                    <Border x:Name="RecordingStroke" CornerRadius="{Binding #HudSurface.CornerRadius}"
                             BorderThickness="1.5"
-                            BorderBrush="{DynamicResource RecordLampBrush}"
-                            Opacity="0.65" />
+                            BorderBrush="{DynamicResource HudRecordingEdgeBrush}" />
                 </Panel>
                 <!-- Rainbow rim shown only while transcribing (Finishing). Margin cancels
                      HudBorderThickness so the stroke traces the outer pill silhouette, which

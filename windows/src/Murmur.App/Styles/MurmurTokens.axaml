@@ -86,7 +86,7 @@
                     <SolidColorBrush x:Key="HudChassisBrush" Color="#551C1C1E" />
                     <SolidColorBrush x:Key="HudSolidFallbackBrush" Color="#FF1C1C1E" />
                     <SolidColorBrush x:Key="HudHairlineBrush" Color="#40FFFFFF" />
-                    <SolidColorBrush x:Key="HudRecordingEdgeBrush" Color="{StaticResource RecordLampColor}" />
+                    <SolidColorBrush x:Key="HudRecordingEdgeBrush" Color="#FFFF453A" />
                     <LinearGradientBrush x:Key="HudSpecularHairlineBrush" StartPoint="50%,0%" EndPoint="50%,100%">
                         <GradientStop Offset="0" Color="#38E4DED0" />
                         <GradientStop Offset="0.3" Color="#20FFFFFF" />
@@ -214,7 +214,7 @@
                     <SolidColorBrush x:Key="HudChassisBrush" Color="#55FAFAFC" />
                     <SolidColorBrush x:Key="HudSolidFallbackBrush" Color="#FFFAFAFC" />
                     <SolidColorBrush x:Key="HudHairlineBrush" Color="#40000000" />
-                    <SolidColorBrush x:Key="HudRecordingEdgeBrush" Color="{StaticResource RecordLampColor}" />
+                    <SolidColorBrush x:Key="HudRecordingEdgeBrush" Color="#FFD32F2F" />
                     <LinearGradientBrush x:Key="HudSpecularHairlineBrush" StartPoint="50%,0%" EndPoint="50%,100%">
                         <GradientStop Offset="0" Color="#40000000" />
                         <GradientStop Offset="0.4" Color="#18000000" />

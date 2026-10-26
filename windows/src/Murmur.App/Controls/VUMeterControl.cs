@@ -355,7 +355,7 @@ public sealed class VUMeterControl : Control
         var rising = target >= _position;
         if (rising)
         {
-            _holdRemaining = .180;
+            _holdRemaining = .040;
         }
         else
         {
@@ -365,8 +365,8 @@ public sealed class VUMeterControl : Control
             dtSeconds -= heldTime;
         }
 
-        // Exact exponential response: 95% in 90/400ms, monotone even after a delayed frame.
-        _position = target + (_position - target) * Math.Exp(-3 * dtSeconds / (rising ? .090 : .400));
+        // The controller already smooths input; keep the HUD's extra response short and monotone.
+        _position = target + (_position - target) * Math.Exp(-3 * dtSeconds / (rising ? .035 : .160));
         if (Math.Abs(target - _position) < .001)
         {
             _position = target;

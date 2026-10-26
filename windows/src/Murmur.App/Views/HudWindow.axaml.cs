@@ -42,7 +42,9 @@ public partial class HudWindow : Window
     private DictationStatus _pendingLevelStatus;
     private readonly ConicGradientBrush _rainbowBrush;
     private bool _rainbowAnimating;
-    private bool _rainbowFrameRequested;
+    private bool _rimFrameRequested;
+    private bool _recordingAnimating;
+    private TimeSpan? _recordingPulseStart;
     private bool _reducedMotion;
     private int _entryGeneration;
 
@@ -127,6 +129,8 @@ public partial class HudWindow : Window
 
     private void StopHiddenEffects()
     {
+        _recordingAnimating = false;
+        _recordingPulseStart = null;
         _entryGeneration++;
         CancelContentReveal();
         CancelPendingHide();
@@ -162,6 +166,18 @@ public partial class HudWindow : Window
         RecordingRim.Classes.Set("motionOff", instantRims);
         RainbowRim.Classes.Set("motionOff", instantRims);
         RecordingRim.Classes.Set("active", status == DictationStatus.Listening);
+        var pulse = status == DictationStatus.Listening && !reduced;
+        if (_recordingAnimating != pulse) _recordingPulseStart = null;
+        _recordingAnimating = pulse;
+        if (pulse)
+        {
+            RequestRimFrame();
+        }
+        else if (status != DictationStatus.Finishing || reduced)
+        {
+            RecordingStroke.Opacity = 1;
+            RecordingWash.Opacity = .30;
+        }
         return changed;
     }
 
@@ -443,7 +459,7 @@ public partial class HudWindow : Window
         _rainbowAnimating = !_reducedMotion;
         if (_rainbowAnimating)
         {
-            RequestRainbowFrame();
+            RequestRimFrame();
         }
         else
         {
@@ -458,24 +474,39 @@ public partial class HudWindow : Window
         RainbowRim.Classes.Set("active", false);
     }
 
-    private void RequestRainbowFrame()
+    private void RequestRimFrame()
     {
-        if (_rainbowFrameRequested) return;
-        _rainbowFrameRequested = true;
-        RequestAnimationFrame(OnRainbowFrame);
+        if (_rimFrameRequested) return;
+        _rimFrameRequested = true;
+        RequestAnimationFrame(OnRimFrame);
     }
 
-    private void OnRainbowFrame(TimeSpan time)
+    private void OnRimFrame(TimeSpan time)
     {
-        _rainbowFrameRequested = false;
-        if (!_rainbowAnimating || !IsVisible)
+        _rimFrameRequested = false;
+        if (!IsVisible || (!_rainbowAnimating && !_recordingAnimating))
         {
             _rainbowAnimating = false;
+            _recordingAnimating = false;
             return;
         }
 
-        _rainbowBrush.Angle = RainbowRestAngle + (time.TotalSeconds * RainbowDegreesPerSecond % 360);
-        RequestRainbowFrame();
+        AdvanceRimVisuals(time);
+        RequestRimFrame();
+    }
+
+    internal void AdvanceRimVisuals(TimeSpan time)
+    {
+        if (_recordingAnimating)
+        {
+            _recordingPulseStart ??= time;
+            var phase = (time - _recordingPulseStart.Value).TotalSeconds / 1.2;
+            var light = (1 + Math.Cos(phase * 2 * Math.PI)) / 2;
+            RecordingStroke.Opacity = .55 + .45 * light;
+            RecordingWash.Opacity = .12 + .18 * light;
+        }
+        if (_rainbowAnimating)
+            _rainbowBrush.Angle = RainbowRestAngle + (time.TotalSeconds * RainbowDegreesPerSecond % 360);
     }
 
     private static bool ReadSystemReducedMotion()
@@ -792,7 +823,7 @@ public partial class HudWindow : Window
 
                 case DictationStatus.Listening:
                     StopProcessingAnimation();
-                    RecordLamp.Fill = GetBrush("RecordLampBrush", recordingEdge);
+                    RecordLamp.Fill = recordingEdge;
                     TelemetryBadge.Text = UiText.Text("HudRecording");
                     var preview = BuildTranscriptTail(transcript, 15);
                     UpdateTranscriptText(string.IsNullOrEmpty(preview) ? UiText.HudListening : preview);
