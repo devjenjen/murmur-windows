@@ -641,12 +641,13 @@ public class SettingsWindowTests
 
             if (relativeName.Equals("Styles\\MurmurTokens.axaml", StringComparison.OrdinalIgnoreCase))
             {
-                foreach (var key in new[] { "LensPrimaryBrush", "LensProgressBrush", "LensSpecularBrush" })
+                foreach (var key in new[] { "LensPrimaryBrush", "LensProgressBrush", "LensSpecularBrush", "HudSpecularHairlineBrush" })
                 {
                     content.ShouldContain($"x:Key=\"{key}\"");
                 }
 
-                content.Split("<LinearGradientBrush", StringSplitOptions.None).Length.ShouldBe(7);
+                // Three lens gradients and the studio HUD hairline, each in both themes.
+                content.Split("<LinearGradientBrush", StringSplitOptions.None).Length.ShouldBe(9);
             }
             else
             {

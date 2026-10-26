@@ -3,12 +3,12 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
+using System.Diagnostics;
 
 namespace Murmur.App.Controls;
 
 /// <summary>
-/// Analog VU meter with damped spring ballistics (300ms attack, 420ms release, 6% overshoot)
-/// and discrete 16-segment instrumentation bar.
+/// Sixteen-segment meter with studio HUD envelope or legacy settings spring ballistics.
 /// </summary>
 public sealed class VUMeterControl : Control
 {
@@ -55,12 +55,28 @@ public sealed class VUMeterControl : Control
 
     private double _position;
     private double _velocity;
+    private double _holdRemaining;
+    private long _lastTick;
+    private bool _reducedMotion;
     private DispatcherTimer? _timer;
     private bool _isAttached;
     private int _lastReportedLevelBucket = -1;
 
     /// <summary>Internal flag indicating if animation timer is running (for tests only).</summary>
     internal bool IsAnimationRunning => _timer?.IsEnabled == true;
+    internal double CurrentPosition => _position;
+    internal double HoldRemainingSeconds => _holdRemaining;
+
+    internal bool ReducedMotion
+    {
+        get => _reducedMotion;
+        set
+        {
+            if (_reducedMotion == value) return;
+            _reducedMotion = value;
+            OnLevelOrActiveChanged();
+        }
+    }
 
     internal const int SegmentCount = 16;
     private static readonly IBrush UnlitBrush = new SolidColorBrush(Color.Parse("#262422"));
@@ -121,6 +137,9 @@ public sealed class VUMeterControl : Control
     private void OnPaletteModeChanged()
     {
         _paletteDirty = true;
+        _holdRemaining = 0;
+        _velocity = 0;
+        EvaluateTimerState();
         InvalidateVisual();
     }
 
@@ -204,7 +223,7 @@ public sealed class VUMeterControl : Control
     {
         UpdateItemStatus();
         EvaluateTimerState();
-        if (!_isAttached || !IsVisible)
+        if (!_isAttached || !IsVisible || (UseHudPalette && ReducedMotion))
         {
             InvalidateVisual();
         }
@@ -223,6 +242,15 @@ public sealed class VUMeterControl : Control
 
     private void EvaluateTimerState()
     {
+        if (UseHudPalette && ReducedMotion)
+        {
+            StopTimer();
+            _position = IsActive ? Math.Clamp((double)Level, 0, 1) : 0;
+            _velocity = 0;
+            _holdRemaining = 0;
+            return;
+        }
+
         if (!_isAttached || !IsVisible)
         {
             StopTimer();
@@ -230,7 +258,9 @@ public sealed class VUMeterControl : Control
         }
 
         var target = IsActive ? Math.Clamp((double)Level, 0.0, 1.0) : 0.0;
-        var needsAnimation = IsActive || _position > 0.001 || Math.Abs(target - _position) > 0.001 || Math.Abs(_velocity) > 0.0001;
+        var needsAnimation = UseHudPalette
+            ? Math.Abs(target - _position) > 0.001
+            : IsActive || _position > 0.001 || Math.Abs(target - _position) > 0.001 || Math.Abs(_velocity) > 0.0001;
 
         if (needsAnimation)
         {
@@ -248,13 +278,19 @@ public sealed class VUMeterControl : Control
         {
             _timer = new DispatcherTimer(TimeSpan.FromMilliseconds(1000.0 / 60.0), DispatcherPriority.Render, (_, _) =>
             {
-                AdvanceNeedle();
+                var now = Stopwatch.GetTimestamp();
+                if (UseHudPalette)
+                    StepBallistics(Stopwatch.GetElapsedTime(_lastTick, now).TotalSeconds);
+                else
+                    AdvanceNeedle();
+                _lastTick = now;
                 InvalidateVisual();
             });
         }
 
         if (!_timer.IsEnabled)
         {
+            _lastTick = Stopwatch.GetTimestamp();
             _timer.Start();
         }
     }
@@ -294,6 +330,47 @@ public sealed class VUMeterControl : Control
             {
                 StopTimer();
             }
+        }
+    }
+
+    internal void ResetBallistics()
+    {
+        StopTimer();
+        _position = _velocity = _holdRemaining = 0;
+        InvalidateVisual();
+    }
+
+    internal void StepBallistics(double dtSeconds)
+    {
+        if (!double.IsFinite(dtSeconds) || dtSeconds <= 0) return;
+        var target = IsActive ? Math.Clamp((double)Level, 0, 1) : 0;
+        if (ReducedMotion)
+        {
+            _position = target;
+            _holdRemaining = 0;
+            StopTimer();
+            return;
+        }
+
+        var rising = target >= _position;
+        if (rising)
+        {
+            _holdRemaining = .180;
+        }
+        else
+        {
+            if (!IsActive) _holdRemaining = 0;
+            var heldTime = Math.Min(_holdRemaining, dtSeconds);
+            _holdRemaining -= heldTime;
+            dtSeconds -= heldTime;
+        }
+
+        // Exact exponential response: 95% in 90/400ms, monotone even after a delayed frame.
+        _position = target + (_position - target) * Math.Exp(-3 * dtSeconds / (rising ? .090 : .400));
+        if (Math.Abs(target - _position) < .001)
+        {
+            _position = target;
+            StopTimer();
         }
     }
 
