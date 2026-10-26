@@ -150,6 +150,17 @@ internal static class Win32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool GetWindowRect(nint hWnd, out RECT rect);
 
+    /// <summary>SPI_GETCLIENTAREAANIMATION: false when Windows "Animation effects" is off (reduced motion).</summary>
+    public const uint SPI_GETCLIENTAREAANIMATION = 0x1042;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SystemParametersInfoW(
+        uint uiAction,
+        uint uiParam,
+        [MarshalAs(UnmanagedType.Bool)] out bool pvParam,
+        uint fWinIni);
+
     [DllImport("user32.dll", SetLastError = true)]
     public static extern nint SetWindowLongPtrW(nint hWnd, int nIndex, nint dwNewLong);
 

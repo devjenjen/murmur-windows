@@ -673,6 +673,73 @@ public class HudWindowTests
     }
 
     [AvaloniaFact]
+    public void HudWindow_RainbowRim_OnlyDuringFinishing()
+    {
+        var hud = new HudWindow { IsReducedMotion = () => false };
+        var rim = hud.FindControl<Panel>("RainbowRim")!;
+
+        hud.UpdateState(new DictationState(DictationStatus.Starting), 0, "");
+        Dispatcher.UIThread.RunJobs();
+        rim.Classes.ShouldNotContain("active");
+
+        hud.UpdateState(new DictationState(DictationStatus.Listening), 0.5f, "words");
+        Dispatcher.UIThread.RunJobs();
+        rim.Classes.ShouldNotContain("active");
+        hud.IsRainbowAnimating.ShouldBeFalse();
+
+        hud.UpdateState(new DictationState(DictationStatus.Finishing), 0, "words");
+        Dispatcher.UIThread.RunJobs();
+        rim.Classes.ShouldContain("active");
+        hud.IsRainbowAnimating.ShouldBeTrue();
+
+        hud.UpdateState(new DictationState(DictationStatus.Error, "boom"), 0, "");
+        Dispatcher.UIThread.RunJobs();
+        rim.Classes.ShouldNotContain("active");
+        hud.IsRainbowAnimating.ShouldBeFalse();
+    }
+
+    [AvaloniaFact]
+    public void HudWindow_RainbowRim_StopsOnIdleAndClose()
+    {
+        var hud = new HudWindow { IsReducedMotion = () => false };
+        var rim = hud.FindControl<Panel>("RainbowRim")!;
+
+        hud.UpdateState(new DictationState(DictationStatus.Finishing), 0, "");
+        Dispatcher.UIThread.RunJobs();
+        hud.IsRainbowAnimating.ShouldBeTrue();
+
+        hud.UpdateState(DictationState.Idle, 0, "");
+        Dispatcher.UIThread.RunJobs();
+        rim.Classes.ShouldNotContain("active");
+        hud.IsRainbowAnimating.ShouldBeFalse();
+
+        hud.UpdateState(new DictationState(DictationStatus.Finishing), 0, "");
+        Dispatcher.UIThread.RunJobs();
+        hud.IsRainbowAnimating.ShouldBeTrue();
+
+        hud.Close();
+        Dispatcher.UIThread.RunJobs();
+        rim.Classes.ShouldNotContain("active");
+        hud.IsRainbowAnimating.ShouldBeFalse();
+    }
+
+    [AvaloniaFact]
+    public void HudWindow_RainbowRim_ReducedMotionIsStatic()
+    {
+        var hud = new HudWindow { IsReducedMotion = () => true };
+        var rim = hud.FindControl<Panel>("RainbowRim")!;
+        var brush = (ConicGradientBrush)rim.Resources["HudRainbowBrush"]!;
+        brush.Angle = 42;
+
+        hud.UpdateState(new DictationState(DictationStatus.Finishing), 0, "");
+        Dispatcher.UIThread.RunJobs();
+
+        rim.Classes.ShouldContain("active");
+        hud.IsRainbowAnimating.ShouldBeFalse();
+        brush.Angle.ShouldBe(-90);
+    }
+
+    [AvaloniaFact]
     public void HudWindow_LongSingleWordDoesNotOverflowSurface()
     {
         var hud = new HudWindow();

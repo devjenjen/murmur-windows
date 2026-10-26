@@ -27,7 +27,36 @@
                 BorderBrush="{DynamicResource HudHairlineBrush}"
                 BorderThickness="{DynamicResource HudBorderThickness}"
                 CornerRadius="{DynamicResource HudOrbRadius}"
-                RenderTransformOrigin="50%,50%" />
+                RenderTransformOrigin="50%,50%">
+            <!-- Rainbow rim shown only while transcribing (Finishing). Margin cancels
+                 HudBorderThickness so the stroke traces the outer pill silhouette, which
+                 stays inside the native window region. -->
+            <Panel x:Name="RainbowRim"
+                   Classes="hudRainbowRim"
+                   Margin="-1"
+                   IsHitTestVisible="False">
+                <Panel.Resources>
+                    <ConicGradientBrush x:Key="HudRainbowBrush" Center="50%,50%" Angle="-90">
+                        <GradientStop Offset="0" Color="#FFFF5E7E" />
+                        <GradientStop Offset="0.14" Color="#FFFF9F0A" />
+                        <GradientStop Offset="0.28" Color="#FFFFD60A" />
+                        <GradientStop Offset="0.42" Color="#FF30D158" />
+                        <GradientStop Offset="0.57" Color="#FF64D2FF" />
+                        <GradientStop Offset="0.71" Color="#FF0A84FF" />
+                        <GradientStop Offset="0.86" Color="#FFBF5AF2" />
+                        <GradientStop Offset="1" Color="#FFFF5E7E" />
+                    </ConicGradientBrush>
+                </Panel.Resources>
+                <!-- Soft inner wash; an outer glow would be clipped by the native region. -->
+                <Border CornerRadius="{Binding #HudSurface.CornerRadius}"
+                        BorderThickness="4"
+                        BorderBrush="{StaticResource HudRainbowBrush}"
+                        Opacity="0.2" />
+                <Border CornerRadius="{Binding #HudSurface.CornerRadius}"
+                        BorderThickness="1.5"
+                        BorderBrush="{StaticResource HudRainbowBrush}" />
+            </Panel>
+        </Border>
 
         <Border x:Name="HudContentSurface"
                 Classes="hudContentSurface"

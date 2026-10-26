@@ -872,6 +872,21 @@
         </Setter>
     </Style>
 
+    <Style Selector="Panel.hudRainbowRim">
+        <Setter Property="Opacity" Value="0" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity"
+                                  Duration="0:0:0.28"
+                                  Easing="CubicEaseOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="Panel.hudRainbowRim.active">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
     <Style Selector="TextBlock.hudTranscript">
         <Setter Property="Transitions">
             <Transitions>

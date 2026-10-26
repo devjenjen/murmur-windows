@@ -40,11 +40,24 @@ public partial class HudWindow : Window
     private int _levelUpdatePending;
     private float _pendingLevel;
     private DictationStatus _pendingLevelStatus;
+    private readonly ConicGradientBrush _rainbowBrush;
+    private bool _rainbowAnimating;
+    private bool _rainbowFrameRequested;
+
+    private const double RainbowRestAngle = -90;
+    private const double RainbowDegreesPerSecond = 120;
+
+    /// <summary>Reports whether Windows animation effects are off; replaceable in tests.</summary>
+    internal Func<bool> IsReducedMotion { get; set; } = ReadSystemReducedMotion;
+
+    /// <summary>True while the rainbow rim is requesting animation frames.</summary>
+    internal bool IsRainbowAnimating => _rainbowAnimating;
 
     /// <summary>Initializes a new instance of HudWindow.</summary>
     public HudWindow()
     {
         InitializeComponent();
+        _rainbowBrush = (ConicGradientBrush)RainbowRim.Resources["HudRainbowBrush"]!;
         ApplyPlacementAlignment();
         LayoutUpdated += OnLayoutUpdated;
     }
@@ -347,6 +360,7 @@ public partial class HudWindow : Window
         };
         _processingTimer.Tick += OnProcessingTick;
         _processingTimer.Start();
+        StartRainbowRim();
     }
 
     private void OnProcessingTick(object? sender, EventArgs e)
@@ -363,10 +377,65 @@ public partial class HudWindow : Window
         dot.Opacity = 0.35 + (pulse * 0.65);
     }
 
+    private void StartRainbowRim()
+    {
+        RainbowRim.Classes.Set("active", true);
+        _rainbowAnimating = !IsReducedMotion();
+        if (_rainbowAnimating)
+        {
+            RequestRainbowFrame();
+        }
+        else
+        {
+            // Reduced motion: calm, static rainbow.
+            _rainbowBrush.Angle = RainbowRestAngle;
+        }
+    }
+
+    private void StopRainbowRim()
+    {
+        _rainbowAnimating = false;
+        RainbowRim.Classes.Set("active", false);
+    }
+
+    private void RequestRainbowFrame()
+    {
+        if (_rainbowFrameRequested) return;
+        _rainbowFrameRequested = true;
+        RequestAnimationFrame(OnRainbowFrame);
+    }
+
+    private void OnRainbowFrame(TimeSpan time)
+    {
+        _rainbowFrameRequested = false;
+        if (!_rainbowAnimating || !IsVisible)
+        {
+            _rainbowAnimating = false;
+            return;
+        }
+
+        _rainbowBrush.Angle = RainbowRestAngle + (time.TotalSeconds * RainbowDegreesPerSecond % 360);
+        RequestRainbowFrame();
+    }
+
+    private static bool ReadSystemReducedMotion()
+    {
+        try
+        {
+            return Win32.SystemParametersInfoW(Win32.SPI_GETCLIENTAREAANIMATION, 0, out var enabled, 0)
+                && !enabled;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            return false;
+        }
+    }
+
     private void StopProcessingAnimation()
     {
         _processingTimer?.Stop();
         _processingTimer = null;
+        StopRainbowRim();
         ProcessingDots.IsVisible = false;
         ProcessingDot1.Opacity = 0.35;
         ProcessingDot2.Opacity = 0.35;
