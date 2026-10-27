@@ -4,6 +4,7 @@ using Xunit;
 
 namespace Murmur.Speech.Tests;
 
+[Collection("Native session lifetime")]
 public class StreamingAudioBoundsTests
 {
     [Fact]

@@ -8,6 +8,7 @@ using Murmur.Core.State;
 
 namespace Murmur.Speech.Tests;
 
+[Collection("Native session lifetime")]
 public class NativeSessionLifetimeTests
 {
     private sealed class Audio : IAudioCapture
