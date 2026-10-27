@@ -348,12 +348,13 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
                 try
                 {
                     var repairResult = await repairer.RepairAsync(raw, cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!string.IsNullOrWhiteSpace(repairResult))
                     {
                         repaired = repairResult;
                     }
                 }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                catch (OperationCanceledException)
                 {
                     throw;
                 }

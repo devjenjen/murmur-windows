@@ -10,6 +10,50 @@ namespace Murmur.Core.Tests;
 
 public class DictationControllerTests
 {
+    [Fact]
+    public async Task RepairCancellationCannotInsertEvenWhenRepairerReturnsLateText()
+    {
+        var audio = new FakeAudioCapture();
+        var hotkey = new FakeHotkeySource();
+        var injector = new FakeTextInjector();
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        DictationController? controller = null;
+        Task? stopped = null;
+        var repairer = new FakeSpeechRepairer(_ =>
+        {
+            stopped = controller!.StopAsync();
+            cancelled.TrySetResult();
+            return "late repair";
+        });
+        await using var owner = controller = new DictationController(audio, hotkey,
+            new FakeTranscriber("original speech"), injector, "fake", speechRepairer: repairer);
+        owner.Start();
+        hotkey.Press();
+        audio.EmitChunk(new float[160]);
+        hotkey.Release();
+        await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await stopped!.WaitAsync(TimeSpan.FromSeconds(5));
+        injector.Injected.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task RepairMayLegitimatelyRemoveLongFalseStartWithoutLengthHeuristic()
+    {
+        var audio = new FakeAudioCapture();
+        var hotkey = new FakeHotkeySource();
+        var injector = new FakeTextInjector();
+        using var controller = new DictationController(audio, hotkey,
+            new FakeTranscriber(new string('x', 1200)), injector, "fake",
+            speechRepairer: new FakeSpeechRepairer(_ => "Mittwoch"));
+        controller.Start();
+        hotkey.Press();
+        audio.EmitChunk(new float[160]);
+        hotkey.Release();
+        await WaitForStatusAsync(controller, DictationStatus.Idle);
+        injector.Injected.Single().ShouldBe("Mittwoch.");
+        injector.InjectionMetadata.Single().Target.ShouldBe(injector.CapturedTarget);
+    }
+
     private static async Task WaitForStatusAsync(DictationController controller, DictationStatus status)
     {
         if (controller.State.Status == status)
