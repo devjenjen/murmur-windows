@@ -25,6 +25,11 @@ public sealed class LlamaSharpSpeechRepairer : ISpeechRepairer, IDisposable
     private readonly string? _modelPath;
     private readonly ISpeechRepairer _fallback;
     private readonly object _lock = new();
+    private readonly SemaphoreSlim _inferenceGate = new(1, 1);
+    private readonly Func<string, int>? _tokenize;
+    private readonly Func<string, int, CancellationToken, IAsyncEnumerable<string>>? _infer;
+    private const int ContextTokens = 2048;
+    private const int ContextMargin = 16;
 
     private LLamaWeights? _weights;
     private StatelessExecutor? _executor;
@@ -42,60 +47,73 @@ public sealed class LlamaSharpSpeechRepairer : ISpeechRepairer, IDisposable
         _fallback = fallback ?? new RuleBasedSpeechRepairer();
     }
 
+    internal LlamaSharpSpeechRepairer(Func<string, int> tokenize,
+        Func<string, int, CancellationToken, IAsyncEnumerable<string>> infer)
+        : this()
+    {
+        _tokenize = tokenize;
+        _infer = infer;
+    }
+
+    private static string CheckedResult(string result, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return result;
+    }
+
     /// <inheritdoc />
     public async Task<string> RepairAsync(string rawTranscript, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(rawTranscript))
-        {
-            return rawTranscript;
-        }
-
-        if (string.IsNullOrWhiteSpace(rawTranscript))
-        {
-            return rawTranscript;
-        }
-
-        if (_isDisposed || !EnsureLoaded() || _executor == null)
-        {
-            return await _fallback.RepairAsync(rawTranscript, cancellationToken).ConfigureAwait(false);
-        }
-
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(rawTranscript)) return CheckedResult(rawTranscript, cancellationToken);
+        await _inferenceGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var prompt = FormatChatPrompt(DefaultSystemPrompt, rawTranscript);
-
-            var inferenceParams = new InferenceParams
+            if (_isDisposed || (_infer == null && (!EnsureLoaded() || _executor == null)))
             {
-                MaxTokens = 256,
-                AntiPrompts = new[] { "<|im_end|>", "<|im_start|>", "\n<|im_start|>" },
-                SamplingPipeline = new DefaultSamplingPipeline
+                cancellationToken.ThrowIfCancellationRequested();
+                var fallback = await _fallback.RepairAsync(rawTranscript, cancellationToken).ConfigureAwait(false);
+                return CheckedResult(fallback, cancellationToken);
+            }
+
+            try
+            {
+                var prompt = FormatChatPrompt(DefaultSystemPrompt, rawTranscript);
+                // Match StatelessExecutor 0.22 exactly: our ChatML is already formatted, BOS/special enabled.
+                int Count(string text) => _tokenize != null ? _tokenize(text)
+                    : _weights!.Tokenize(text, true, true, Encoding.UTF8).Length;
+                var promptTokens = Count(prompt);
+                var rawTokens = Count(rawTranscript);
+                var reserve = Math.Max(256L, 2L * rawTokens + 64);
+                var context = _executor?.Context.ContextSize ?? ContextTokens;
+                if (promptTokens < 0 || rawTokens < 0 || promptTokens + reserve + ContextMargin > context)
+                    return CheckedResult(rawTranscript, cancellationToken);
+                var maximum = (int)reserve;
+                cancellationToken.ThrowIfCancellationRequested();
+                var chunks = _infer != null ? _infer(prompt, maximum, cancellationToken)
+                    : _executor!.InferAsync(prompt, new InferenceParams
+                    {
+                        MaxTokens = maximum,
+                        AntiPrompts = ["<|im_end|>", "<|im_start|>", "\n<|im_start|>"],
+                        SamplingPipeline = new DefaultSamplingPipeline { Temperature = 0.0f }
+                    }, cancellationToken);
+                var output = new StringBuilder();
+                var yielded = 0;
+                await foreach (var chunk in chunks.ConfigureAwait(false))
                 {
-                    Temperature = 0.0f
+                    cancellationToken.ThrowIfCancellationRequested();
+                    // Only the pinned StatelessExecutor yields once per non-EOS token, including empty UTF8 chunks.
+                    if (++yielded >= maximum) return CheckedResult(rawTranscript, cancellationToken);
+                    output.Append(chunk);
                 }
-            };
-
-            var sb = new StringBuilder();
-            await foreach (var token in _executor.InferAsync(prompt, inferenceParams, cancellationToken).ConfigureAwait(false))
-            {
-                sb.Append(token);
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = CleanOutput(output.ToString());
+                return CheckedResult(string.IsNullOrWhiteSpace(result) ? rawTranscript : result, cancellationToken);
             }
-
-            var result = CleanOutput(sb.ToString());
-            if (string.IsNullOrWhiteSpace(result))
-            {
-                return await _fallback.RepairAsync(rawTranscript, cancellationToken).ConfigureAwait(false);
-            }
-
-            return result;
+            catch (OperationCanceledException) { throw; }
+            catch (Exception) { return CheckedResult(rawTranscript, cancellationToken); }
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception)
-        {
-            return await _fallback.RepairAsync(rawTranscript, cancellationToken).ConfigureAwait(false);
-        }
+        finally { _inferenceGate.Release(); }
     }
 
     private bool EnsureLoaded()
@@ -123,12 +141,12 @@ public sealed class LlamaSharpSpeechRepairer : ISpeechRepairer, IDisposable
             {
                 var parameters = new ModelParams(_modelPath)
                 {
-                    ContextSize = 1024,
+                    ContextSize = ContextTokens,
                     GpuLayerCount = 0
                 };
 
                 _weights = LLamaWeights.LoadFromFile(parameters);
-                _executor = new StatelessExecutor(_weights, parameters);
+                _executor = new StatelessExecutor(_weights, parameters) { ApplyTemplate = false };
                 return true;
             }
             catch (Exception)
@@ -182,17 +200,18 @@ public sealed class LlamaSharpSpeechRepairer : ISpeechRepairer, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        if (_isDisposed)
+        _inferenceGate.Wait();
+        try
         {
-            return;
+            lock (_lock)
+            {
+                if (_isDisposed) return;
+                _isDisposed = true;
+                _executor = null;
+                _weights?.Dispose();
+                _weights = null;
+            }
         }
-
-        lock (_lock)
-        {
-            _isDisposed = true;
-            _executor = null;
-            _weights?.Dispose();
-            _weights = null;
-        }
+        finally { _inferenceGate.Release(); }
     }
 }

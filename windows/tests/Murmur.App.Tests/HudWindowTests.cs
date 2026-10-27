@@ -435,7 +435,8 @@ public class HudWindowTests
     [AvaloniaFact]
     public async Task HudWindow_EntryKeepsContentHiddenUntilRevealDelay()
     {
-        var hud = new HudWindow();
+        var hud = new HudWindow { IsReducedMotion = () => false };
+        hud.Resources["HudContentRevealDelayMs"] = 60000d;
 
         hud.UpdateState(
             new DictationState(DictationStatus.Starting),
@@ -453,6 +454,13 @@ public class HudWindowTests
         surface.Width.ShouldBe(52);
         surface.Height.ShouldBe(52);
         content.Opacity.ShouldBe(0);
+
+        var timer = typeof(HudWindow).GetField("_contentRevealTimer",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(hud).ShouldBeOfType<DispatcherTimer>();
+        timer.IsEnabled.ShouldBeTrue();
+        timer.Interval.ShouldBe(TimeSpan.FromMinutes(1));
+        timer.Interval = TimeSpan.FromMilliseconds(1);
 
         await Task.Delay(120);
         Dispatcher.UIThread.RunJobs();
@@ -491,7 +499,7 @@ public class HudWindowTests
     [AvaloniaFact]
     public async Task HudWindow_AudioLevelUpdatesDoNotRestartContentReveal()
     {
-        var hud = new HudWindow();
+        var hud = new HudWindow { IsReducedMotion = () => false };
 
         hud.UpdateState(
             new DictationState(DictationStatus.Starting),
@@ -670,6 +678,73 @@ public class HudWindowTests
         var transcript = hud.FindControl<TextBlock>("TranscriptText");
         transcript.ShouldNotBeNull();
         transcript.Text.ShouldStartWith("… ");
+    }
+
+    [AvaloniaFact]
+    public void HudWindow_RainbowRim_OnlyDuringFinishing()
+    {
+        var hud = new HudWindow { IsReducedMotion = () => false };
+        var rim = hud.FindControl<Panel>("RainbowRim")!;
+
+        hud.UpdateState(new DictationState(DictationStatus.Starting), 0, "");
+        Dispatcher.UIThread.RunJobs();
+        rim.Classes.ShouldNotContain("active");
+
+        hud.UpdateState(new DictationState(DictationStatus.Listening), 0.5f, "words");
+        Dispatcher.UIThread.RunJobs();
+        rim.Classes.ShouldNotContain("active");
+        hud.IsRainbowAnimating.ShouldBeFalse();
+
+        hud.UpdateState(new DictationState(DictationStatus.Finishing), 0, "words");
+        Dispatcher.UIThread.RunJobs();
+        rim.Classes.ShouldContain("active");
+        hud.IsRainbowAnimating.ShouldBeTrue();
+
+        hud.UpdateState(new DictationState(DictationStatus.Error, "boom"), 0, "");
+        Dispatcher.UIThread.RunJobs();
+        rim.Classes.ShouldNotContain("active");
+        hud.IsRainbowAnimating.ShouldBeFalse();
+    }
+
+    [AvaloniaFact]
+    public void HudWindow_RainbowRim_StopsOnIdleAndClose()
+    {
+        var hud = new HudWindow { IsReducedMotion = () => false };
+        var rim = hud.FindControl<Panel>("RainbowRim")!;
+
+        hud.UpdateState(new DictationState(DictationStatus.Finishing), 0, "");
+        Dispatcher.UIThread.RunJobs();
+        hud.IsRainbowAnimating.ShouldBeTrue();
+
+        hud.UpdateState(DictationState.Idle, 0, "");
+        Dispatcher.UIThread.RunJobs();
+        rim.Classes.ShouldNotContain("active");
+        hud.IsRainbowAnimating.ShouldBeFalse();
+
+        hud.UpdateState(new DictationState(DictationStatus.Finishing), 0, "");
+        Dispatcher.UIThread.RunJobs();
+        hud.IsRainbowAnimating.ShouldBeTrue();
+
+        hud.Close();
+        Dispatcher.UIThread.RunJobs();
+        rim.Classes.ShouldNotContain("active");
+        hud.IsRainbowAnimating.ShouldBeFalse();
+    }
+
+    [AvaloniaFact]
+    public void HudWindow_RainbowRim_ReducedMotionIsStatic()
+    {
+        var hud = new HudWindow { IsReducedMotion = () => true };
+        var rim = hud.FindControl<Panel>("RainbowRim")!;
+        var brush = (ConicGradientBrush)rim.Resources["HudRainbowBrush"]!;
+        brush.Angle = 42;
+
+        hud.UpdateState(new DictationState(DictationStatus.Finishing), 0, "");
+        Dispatcher.UIThread.RunJobs();
+
+        rim.Classes.ShouldContain("active");
+        hud.IsRainbowAnimating.ShouldBeFalse();
+        brush.Angle.ShouldBe(-90);
     }
 
     [AvaloniaFact]

@@ -8,8 +8,52 @@ using Xunit;
 
 namespace Murmur.Core.Tests;
 
-public class DictationControllerTests
+public partial class DictationControllerTests
 {
+    [Fact]
+    public async Task RepairCancellationCannotInsertEvenWhenRepairerReturnsLateText()
+    {
+        var audio = new FakeAudioCapture();
+        var hotkey = new FakeHotkeySource();
+        var injector = new FakeTextInjector();
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        DictationController? controller = null;
+        Task? stopped = null;
+        var repairer = new FakeSpeechRepairer(_ =>
+        {
+            stopped = controller!.StopAsync();
+            cancelled.TrySetResult();
+            return "late repair";
+        });
+        await using var owner = controller = new DictationController(audio, hotkey,
+            new FakeTranscriber("original speech"), injector, "fake", speechRepairer: repairer);
+        owner.Start();
+        hotkey.Press();
+        audio.EmitChunk(new float[160]);
+        hotkey.Release();
+        await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await stopped!.WaitAsync(TimeSpan.FromSeconds(5));
+        injector.Injected.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task RepairMayLegitimatelyRemoveLongFalseStartWithoutLengthHeuristic()
+    {
+        var audio = new FakeAudioCapture();
+        var hotkey = new FakeHotkeySource();
+        var injector = new FakeTextInjector();
+        using var controller = new DictationController(audio, hotkey,
+            new FakeTranscriber(new string('x', 1200)), injector, "fake",
+            speechRepairer: new FakeSpeechRepairer(_ => "Mittwoch"));
+        controller.Start();
+        hotkey.Press();
+        audio.EmitChunk(new float[160]);
+        hotkey.Release();
+        await WaitForStatusAsync(controller, DictationStatus.Idle);
+        injector.Injected.Single().ShouldBe("Mittwoch.");
+        injector.InjectionMetadata.Single().Target.ShouldBe(injector.CapturedTarget);
+    }
+
     private static async Task WaitForStatusAsync(DictationController controller, DictationStatus status)
     {
         if (controller.State.Status == status)
@@ -57,6 +101,7 @@ public class DictationControllerTests
         public TaskCompletionSource StopGate { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         public bool DelayStop { get; set; }
+        public int DisposeCalls { get; private set; }
 
         public void Start()
         {
@@ -89,7 +134,7 @@ public class DictationControllerTests
             IsRunning = false;
             CaptureFailed?.Invoke(exception);
         }
-        public void Dispose() { }
+        public void Dispose() => DisposeCalls++;
     }
 
     private sealed class FakeHotkeySource : IHotkeySource
@@ -123,19 +168,25 @@ public class DictationControllerTests
         public List<float> AcceptedSamples { get; } = [];
         public bool SessionActive { get; private set; }
         public int CancelCalls { get; private set; }
+        public Exception? AcceptFailure { get; set; }
+        private Action<Exception>? _onFailure;
+        public Action<Exception>? FailureCallback => _onFailure;
+        public void Fail(Exception failure) => _onFailure?.Invoke(failure);
 
         public FakeStreamingTranscriber(string finalText)
         {
             _finalText = finalText;
         }
 
-        public void BeginSession()
+        public void BeginSession(Action<Exception>? onFailure = null)
         {
+            _onFailure = onFailure;
             SessionActive = true;
         }
 
         public void AcceptAudio(ReadOnlyMemory<float> audioSamples)
         {
+            if (AcceptFailure != null) throw AcceptFailure;
             AcceptedSamples.AddRange(audioSamples.Span);
         }
 
@@ -625,6 +676,7 @@ public class DictationControllerTests
         await WaitForStatusAsync(controller, DictationStatus.Error);
 
         controller.State.Status.ShouldBe(DictationStatus.Error);
+        await controller.SessionCompletion;
         transcriber.SessionActive.ShouldBeFalse();
         transcriber.CancelCalls.ShouldBe(1);
     }
@@ -649,6 +701,7 @@ public class DictationControllerTests
         controller.State.Message.ShouldNotBeNull();
         controller.State.Message.ShouldContain("device invalidated");
 
+        await controller.SessionCompletion;
         hotkey.Press();
         controller.State.Status.ShouldBe(DictationStatus.Listening);
     }

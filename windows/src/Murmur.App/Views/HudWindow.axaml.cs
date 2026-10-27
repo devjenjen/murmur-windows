@@ -40,11 +40,28 @@ public partial class HudWindow : Window
     private int _levelUpdatePending;
     private float _pendingLevel;
     private DictationStatus _pendingLevelStatus;
+    private readonly ConicGradientBrush _rainbowBrush;
+    private bool _rainbowAnimating;
+    private bool _rimFrameRequested;
+    private bool _recordingAnimating;
+    private TimeSpan? _recordingPulseStart;
+    private bool _reducedMotion;
+    private int _entryGeneration;
+
+    private const double RainbowRestAngle = -90;
+    private const double RainbowDegreesPerSecond = 120;
+
+    /// <summary>Reports whether Windows animation effects are off; replaceable in tests.</summary>
+    internal Func<bool> IsReducedMotion { get; set; } = ReadSystemReducedMotion;
+
+    /// <summary>True while the rainbow rim is requesting animation frames.</summary>
+    internal bool IsRainbowAnimating => _rainbowAnimating;
 
     /// <summary>Initializes a new instance of HudWindow.</summary>
     public HudWindow()
     {
         InitializeComponent();
+        _rainbowBrush = (ConicGradientBrush)RainbowRim.Resources["HudRainbowBrush"]!;
         ApplyPlacementAlignment();
         LayoutUpdated += OnLayoutUpdated;
     }
@@ -93,12 +110,75 @@ public partial class HudWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
-        CancelContentReveal();
-        StopProcessingAnimation();
-        _hideTimer?.Stop();
+        StopHiddenEffects();
         LayoutUpdated -= OnLayoutUpdated;
         _appliedNativeRegion = null;
         _platformHandle = null;
+    }
+
+    /// <inheritdoc />
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == IsVisibleProperty && HudMeter is not null)
+        {
+            HudMeter.IsVisible = IsVisible;
+            if (!IsVisible) StopHiddenEffects();
+        }
+    }
+
+    private void StopHiddenEffects()
+    {
+        _recordingAnimating = false;
+        _recordingPulseStart = null;
+        _entryGeneration++;
+        CancelContentReveal();
+        CancelPendingHide();
+        HudSurface.Classes.Set("motionOff", true);
+        HudContentSurface.Classes.Set("motionOff", true);
+        TranscriptText.Classes.Set("motionOff", true);
+        RecordingRim.Classes.Set("motionOff", true);
+        RainbowRim.Classes.Set("motionOff", true);
+        RecordingRim.Classes.Set("active", false);
+        StopProcessingAnimation();
+        HudMeter.ResetBallistics();
+    }
+
+    private bool ApplyMotionPreference(DictationStatus status)
+    {
+        var reduced = IsReducedMotion();
+        var changed = reduced != _reducedMotion;
+        _reducedMotion = reduced;
+        HudMeter.ReducedMotion = reduced;
+        var instant = reduced || status == DictationStatus.Error;
+        HudSurface.Classes.Set("motionOff", instant);
+        HudContentSurface.Classes.Set("motionOff", instant);
+        TranscriptText.Classes.Set("motionOff", instant);
+        if (reduced)
+        {
+            _entryGeneration++;
+            CancelContentReveal();
+            HudSurface.Opacity = 1;
+            HudSurface.RenderTransform = TransformScale1;
+            SetContentVisible(status != DictationStatus.Idle);
+        }
+        var instantRims = reduced || status is DictationStatus.Starting or DictationStatus.Error;
+        RecordingRim.Classes.Set("motionOff", instantRims);
+        RainbowRim.Classes.Set("motionOff", instantRims);
+        RecordingRim.Classes.Set("active", status == DictationStatus.Listening);
+        var pulse = status == DictationStatus.Listening && !reduced;
+        if (_recordingAnimating != pulse) _recordingPulseStart = null;
+        _recordingAnimating = pulse;
+        if (pulse)
+        {
+            RequestRimFrame();
+        }
+        else if (status != DictationStatus.Finishing || reduced)
+        {
+            RecordingStroke.Opacity = 1;
+            RecordingWash.Opacity = .30;
+        }
+        return changed;
     }
 
     private void OnLayoutUpdated(object? sender, EventArgs e)
@@ -183,7 +263,8 @@ public partial class HudWindow : Window
 
     private IBrush GetBrush(string key, IBrush fallback)
     {
-        if (this.TryFindResource(key, out var resource) && resource is IBrush brush)
+        if ((this.TryFindResource(key, ActualThemeVariant, out var resource) ||
+             this.TryFindResource(key, out resource)) && resource is IBrush brush)
         {
             return brush;
         }
@@ -307,6 +388,11 @@ public partial class HudWindow : Window
     private void ScheduleContentReveal()
     {
         CancelContentReveal();
+        if (_reducedMotion)
+        {
+            SetContentVisible(true);
+            return;
+        }
 
         var timer = new DispatcherTimer
         {
@@ -339,7 +425,11 @@ public partial class HudWindow : Window
     {
         ProcessingDots.IsVisible = true;
         _processingPhase = 0;
+        ProcessingDot1.Opacity = ProcessingDot2.Opacity = ProcessingDot3.Opacity = 0.35;
         _processingTimer?.Stop();
+        _processingTimer = null;
+        StartRainbowRim();
+        if (_reducedMotion) return;
         _processingTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(
@@ -363,10 +453,80 @@ public partial class HudWindow : Window
         dot.Opacity = 0.35 + (pulse * 0.65);
     }
 
+    private void StartRainbowRim()
+    {
+        RainbowRim.Classes.Set("active", true);
+        _rainbowAnimating = !_reducedMotion;
+        if (_rainbowAnimating)
+        {
+            RequestRimFrame();
+        }
+        else
+        {
+            // Reduced motion: calm, static rainbow.
+            _rainbowBrush.Angle = RainbowRestAngle;
+        }
+    }
+
+    private void StopRainbowRim()
+    {
+        _rainbowAnimating = false;
+        RainbowRim.Classes.Set("active", false);
+    }
+
+    private void RequestRimFrame()
+    {
+        if (_rimFrameRequested) return;
+        _rimFrameRequested = true;
+        RequestAnimationFrame(OnRimFrame);
+    }
+
+    private void OnRimFrame(TimeSpan time)
+    {
+        _rimFrameRequested = false;
+        if (!IsVisible || (!_rainbowAnimating && !_recordingAnimating))
+        {
+            _rainbowAnimating = false;
+            _recordingAnimating = false;
+            return;
+        }
+
+        AdvanceRimVisuals(time);
+        RequestRimFrame();
+    }
+
+    internal void AdvanceRimVisuals(TimeSpan time)
+    {
+        if (_recordingAnimating)
+        {
+            _recordingPulseStart ??= time;
+            var phase = (time - _recordingPulseStart.Value).TotalSeconds / 1.2;
+            var light = (1 + Math.Cos(phase * 2 * Math.PI)) / 2;
+            RecordingStroke.Opacity = .55 + .45 * light;
+            RecordingWash.Opacity = .12 + .18 * light;
+        }
+        if (_rainbowAnimating)
+            _rainbowBrush.Angle = RainbowRestAngle + (time.TotalSeconds * RainbowDegreesPerSecond % 360);
+    }
+
+    private static bool ReadSystemReducedMotion()
+    {
+        try
+        {
+            return Win32.SystemParametersInfoW(Win32.SPI_GETCLIENTAREAANIMATION, 0, out var enabled, 0)
+                && !enabled;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            return false;
+        }
+    }
+
     private void StopProcessingAnimation()
     {
         _processingTimer?.Stop();
         _processingTimer = null;
+        StopRainbowRim();
         ProcessingDots.IsVisible = false;
         ProcessingDot1.Opacity = 0.35;
         ProcessingDot2.Opacity = 0.35;
@@ -411,6 +571,7 @@ public partial class HudWindow : Window
 
     private void BeginOrbEntry()
     {
+        var generation = ++_entryGeneration;
         ApplyPlacementAlignment();
         CancelContentReveal();
 
@@ -423,12 +584,12 @@ public partial class HudWindow : Window
             diameter,
             diameter,
             orbRadius,
-            GetBrush("HudHairlineBrush", Brushes.Gray));
+            GetBrush("HudSpecularHairlineBrush", Brushes.Gray));
 
         SetContentVisible(false);
 
-        HudSurface.Opacity = 0;
-        HudSurface.RenderTransform = TransformScaleOrbStart;
+        HudSurface.Opacity = _reducedMotion ? 1 : 0;
+        HudSurface.RenderTransform = _reducedMotion ? TransformScale1 : TransformScaleOrbStart;
 
         if (!IsVisible)
         {
@@ -436,10 +597,16 @@ public partial class HudWindow : Window
             Show();
         }
 
+        if (_reducedMotion)
+        {
+            SetContentVisible(true);
+            return;
+        }
+
         Dispatcher.UIThread.Post(() =>
         {
-            if (!IsVisible ||
-                _lastStatus == DictationStatus.Idle)
+            if (generation != _entryGeneration || !IsVisible ||
+                _lastStatus is DictationStatus.Idle or DictationStatus.Error)
             {
                 return;
             }
@@ -460,6 +627,13 @@ public partial class HudWindow : Window
 
     private void ScheduleHide()
     {
+        CancelPendingHide();
+        if (_reducedMotion)
+        {
+            SetContentVisible(false);
+            Hide();
+            return;
+        }
         var generation = _hideGeneration;
         var hideTimer = new DispatcherTimer
         {
@@ -514,7 +688,11 @@ public partial class HudWindow : Window
                     break;
                 case DictationStatus.Finishing:
                     TelemetryBadge.Text = UiText.HudProc;
-                    if (string.IsNullOrWhiteSpace(_lastTranscript))
+                    if (!string.IsNullOrWhiteSpace(_lastErrorMessage))
+                    {
+                        UpdateTranscriptText(_lastErrorMessage);
+                    }
+                    else if (string.IsNullOrWhiteSpace(_lastTranscript))
                     {
                         UpdateTranscriptText(UiText.HudTranscribing);
                     }
@@ -533,6 +711,7 @@ public partial class HudWindow : Window
     {
         if (Dispatcher.UIThread.CheckAccess())
         {
+            if (!IsVisible || status != _lastStatus) return;
             HudMeter.Level = Math.Clamp(level, 0.0f, 1.0f);
             HudMeter.IsActive = status == DictationStatus.Listening;
             return;
@@ -546,6 +725,7 @@ public partial class HudWindow : Window
                 var lvl = _pendingLevel;
                 var st = _pendingLevelStatus;
                 Interlocked.Exchange(ref _levelUpdatePending, 0);
+                if (!IsVisible || st != _lastStatus) return;
 
                 HudMeter.Level = Math.Clamp(lvl, 0.0f, 1.0f);
                 HudMeter.IsActive = st == DictationStatus.Listening;
@@ -560,13 +740,17 @@ public partial class HudWindow : Window
 
         void ApplyState()
         {
+            var motionChanged = ApplyMotionPreference(state.Status);
             HudMeter.Level = Math.Clamp(level, 0.0f, 1.0f);
             HudMeter.IsActive = state.Status == DictationStatus.Listening;
+            if (state.Status is not (DictationStatus.Listening or DictationStatus.Finishing))
+                HudMeter.ResetBallistics();
 
             if (state.Status == DictationStatus.Idle)
             {
                 CancelContentReveal();
                 StopProcessingAnimation();
+                _entryGeneration++;
 
                 _lastStatus = DictationStatus.Idle;
                 _lastTranscript = null;
@@ -577,7 +761,7 @@ public partial class HudWindow : Window
                     GetDouble("HudOrbDiameter", 52),
                     GetDouble("HudArmedHeight", 44),
                     GetCornerRadius("HudOrbRadius", new CornerRadius(26)),
-                    GetBrush("HudHairlineBrush", Brushes.Gray));
+                    GetBrush("HudSpecularHairlineBrush", Brushes.Gray));
                 SetContentTarget(
                     GetDouble("HudArmedWidth", 245),
                     GetDouble("HudArmedHeight", 44));
@@ -605,7 +789,7 @@ public partial class HudWindow : Window
                            _lastStatus is null ||
                            _lastStatus == DictationStatus.Idle;
 
-            if (!statusChanged && !transcriptChanged && !errorChanged && !entering)
+            if (!statusChanged && !transcriptChanged && !errorChanged && !entering && !motionChanged)
             {
                 return;
             }
@@ -616,9 +800,8 @@ public partial class HudWindow : Window
 
             var idleLamp = GetBrush("HudIdleLampBrush", Brushes.DarkGray);
             var recordingEdge = GetBrush("HudRecordingEdgeBrush", Brushes.Red);
-            var processingBrush = GetBrush("HudProcessingBrush", Brushes.DodgerBlue);
             var errorBrush = GetBrush("HudErrorBrush", Brushes.DarkOrange);
-            var hairlineBrush = GetBrush("HudHairlineBrush", Brushes.Gray);
+            var hairlineBrush = GetBrush("HudSpecularHairlineBrush", Brushes.Gray);
 
             if (entering)
             {
@@ -644,7 +827,7 @@ public partial class HudWindow : Window
 
                 case DictationStatus.Listening:
                     StopProcessingAnimation();
-                    RecordLamp.Fill = GetBrush("RecordLampBrush", recordingEdge);
+                    RecordLamp.Fill = recordingEdge;
                     TelemetryBadge.Text = UiText.Text("HudRecording");
                     var preview = BuildTranscriptTail(transcript, 15);
                     UpdateTranscriptText(string.IsNullOrEmpty(preview) ? UiText.HudListening : preview);
@@ -663,13 +846,13 @@ public partial class HudWindow : Window
                         GetDouble("HudRecordingMaxWidth", 416));
 
                     var recordingHeight = GetDouble("HudArmedHeight", 44);
-                    var recordingRadius = GetCornerRadius("HudRadiusRecording", new CornerRadius(26));
+                    var recordingRadius = GetCornerRadius("HudRadiusRecording", new CornerRadius(22));
                     var widthStep = GetDouble("HudTranscriptWidthStep", 12);
 
                     if (_recordingWidth <= 0 || Math.Abs(desiredWidth - _recordingWidth) >= widthStep)
                     {
                         _recordingWidth = desiredWidth;
-                        SetSurfaceTarget(_recordingWidth, recordingHeight, recordingRadius, recordingEdge);
+                        SetSurfaceTarget(_recordingWidth, recordingHeight, recordingRadius, hairlineBrush);
                         SetContentTarget(_recordingWidth, recordingHeight);
                     }
                     break;
@@ -682,26 +865,26 @@ public partial class HudWindow : Window
 
                     preview = BuildTranscriptTail(transcript, 15);
                     UpdateTranscriptText(
-                        string.IsNullOrWhiteSpace(preview)
+                        !string.IsNullOrWhiteSpace(state.Message) ? state.Message : string.IsNullOrWhiteSpace(preview)
                             ? UiText.HudTranscribing
                             : preview);
 
-                    if (statusChanged)
+                    if (statusChanged || entering || motionChanged)
                     {
                         StartProcessingAnimation();
                     }
 
                     SetSurfaceTarget(
                         GetDouble("HudProcessingWidth", 301),
-                        GetDouble("HudProcessingHeight", 38),
+                        GetDouble("HudProcessingHeight", 44),
                         GetCornerRadius(
                             "HudRadiusProcessing",
-                            new CornerRadius(19)),
-                        processingBrush);
+                            new CornerRadius(22)),
+                        hairlineBrush);
 
                     SetContentTarget(
                         GetDouble("HudProcessingWidth", 301),
-                        GetDouble("HudProcessingHeight", 38));
+                        GetDouble("HudProcessingHeight", 44));
 
                     AutomationProperties.SetLiveSetting(
                         TranscriptText,
@@ -710,8 +893,11 @@ public partial class HudWindow : Window
                     break;
 
                 case DictationStatus.Error:
+                    _entryGeneration++;
                     CancelContentReveal();
                     StopProcessingAnimation();
+                    HudSurface.Opacity = 1;
+                    HudSurface.RenderTransform = TransformScale1;
 
                     _recordingWidth = 0;
                     RecordLamp.Fill = errorBrush;

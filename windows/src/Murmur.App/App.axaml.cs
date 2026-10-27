@@ -52,6 +52,7 @@ public partial class App : Application
 
     private DictationController? _controller;
     private readonly SemaphoreSlim _controllerGate = new(1, 1);
+    private bool _recognitionBlocked;
     private int _controllerGeneration;
     private volatile bool _shuttingDown;
     private Action? _unsubscribeControllerEvents;
@@ -332,11 +333,23 @@ public partial class App : Application
 
     private async Task StartControllerAsync()
     {
+        if (_recognitionBlocked || _controller?.RequiresRestart == true)
+        {
+            _recognitionBlocked = true;
+            _settingsWindow?.SetStatus(UiText.Text("RecognitionRestartRequired"), isError: true);
+            _hud?.UpdateState(DictationState.ErrorState(UiText.Text("RecognitionRestartRequired")), 0, _recoveryTranscript ?? string.Empty);
+            return;
+        }
         var generation = Interlocked.Increment(ref _controllerGeneration);
         var settings = _settings.Normalize();
         var model = ModelManifest.Get(settings.SpeechModelId);
         bool IsCurrentLoad() => !_shuttingDown && generation == Volatile.Read(ref _controllerGeneration);
-        await _controllerGate.WaitAsync();
+        if (!await _controllerGate.WaitAsync(TimeSpan.FromSeconds(3)))
+        {
+            _recognitionBlocked = true;
+            _settingsWindow?.SetStatus(UiText.Text("RecognitionRestartRequired"), isError: true);
+            return;
+        }
         ITranscriber? transcriber = null;
         WasapiAudioCapture? audioCapture = null;
         LowLevelKeyboardHook? hotkeyHook = null;
@@ -344,7 +357,7 @@ public partial class App : Application
         var loadingTranscriber = false;
         try
         {
-            if (!IsCurrentLoad()) return;
+            if (!IsCurrentLoad() || _recognitionBlocked) return;
             _profileToggleHook?.Dispose();
             _profileToggleHook = null;
             await DisposeControllerAsync();
@@ -491,8 +504,26 @@ public partial class App : Application
         _controller = null;
         _controllerModelId = null;
         _settingsWindow?.SetModelNotLoaded();
-        try { if (owner != null) await owner.DisposeAsync(); }
-        finally { unsubscribe?.Invoke(); }
+        try
+        {
+            if (owner != null) await owner.DisposeAsync();
+        }
+        catch (TimeoutException ex)
+        {
+            _recognitionBlocked = true;
+            throw new InvalidOperationException(UiText.Text("RecognitionRestartRequired"), ex);
+        }
+        finally
+        {
+            _recognitionBlocked |= owner?.RequiresRestart == true;
+            if (owner?.RequiresRestart == true && !string.IsNullOrWhiteSpace(owner.CurrentTranscript))
+            {
+                _recoveryTranscript = owner.CurrentTranscript;
+                _settingsWindow?.SetRecoveryTranscript(_recoveryTranscript);
+            }
+            unsubscribe?.Invoke();
+        }
+        if (_recognitionBlocked) throw new InvalidOperationException(UiText.Text("RecognitionRestartRequired"));
     }
 
     private Action SubscribeControllerEvents(DictationController owner, string modelId)
@@ -513,7 +544,7 @@ public partial class App : Application
             Post(() =>
             {
                 AppLogger.Log($"StateChanged: {state.Status}");
-                if (state.Status == DictationStatus.Error && !string.IsNullOrWhiteSpace(text))
+                if (state.Status == DictationStatus.Error && state.Message != "RecordingDurationLimit" && !string.IsNullOrWhiteSpace(text))
                 {
                     _recoveryTranscript = text;
                     _settingsWindow?.SetRecoveryTranscript(text);
@@ -594,6 +625,10 @@ public partial class App : Application
             "TextTargetUnavailable" => UiText.TextTargetUnavailable,
             "TextTargetChanged" => UiText.TextTargetChanged,
             "TextModifierHeld" => UiText.TextModifierHeld,
+            "RecognitionRestartRequired" => UiText.Text("RecognitionRestartRequired"),
+            "StreamingBacklogExceeded" => UiText.Text("StreamingBacklogExceeded"),
+            "StreamingRecognitionFailed" => UiText.Text("StreamingRecognitionFailed"),
+            "RecordingDurationLimit" => UiText.Text("RecordingDurationLimit"),
             _ => state.Message
         };
         return string.Equals(localized, state.Message, StringComparison.Ordinal)
@@ -966,6 +1001,11 @@ public partial class App : Application
     private async void OnSettingsMicrophoneTestRequested()
     {
         if (_shuttingDown) return;
+        if (_recognitionBlocked || _controller?.RequiresRestart == true)
+        {
+            _settingsWindow?.SetStatus(UiText.Text("RecognitionRestartRequired"), isError: true);
+            return;
+        }
         bool isRunning;
         lock (_testCaptureLock)
         {
@@ -1045,17 +1085,19 @@ public partial class App : Application
         {
             if (capture != null)
             {
-                try
+                var actualStop = Task.Run(async () =>
                 {
-                    await capture.StopAsync().ConfigureAwait(false);
-                }
+                    try { await capture.StopAsync(CancellationToken.None).ConfigureAwait(false); }
+                    finally { if (!capture.IsRunning) capture.Dispose(); }
+                });
+                ShutdownDeadline.Observe(actualStop);
+                try { await actualStop.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false); }
                 catch (Exception ex)
                 {
+                    _recognitionBlocked = true;
                     AppLogger.LogException("StopMicrophoneTestAsync", ex);
-                }
-                finally
-                {
-                    capture.Dispose();
+                    Dispatcher.UIThread.Post(() => _settingsWindow?.SetStatus(
+                        UiText.Text("RecognitionRestartRequired"), isError: true));
                 }
             }
         }
@@ -1277,6 +1319,16 @@ public partial class App : Application
         AppLogger.Log("App exiting via Tray Exit.");
         _updateCts.Cancel();
         _downloadCts?.Cancel();
+        await ShutdownDeadline.RunAsync(ShutdownCoreAsync(), () =>
+        {
+            _hud?.Close();
+            _settingsWindow?.Close();
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) desktop.Shutdown();
+        }, () => Environment.Exit(0));
+    }
+
+    private async Task ShutdownCoreAsync()
+    {
         if (_initializationTask != null) await _initializationTask;
         await StopMicrophoneTestAsync();
         await _controllerGate.WaitAsync();
@@ -1286,18 +1338,10 @@ public partial class App : Application
             _profileToggleHook = null;
             await DisposeControllerAsync();
         }
-        catch (Exception ex) { AppLogger.LogException("Controller shutdown", ex); }
         finally { _controllerGate.Release(); }
         _updateChecker.Dispose();
         _updateCts.Dispose();
         _recoveryTranscript = null;
         _clickSoundPlayer.Dispose();
-        _hud?.Close();
-        _settingsWindow?.Close();
-
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            desktop.Shutdown();
-        }
     }
 }

@@ -34,6 +34,9 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
         public long? ReleasedAt { get; set; }
         public long? InjectedAt { get; set; }
         public long SampleCount { get; set; }
+        public Task InFlight { get; set; } = Task.CompletedTask;
+        public bool Ended { get; set; }
+        public bool DurationLimited { get; set; }
     }
 
     private readonly IAudioCapture _audioCapture;
@@ -49,10 +52,22 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
 
     private readonly List<float> _audioBuffer = [];
     private const int RetainedAudioCapacity = 16000 * 30;
+    private const int MaximumRecordingSamples = 16000 * 60 * 5;
     private readonly Lock _lock = new();
     private Task _sessionTask = Task.CompletedTask;
     private Task? _stopTask;
     private Task? _disposeTask;
+    private Task? _stopCompletion;
+    private Task? _disposeCompletion;
+    private volatile bool _requiresRestart;
+    private static readonly TimeSpan ShutdownBudget = TimeSpan.FromSeconds(3);
+    internal Func<Task, TimeSpan, CancellationToken, Task> WaitForWorkAsync { get; set; } =
+        static (work, budget, cancellation) => work.WaitAsync(budget, cancellation);
+    internal Task DisposalCompletion => _disposeCompletion ?? Task.CompletedTask;
+    internal Task SessionCompletion => _sessionTask;
+
+    /// <summary>True after a deadline leaves native/capture work in quarantine; restart the app before reuse.</summary>
+    public bool RequiresRestart => _requiresRestart;
     private bool _stopping;
     private bool _disposed;
 
@@ -145,6 +160,7 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_requiresRestart) throw new InvalidOperationException("RecognitionRestartRequired");
             if (_stopTask is { IsCompleted: false })
                 throw new InvalidOperationException("Controller is still stopping.");
             _stopping = false;
@@ -223,22 +239,52 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
             }
             var work = _sessionTask;
             var started = session?.CaptureStarted.Task ?? Task.CompletedTask;
-            _stopTask = Task.Run(() => StopCoreAsync(work, started));
+            _stopCompletion = Task.Run(() => StopCoreAsync(work, started));
+            _stopTask = WaitForShutdownAsync(_stopCompletion);
+            ObserveFailure(_stopTask);
             return _stopTask;
         }
     }
 
     private async Task StopCoreAsync(Task sessionWork, Task captureStarted)
     {
-        _hotkeySource.Stop();
+        try { _hotkeySource.Stop(); }
+        catch { RequireRestart(null); }
         await captureStarted.ConfigureAwait(false);
         await CleanupCaptureAsync().ConfigureAwait(false);
         await sessionWork.ConfigureAwait(false);
         lock (_lock)
         {
             ClearAudioBuffer();
-            SetState(DictationState.Idle);
+            SetState(_requiresRestart ? DictationState.ErrorState("RecognitionRestartRequired") : DictationState.Idle);
         }
+    }
+
+    private static void ObserveFailure(Task work) => _ = work.ContinueWith(
+        static completed => { _ = completed.Exception; }, CancellationToken.None,
+        TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+
+    private void RequireRestart(ActiveSessionState? session)
+    {
+        lock (_lock)
+        {
+            _requiresRestart = true;
+            if (session is { Ended: false, InsertionCommitted: false }) session.Cancellation.Cancel();
+            SetState(DictationState.ErrorState("RecognitionRestartRequired"));
+        }
+    }
+
+    private async Task WaitForShutdownAsync(Task work)
+    {
+        try { await WaitForWorkAsync(work, ShutdownBudget, CancellationToken.None).ConfigureAwait(false); }
+        catch (TimeoutException) { RequireRestart(null); throw; }
+    }
+
+    private async Task WaitForOperationAsync(ActiveSessionState session, Task work, TimeSpan budget, CancellationToken cancellationToken)
+    {
+        session.InFlight = work;
+        try { await WaitForWorkAsync(work, budget, cancellationToken).ConfigureAwait(false); }
+        catch (TimeoutException) { RequireRestart(session); throw; }
     }
 
     private void OnHotkeyPressed()
@@ -246,7 +292,7 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
         ActiveSessionState session;
         lock (_lock)
         {
-            if (_stopping || _disposed || !_sessionTask.IsCompleted ||
+            if (_stopping || _disposed || _requiresRestart || !_sessionTask.IsCompleted ||
                 State.Status is not (DictationStatus.Idle or DictationStatus.Error)) return;
 
             try
@@ -272,7 +318,13 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
         try
         {
             if (!IsCurrentSession(session)) return;
-            _streamingTranscriber?.BeginSession();
+            _streamingTranscriber?.BeginSession(ex =>
+            {
+                lock (_lock)
+                {
+                    if (IsCurrent(session)) BeginAbort(session, ex);
+                }
+            });
             _audioCapture.Start();
             lock (_lock)
             {
@@ -307,7 +359,8 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
             await Task.Delay(40, cancellationToken).ConfigureAwait(false);
             if (!IsCurrentSession(session)) return;
             // A cancelled wait must not let native resources outlive capture shutdown.
-            await _audioCapture.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            await WaitForOperationAsync(session, Task.Run(() => _audioCapture.StopAsync(CancellationToken.None), CancellationToken.None),
+                ShutdownBudget, cancellationToken).ConfigureAwait(false);
 
             float[] audioCopy;
             long sampleCount;
@@ -326,9 +379,13 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
 
             var audioDurationMs = sampleCount * 1000.0 / 16000.0;
             var sw = Stopwatch.StartNew();
-            var raw = _streamingTranscriber is null
-                ? await _transcriber.TranscribeAsync(audioCopy, cancellationToken).ConfigureAwait(false)
-                : await _streamingTranscriber.CompleteSessionAsync(cancellationToken).ConfigureAwait(false);
+            var recognition = _streamingTranscriber is null
+                ? Task.Run(() => _transcriber.TranscribeAsync(audioCopy, cancellationToken), CancellationToken.None)
+                : Task.Run(() => _streamingTranscriber.CompleteSessionAsync(cancellationToken), CancellationToken.None);
+            var inferenceBudget = _streamingTranscriber is null
+                ? TimeSpan.FromSeconds(Math.Max(60, sampleCount * 2.0 / 16000)) : TimeSpan.FromSeconds(30);
+            await WaitForOperationAsync(session, recognition, inferenceBudget, cancellationToken).ConfigureAwait(false);
+            var raw = await recognition.ConfigureAwait(false);
             audioCopy = [];
             if (!IsCurrentSession(session)) return;
             sw.Stop();
@@ -341,19 +398,28 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
                 return;
             }
 
+            lock (_lock)
+            {
+                if (!IsCurrent(session)) return;
+                CurrentTranscript = raw;
+                TranscriptChanged?.Invoke(raw);
+            }
             var repaired = raw;
             var repairer = _speechRepairer;
             if (session.Runtime.EnableSelfCorrection && repairer != null)
             {
                 try
                 {
-                    var repairResult = await repairer.RepairAsync(raw, cancellationToken).ConfigureAwait(false);
+                    var repair = Task.Run(() => repairer.RepairAsync(raw, cancellationToken), CancellationToken.None);
+                    await WaitForOperationAsync(session, repair, inferenceBudget, cancellationToken).ConfigureAwait(false);
+                    var repairResult = await repair.ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!string.IsNullOrWhiteSpace(repairResult))
                     {
                         repaired = repairResult;
                     }
                 }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                catch (OperationCanceledException)
                 {
                     throw;
                 }
@@ -417,6 +483,7 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
         }
         finally
         {
+            await WaitForActualWorkAsync(session).ConfigureAwait(false);
             await CleanupCaptureAsync().ConfigureAwait(false);
             EndSession(session, error);
         }
@@ -450,7 +517,7 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
     }
 
     private bool IsCurrent(ActiveSessionState session) =>
-        !_stopping && !_disposed && ReferenceEquals(_activeSessionState, session) &&
+        !_stopping && !_disposed && !_requiresRestart && ReferenceEquals(_activeSessionState, session) &&
         !session.Cancellation.IsCancellationRequested;
 
     private bool IsCurrentSession(ActiveSessionState session)
@@ -460,11 +527,28 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
 
     private void BeginAbort(ActiveSessionState session, Exception exception)
     {
+        if (session.Ended) return;
         session.Failure ??= exception;
         session.Cancellation.Cancel();
-        if (session.WorkStarted) return;
-        session.WorkStarted = true;
-        _sessionTask = Task.Run(() => AbortSessionAsync(session));
+        SetState(DictationState.ErrorState(GetErrorMessage(exception, "Microphone error")));
+        if (!session.WorkStarted)
+        {
+            session.WorkStarted = true;
+            _sessionTask = Task.Run(() => AbortSessionAsync(session));
+        }
+        _ = MonitorAbortAsync(_sessionTask);
+    }
+
+    private async Task MonitorAbortAsync(Task work)
+    {
+        try { await WaitForShutdownAsync(work).ConfigureAwait(false); }
+        catch { /* The public error is already reported; actual cleanup retains resource ownership. */ }
+    }
+
+    private static async Task WaitForActualWorkAsync(ActiveSessionState session)
+    {
+        try { await session.InFlight.ConfigureAwait(false); }
+        catch { /* Observe late native failures; never release before the actual task has finished. */ }
     }
 
     private async Task AbortSessionAsync(ActiveSessionState session)
@@ -477,7 +561,15 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
     private async Task CleanupCaptureAsync()
     {
         try { await _audioCapture.StopAsync().ConfigureAwait(false); }
-        catch { /* Preserve the original capture or transcription failure. */ }
+        catch
+        {
+            if (_audioCapture.IsRunning)
+            {
+                RequireRestart(null);
+                // Capture did not confirm shutdown: retain ownership until process exit.
+                await Task.Delay(Timeout.InfiniteTimeSpan).ConfigureAwait(false);
+            }
+        }
         try
         {
             if (_streamingTranscriber != null)
@@ -496,9 +588,12 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
                 ClearAudioBuffer();
                 Level = 0;
                 LevelChanged?.Invoke(0);
-                error = session.Failure is { } failure ? GetErrorMessage(failure, "Microphone error") : error;
+                error = _requiresRestart ? "RecognitionRestartRequired"
+                    : session.Failure is { } failure ? GetErrorMessage(failure, "Microphone error") : error;
+                error ??= session.DurationLimited ? "RecordingDurationLimit" : null;
                 SetState(error == null ? DictationState.Idle : DictationState.ErrorState(error));
             }
+            session.Ended = true;
             session.Cancellation.Dispose();
         }
     }
@@ -507,10 +602,27 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
     {
         lock (_lock)
         {
-            if (_activeSessionState is not { } session || !IsCurrent(session) || !State.IsActive) return;
-            session.SampleCount += chunk.Length;
-            if (_streamingTranscriber is null) _audioBuffer.AddRange(chunk.Span);
-            _streamingTranscriber?.AcceptAudio(chunk);
+            if (_activeSessionState is not { } session || !IsCurrent(session) || !State.IsActive || session.DurationLimited) return;
+            try
+            {
+                var count = (int)Math.Min(chunk.Length, MaximumRecordingSamples - session.SampleCount);
+                var accepted = chunk[..count];
+                if (_streamingTranscriber is null) _audioBuffer.AddRange(accepted.Span);
+                else _streamingTranscriber.AcceptAudio(accepted);
+                session.SampleCount += count;
+                if (session.SampleCount == MaximumRecordingSamples)
+                {
+                    session.DurationLimited = true;
+                    if (!session.WorkStarted)
+                    {
+                        session.ReleasedAt = Stopwatch.GetTimestamp();
+                        session.WorkStarted = true;
+                        SetState(new DictationState(DictationStatus.Finishing, "RecordingDurationLimit"));
+                        _sessionTask = Task.Run(() => FinishSessionAsync(session, session.Cancellation.Token));
+                    }
+                }
+            }
+            catch (Exception ex) { BeginAbort(session, ex); }
         }
     }
 
@@ -551,7 +663,9 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
             : TextInsertionMode.DocumentEnd;
 
     private static string GetErrorMessage(Exception exception, string fallbackPrefix) =>
-        exception is TextInjectionException injection
+        exception.Message is "StreamingBacklogExceeded" or "StreamingRecognitionFailed"
+            ? exception.Message
+            : exception is TextInjectionException injection
             ? injection.UserMessageKey
             : $"{fallbackPrefix}: {exception.Message}";
 
@@ -565,8 +679,10 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
         {
             if (_disposeTask != null) return new ValueTask(_disposeTask);
             _disposed = true;
-            var stopped = StopAsync();
-            _disposeTask = Task.Run(() => DisposeCoreAsync(stopped));
+            _ = StopAsync();
+            _disposeCompletion = Task.Run(() => DisposeCoreAsync(_stopCompletion!));
+            ObserveFailure(_disposeCompletion);
+            _disposeTask = WaitForShutdownAsync(_disposeCompletion);
             return new ValueTask(_disposeTask);
         }
     }

@@ -164,26 +164,23 @@ public sealed class WasapiAudioCapture : IAudioCapture
         TaskCompletionSource? stoppedTask;
         lock (_lock)
         {
-            if (!IsRunning || _capture == null)
-            {
-                return;
-            }
-
             stoppedTask = _stopped;
-            _capture.StopRecording();
+            if (IsRunning && _capture != null) _capture.StopRecording();
         }
 
         if (stoppedTask != null)
         {
-            await stoppedTask.Task.WaitAsync(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
+            await stoppedTask.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
     private void OnRecordingStopped(object? sender, StoppedEventArgs e)
     {
         var failure = e.Exception;
+        TaskCompletionSource? stopped;
         lock (_lock)
         {
+            stopped = _stopped;
             IsRunning = false;
             LastSessionStats = new AudioCaptureStats(
                 _outputSamples == 0 ? 0 : Math.Sqrt(_sumOfSquares / _outputSamples),
@@ -193,14 +190,14 @@ public sealed class WasapiAudioCapture : IAudioCapture
             _normalizer = null;
             LevelChanged?.Invoke(0);
 
-            _stopped?.TrySetResult();
         }
 
-        if (failure != null)
+        try
         {
-            CaptureFailed?.Invoke(failure);
+            if (failure != null) CaptureFailed?.Invoke(failure);
+            SessionStopped?.Invoke();
         }
-        SessionStopped?.Invoke();
+        finally { stopped?.TrySetResult(); }
     }
 
     private void OnDataAvailable(object? sender, WaveInEventArgs e)
