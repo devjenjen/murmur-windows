@@ -26,6 +26,7 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
         public Exception? Failure;
         public int PendingSamples;
         public int PendingItems;
+        public TaskCompletionSource? Drained;
     }
 
     private StreamingSession? _session;
@@ -153,6 +154,7 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
         session.Failure = failure;
         Volatile.Write(ref session.Cancelled, 1);
         session.Channel.Writer.TryComplete();
+        session.Drained?.TrySetResult();
         // Controller capture and native locks have opposite entry paths: never notify under this lock.
         ThreadPool.QueueUserWorkItem(_ =>
         {
@@ -192,6 +194,11 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
                     {
                         session.PendingSamples -= samples.Length;
                         session.PendingItems--;
+                        if (session.PendingItems == 0)
+                        {
+                            session.Drained?.TrySetResult();
+                            session.Drained = null;
+                        }
                     }
                 }
             }
@@ -237,7 +244,10 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
         lock (_lock)
         {
             if (!decodeFinal && _session is { } cancelling)
+            {
                 Volatile.Write(ref cancelling.Cancelled, 1);
+                cancelling.Drained?.TrySetResult();
+            }
             if (_closeTask != null)
             {
                 return _closeTask;
@@ -291,15 +301,49 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
     public async Task<string> TranscribeAsync(ReadOnlyMemory<float> audioSamples, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        BeginSession();
+        StreamingSession session;
+        lock (_lock)
+        {
+            BeginSession();
+            session = _session!;
+        }
         try
         {
-            AcceptAudio(audioSamples);
-            return await CompleteSessionAsync(cancellationToken).ConfigureAwait(false);
+            for (var offset = 0; offset < audioSamples.Length;)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var count = Math.Min(MaximumPendingSamples, audioSamples.Length - offset);
+                Task? drained;
+                lock (_lock)
+                {
+                    if (session.Failure is { } failure) throw failure;
+                    if (_disposed || !ReferenceEquals(_session, session) || _closeTask != null || session.Cancelled != 0)
+                        throw new OperationCanceledException("Streaming session ended before batch completion.");
+                    AcceptAudio(audioSamples.Slice(offset, count));
+                    if (session.Failure is { } acceptFailure) throw acceptFailure;
+                    drained = session.PendingItems == 0 ? null :
+                        (session.Drained ??= new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+                }
+                offset += count;
+                if (drained != null) await drained.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            Task<string> completion;
+            lock (_lock)
+            {
+                if (session.Failure is { } failure) throw failure;
+                if (_disposed || !ReferenceEquals(_session, session) || _closeTask != null || session.Cancelled != 0)
+                    throw new OperationCanceledException("Streaming session ended before batch completion.");
+                completion = StartClosingSession(decodeFinal: true);
+            }
+            return await completion.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            await CancelSessionAsync().ConfigureAwait(false);
+            Task cleanup;
+            lock (_lock) cleanup = ReferenceEquals(_session, session) ? StartClosingSession(decodeFinal: false) : Task.CompletedTask;
+            try { await cleanup.ConfigureAwait(false); }
+            catch when (cancellationToken.IsCancellationRequested) { cancellationToken.ThrowIfCancellationRequested(); }
         }
     }
 

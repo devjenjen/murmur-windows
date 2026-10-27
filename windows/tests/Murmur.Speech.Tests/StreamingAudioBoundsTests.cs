@@ -6,6 +6,71 @@ namespace Murmur.Speech.Tests;
 
 public class StreamingAudioBoundsTests
 {
+    [Fact]
+    public async Task BatchOverNineSecondsWaitsForConsumerAndKeepsAllSamplesInOrder()
+    {
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var received = new List<float>();
+        var disposals = 0;
+        using var transcriber = new NemotronStreamingTranscriber(() => new(
+            samples => { if (received.Count == 0) { entered.TrySetResult(); release.Wait(); } received.AddRange(samples); },
+            () => false, () => { }, () => "complete", () => { }, () => disposals++), () => { });
+        var input = Enumerable.Range(0, 320001).Select(i => (float)i).ToArray();
+        Task<string>? result = null;
+        try
+        {
+            result = transcriber.TranscribeAsync(input);
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            transcriber.PendingAudio.Samples.ShouldBeLessThanOrEqualTo(144000);
+            transcriber.PendingAudio.Items.ShouldBe(1);
+            result.IsCompleted.ShouldBeFalse();
+            release.Set();
+            (await result.WaitAsync(TimeSpan.FromSeconds(5))).ShouldBe("complete");
+            received.ShouldBe(input);
+            disposals.ShouldBe(1);
+        }
+        finally { release.Set(); if (result != null) try { await result; } catch { } }
+    }
+
+    [Fact]
+    public async Task CancelledBatchRetainsNativeOwnerUntilConsumerReturns()
+    {
+        using var release = new ManualResetEventSlim();
+        using var cancel = new CancellationTokenSource();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var disposals = 0;
+        using var transcriber = new NemotronStreamingTranscriber(() => new(
+            _ => { entered.TrySetResult(); release.Wait(); }, () => false, () => { }, () => "late", () => { }, () => disposals++), () => { });
+        Task<string>? result = null;
+        try
+        {
+            result = transcriber.TranscribeAsync(new float[320001], cancel.Token);
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            cancel.Cancel();
+            result.IsCompleted.ShouldBeFalse();
+            disposals.ShouldBe(0);
+            release.Set();
+            await Should.ThrowAsync<OperationCanceledException>(() => result.WaitAsync(TimeSpan.FromSeconds(5)));
+            disposals.ShouldBe(1);
+        }
+        finally { release.Set(); if (result != null) try { await result; } catch { } }
+    }
+
+    [Fact]
+    public async Task BatchWorkerFailurePropagatesAndAllowsNextSession()
+    {
+        var fail = true;
+        var received = 0;
+        using var transcriber = new NemotronStreamingTranscriber(() => new(
+            samples => { if (fail) { fail = false; throw new IOException("native failure"); } received += samples.Length; },
+            () => false, () => { }, () => "next", () => { }, () => { }), () => { });
+        var error = await Should.ThrowAsync<InvalidOperationException>(() => transcriber.TranscribeAsync(new float[320001]));
+        error.Message.ShouldBe("StreamingRecognitionFailed");
+        (await transcriber.TranscribeAsync(new float[160])).ShouldBe("next");
+        received.ShouldBe(160);
+    }
+
     private sealed class UnreadableMemory(int length) : MemoryManager<float>
     {
         public Memory<float> Oversized => CreateMemory(length);
