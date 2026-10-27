@@ -435,7 +435,8 @@ public class HudWindowTests
     [AvaloniaFact]
     public async Task HudWindow_EntryKeepsContentHiddenUntilRevealDelay()
     {
-        var hud = new HudWindow();
+        var hud = new HudWindow { IsReducedMotion = () => false };
+        hud.Resources["HudContentRevealDelayMs"] = 60000d;
 
         hud.UpdateState(
             new DictationState(DictationStatus.Starting),
@@ -453,6 +454,13 @@ public class HudWindowTests
         surface.Width.ShouldBe(52);
         surface.Height.ShouldBe(52);
         content.Opacity.ShouldBe(0);
+
+        var timer = typeof(HudWindow).GetField("_contentRevealTimer",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(hud).ShouldBeOfType<DispatcherTimer>();
+        timer.IsEnabled.ShouldBeTrue();
+        timer.Interval.ShouldBe(TimeSpan.FromMinutes(1));
+        timer.Interval = TimeSpan.FromMilliseconds(1);
 
         await Task.Delay(120);
         Dispatcher.UIThread.RunJobs();
@@ -491,7 +499,7 @@ public class HudWindowTests
     [AvaloniaFact]
     public async Task HudWindow_AudioLevelUpdatesDoNotRestartContentReveal()
     {
-        var hud = new HudWindow();
+        var hud = new HudWindow { IsReducedMotion = () => false };
 
         hud.UpdateState(
             new DictationState(DictationStatus.Starting),
