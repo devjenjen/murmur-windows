@@ -215,4 +215,5 @@
   <data name="DictionaryTermExample" xml:space="preserve"><value>e.g. GitHub</value></data>
   <data name="DictionaryCorrectionExample" xml:space="preserve"><value>e.g. cloud code</value></data>
   <data name="Confirm" xml:space="preserve"><value>Confirm</value></data>
+  <data name="RecognitionRestartRequired" xml:space="preserve"><value>Speech recognition did not finish safely. Please restart Murmur before dictating or changing models. Any recovered partial text is incomplete.</value></data>
 </root>

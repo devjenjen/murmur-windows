@@ -215,4 +215,5 @@
   <data name="DictionaryTermExample" xml:space="preserve"><value>z. B. GitHub</value></data>
   <data name="DictionaryCorrectionExample" xml:space="preserve"><value>z. B. cloud code</value></data>
   <data name="Confirm" xml:space="preserve"><value>Bestätigen</value></data>
+  <data name="RecognitionRestartRequired" xml:space="preserve"><value>Die Spracherkennung konnte nicht sicher beendet werden. Bitte Murmur vor dem nächsten Diktat oder Modellwechsel neu starten. Geretteter Teiltext ist unvollständig.</value></data>
 </root>

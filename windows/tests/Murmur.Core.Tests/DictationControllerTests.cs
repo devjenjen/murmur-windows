@@ -8,7 +8,7 @@ using Xunit;
 
 namespace Murmur.Core.Tests;
 
-public class DictationControllerTests
+public partial class DictationControllerTests
 {
     [Fact]
     public async Task RepairCancellationCannotInsertEvenWhenRepairerReturnsLateText()
@@ -101,6 +101,7 @@ public class DictationControllerTests
         public TaskCompletionSource StopGate { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         public bool DelayStop { get; set; }
+        public int DisposeCalls { get; private set; }
 
         public void Start()
         {
@@ -133,7 +134,7 @@ public class DictationControllerTests
             IsRunning = false;
             CaptureFailed?.Invoke(exception);
         }
-        public void Dispose() { }
+        public void Dispose() => DisposeCalls++;
     }
 
     private sealed class FakeHotkeySource : IHotkeySource
@@ -669,6 +670,7 @@ public class DictationControllerTests
         await WaitForStatusAsync(controller, DictationStatus.Error);
 
         controller.State.Status.ShouldBe(DictationStatus.Error);
+        await controller.SessionCompletion;
         transcriber.SessionActive.ShouldBeFalse();
         transcriber.CancelCalls.ShouldBe(1);
     }
@@ -693,6 +695,7 @@ public class DictationControllerTests
         controller.State.Message.ShouldNotBeNull();
         controller.State.Message.ShouldContain("device invalidated");
 
+        await controller.SessionCompletion;
         hotkey.Press();
         controller.State.Status.ShouldBe(DictationStatus.Listening);
     }

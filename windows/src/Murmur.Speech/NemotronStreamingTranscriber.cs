@@ -9,11 +9,14 @@ namespace Murmur.Speech;
 /// </summary>
 public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
 {
-    private readonly OnlineRecognizer _recognizer;
+    internal sealed record NativeSession(Action<float[]> Accept, Func<bool> IsReady, Action Decode,
+        Func<string> GetText, Action InputFinished, Action Dispose);
+    private readonly Func<NativeSession> _createStream;
+    private readonly Action _disposeRecognizer;
     private readonly Lock _lock = new();
-    private sealed class StreamingSession(OnlineStream stream, Channel<float[]> channel)
+    private sealed class StreamingSession(NativeSession stream, Channel<float[]> channel)
     {
-        public OnlineStream Stream { get; } = stream;
+        public NativeSession Stream { get; } = stream;
         public Channel<float[]> Channel { get; } = channel;
         public Task Worker { get; set; } = Task.CompletedTask;
         public int Cancelled;
@@ -53,7 +56,23 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
         config.ModelConfig.Provider = "cpu";
         config.DecodingMethod = "greedy_search";
 
-        _recognizer = new OnlineRecognizer(config);
+        var recognizer = new OnlineRecognizer(config);
+        _createStream = () =>
+        {
+            var stream = recognizer.CreateStream();
+            try { stream.SetOption("language", "auto"); }
+            catch { stream.Dispose(); throw; }
+            return new NativeSession(samples => stream.AcceptWaveform(16000, samples),
+                () => recognizer.IsReady(stream), () => recognizer.Decode(stream),
+                () => recognizer.GetResult(stream).Text ?? string.Empty, stream.InputFinished, stream.Dispose);
+        };
+        _disposeRecognizer = recognizer.Dispose;
+    }
+
+    internal NemotronStreamingTranscriber(Func<NativeSession> createStream, Action disposeRecognizer)
+    {
+        _createStream = createStream;
+        _disposeRecognizer = disposeRecognizer;
     }
 
     /// <inheritdoc />
@@ -69,10 +88,9 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
 
             _closeTask = null;
 
-            var sessionStream = _recognizer.CreateStream();
+            var sessionStream = _createStream();
             try
             {
-                sessionStream.SetOption("language", "auto");
                 var sessionChannel = Channel.CreateUnbounded<float[]>(new UnboundedChannelOptions
                 {
                     SingleReader = true,
@@ -112,12 +130,12 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
             await foreach (var samples in session.Channel.Reader.ReadAllAsync().ConfigureAwait(false))
             {
                 if (Volatile.Read(ref session.Cancelled) != 0) return;
-                stream.AcceptWaveform(16000, samples);
-                while (Volatile.Read(ref session.Cancelled) == 0 && _recognizer.IsReady(stream))
+                stream.Accept(samples);
+                while (Volatile.Read(ref session.Cancelled) == 0 && stream.IsReady())
                 {
-                    _recognizer.Decode(stream);
+                    stream.Decode();
                     if (Volatile.Read(ref session.Cancelled) != 0) return;
-                    var text = _recognizer.GetResult(stream).Text ?? string.Empty;
+                    var text = stream.GetText();
                     if (text.Length > 0 && !string.Equals(text, lastPartial, StringComparison.Ordinal) &&
                         Volatile.Read(ref session.Cancelled) == 0)
                     {
@@ -191,12 +209,12 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
             if (decodeFinal && Volatile.Read(ref session.Cancelled) == 0)
             {
                 stream.InputFinished();
-                while (Volatile.Read(ref session.Cancelled) == 0 && _recognizer.IsReady(stream))
+                while (Volatile.Read(ref session.Cancelled) == 0 && stream.IsReady())
                 {
-                    _recognizer.Decode(stream);
+                    stream.Decode();
                 }
                 if (Volatile.Read(ref session.Cancelled) == 0)
-                    return _recognizer.GetResult(stream).Text ?? string.Empty;
+                    return stream.GetText();
             }
             return string.Empty;
         }
@@ -239,7 +257,7 @@ public sealed class NemotronStreamingTranscriber : IStreamingTranscriber
             _disposeTask ??= Task.Run(async () =>
             {
                 try { await CancelSessionAsync().ConfigureAwait(false); }
-                finally { _recognizer.Dispose(); }
+                finally { _disposeRecognizer(); }
             });
             disposing = _disposeTask;
         }

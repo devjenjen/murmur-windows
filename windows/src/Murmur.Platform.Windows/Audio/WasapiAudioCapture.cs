@@ -175,7 +175,7 @@ public sealed class WasapiAudioCapture : IAudioCapture
 
         if (stoppedTask != null)
         {
-            await stoppedTask.Task.WaitAsync(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
+            await stoppedTask.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
