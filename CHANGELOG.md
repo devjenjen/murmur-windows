@@ -4,6 +4,16 @@ Newest release first.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-27
+
+### Improved
+
+- Refresh the recording HUD with a pulsing red rim, a responsive audio meter, and a rainbow finishing indicator. Respect Windows reduced-motion settings.
+- Preserve the original transcript when speech repair cannot safely fit its prompt or complete within its token budget.
+- Bound recording duration and streaming backlog; stop with a clear message and preserve incomplete partial text when recognition cannot keep up.
+- Keep capture and native recognition resources alive until work actually ends; require an application restart after a timeout rather than reuse a stuck model.
+- Preserve batch streaming transcription for audio longer than nine seconds while respecting the backlog limit.
+
 ## [0.3.0] - 2026-10-23
 
 ### Added
@@ -96,3 +106,4 @@ Newest release first.
 [0.2.1]: https://github.com/devjenjen/murmur-windows/tree/v0.2.1
 [0.2.2]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.2.2
 [0.3.0]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.3.0
+[0.3.1]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.3.1

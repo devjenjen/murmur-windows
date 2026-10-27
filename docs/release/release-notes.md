@@ -1,8 +1,16 @@
-# Murmur 0.3.0 beta
+# Murmur 0.3.1
 
-Public beta for Windows 11 x64.
+Windows 11 x64 release.
 
-## Changes in 0.3.0
+## Changes in 0.3.1
+
+- Refreshed recording HUD with a pulsing red rim, responsive meter, finishing rainbow, and reduced-motion support.
+- Preserve original transcripts when AI repair cannot safely fit or finish within its token budget.
+- Limit recordings to five minutes and bound streaming backlog; interrupted partial text remains available for recovery.
+- Keep native resources alive until work completes, and request an application restart after a recognition timeout.
+- Support batch streaming transcription longer than nine seconds while respecting the backlog limit.
+
+## Also included from 0.3.0
 
 - **Bilingual Math Dictation (DE & EN)**: Unified `MathFormatter` and `EnglishNumberParser` recognizing English numbers (0 to 999, compound numbers like `twenty-one`, decimals like `five point zero five`), square roots, fractions, powers, and mathematical symbols in both Unicode and LaTeX modes.
 - **Whisper Large-v3-Turbo speech model**: Added as a third offline speech model option (~538 MiB archive / ~989 MiB unpacked) providing state-of-the-art multilingual transcription on modern PCs.
@@ -32,17 +40,16 @@ Download one speech model inside Murmur before dictating. Internet access to Git
 
 Hold Right Ctrl to speak and release it to insert the transcript. F8 switches between Standard and Math profiles. Both keys can be changed in Settings. Math formatting accepts both German and English expressions.
 
-## Beta limits
+## Limitations
 
 - Installer is unsigned. Windows SmartScreen may display a warning.
-- Stable update checks ignore draft and prerelease releases. Beta users use the
-  release page manually.
+- Stable update checks ignore draft and prerelease releases.
 - Transcription quality and speed depend on the model, microphone, and PC.
   Compatibility with every device or target application is not guaranteed.
 
 ## Assets
 
-- `Murmur-0.3.0-win-x64.zip`
-- `Murmur-Setup-v0.3.0.exe`
+- `Murmur-0.3.1-win-x64.zip`
+- `Murmur-Setup-v0.3.1.exe`
 - `build-info.json`
 - `SHA256SUMS.txt`
