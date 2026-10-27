@@ -216,4 +216,7 @@
   <data name="DictionaryCorrectionExample" xml:space="preserve"><value>e.g. cloud code</value></data>
   <data name="Confirm" xml:space="preserve"><value>Confirm</value></data>
   <data name="RecognitionRestartRequired" xml:space="preserve"><value>Speech recognition did not finish safely. Please restart Murmur before dictating or changing models. Any recovered partial text is incomplete.</value></data>
+  <data name="StreamingBacklogExceeded" xml:space="preserve"><value>Recognition could not keep up. Recording stopped; recovered text is incomplete. Please try a shorter dictation.</value></data>
+  <data name="StreamingRecognitionFailed" xml:space="preserve"><value>Streaming recognition failed. Recording stopped; recovered text is incomplete. Please try again.</value></data>
+  <data name="RecordingDurationLimit" xml:space="preserve"><value>Five-minute limit reached. Recording stopped automatically. Check the result; words spoken after stopping were not recorded.</value></data>
 </root>

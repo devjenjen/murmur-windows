@@ -216,4 +216,7 @@
   <data name="DictionaryCorrectionExample" xml:space="preserve"><value>z. B. cloud code</value></data>
   <data name="Confirm" xml:space="preserve"><value>Bestätigen</value></data>
   <data name="RecognitionRestartRequired" xml:space="preserve"><value>Die Spracherkennung konnte nicht sicher beendet werden. Bitte Murmur vor dem nächsten Diktat oder Modellwechsel neu starten. Geretteter Teiltext ist unvollständig.</value></data>
+  <data name="StreamingBacklogExceeded" xml:space="preserve"><value>Erkennung kam nicht hinterher. Aufnahme gestoppt; wiederhergestellter Text ist unvollständig. Bitte kürzer diktieren.</value></data>
+  <data name="StreamingRecognitionFailed" xml:space="preserve"><value>Streaming-Erkennung fehlgeschlagen. Aufnahme gestoppt; wiederhergestellter Text ist unvollständig. Bitte erneut versuchen.</value></data>
+  <data name="RecordingDurationLimit" xml:space="preserve"><value>Fünf-Minuten-Grenze erreicht. Aufnahme automatisch gestoppt. Ergebnis prüfen; danach gesprochene Wörter wurden nicht aufgenommen.</value></data>
 </root>

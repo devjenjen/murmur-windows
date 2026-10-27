@@ -688,7 +688,11 @@ public partial class HudWindow : Window
                     break;
                 case DictationStatus.Finishing:
                     TelemetryBadge.Text = UiText.HudProc;
-                    if (string.IsNullOrWhiteSpace(_lastTranscript))
+                    if (!string.IsNullOrWhiteSpace(_lastErrorMessage))
+                    {
+                        UpdateTranscriptText(_lastErrorMessage);
+                    }
+                    else if (string.IsNullOrWhiteSpace(_lastTranscript))
                     {
                         UpdateTranscriptText(UiText.HudTranscribing);
                     }
@@ -861,7 +865,7 @@ public partial class HudWindow : Window
 
                     preview = BuildTranscriptTail(transcript, 15);
                     UpdateTranscriptText(
-                        string.IsNullOrWhiteSpace(preview)
+                        !string.IsNullOrWhiteSpace(state.Message) ? state.Message : string.IsNullOrWhiteSpace(preview)
                             ? UiText.HudTranscribing
                             : preview);
 

@@ -8,8 +8,8 @@ public interface IStreamingTranscriber : ITranscriber
     /// <summary>Fired when a new intermediate partial transcript is available.</summary>
     event Action<string>? PartialTranscriptChanged;
 
-    /// <summary>Begins a new live streaming recognition session.</summary>
-    void BeginSession();
+    /// <summary>Begins a session; reports worker/backlog failure without waiting for completion.</summary>
+    void BeginSession(Action<Exception>? onFailure = null);
 
     /// <summary>Feeds audio samples into the active streaming session.</summary>
     void AcceptAudio(ReadOnlyMemory<float> audioSamples);

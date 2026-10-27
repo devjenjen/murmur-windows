@@ -8,6 +8,30 @@ using Xunit;
 
 public class WasapiAudioCaptureTests
 {
+    [Fact]
+    public async Task StopWaitsForWholeStoppedCallbackEvenAfterRunningFlagCleared()
+    {
+        using var capture = new WasapiAudioCapture();
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var flags = BindingFlags.NonPublic | BindingFlags.Instance;
+        typeof(WasapiAudioCapture).GetField("_stopped", flags)!.SetValue(capture, stopped);
+        capture.CaptureFailed += _ => { entered.TrySetResult(); release.Wait(); };
+        var callback = Task.Run(() => typeof(WasapiAudioCapture).GetMethod("OnRecordingStopped", flags)!
+            .Invoke(capture, [null, new StoppedEventArgs(new IOException("fake stopped"))]));
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            capture.IsRunning.ShouldBeFalse();
+            var stop = capture.StopAsync();
+            stop.IsCompleted.ShouldBeFalse();
+            release.Set();
+            await Task.WhenAll(stop, callback).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally { release.Set(); await callback.WaitAsync(TimeSpan.FromSeconds(5)); }
+    }
+
     [Theory]
     [InlineData(short.MinValue, -1f)]
     [InlineData(0, 0f)]

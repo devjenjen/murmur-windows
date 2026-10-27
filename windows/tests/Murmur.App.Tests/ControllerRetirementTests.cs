@@ -54,6 +54,8 @@ public class ControllerRetirementTests
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
         var app = Application.Current.ShouldBeOfType<App>();
         var ownerField = typeof(App).GetField("_controller", flags)!;
+        var recoveryField = typeof(App).GetField("_recoveryTranscript", flags)!;
+        var previousRecovery = recoveryField.GetValue(app);
         ownerField.GetValue(app).ShouldBeNull();
         var audio = new Audio();
         var keys = new Keys();
@@ -68,10 +70,13 @@ public class ControllerRetirementTests
         {
             controller.Start(); keys.Press(); keys.Release();
             await native.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            typeof(DictationController).GetProperty(nameof(DictationController.CurrentTranscript))!
+                .SetValue(controller, "incomplete recovery");
             expire = true;
             var retirement = (Task)typeof(App).GetMethod("DisposeControllerAsync", flags)!.Invoke(app, null)!;
             await Should.ThrowAsync<InvalidOperationException>(() => retirement);
             typeof(App).GetField("_recognitionBlocked", flags)!.GetValue(app).ShouldBe(true);
+            recoveryField.GetValue(app).ShouldBe("incomplete recovery");
             native.Disposals.ShouldBe(0);
             audio.Disposals.ShouldBe(0);
             await (Task)typeof(App).GetMethod("StartControllerAsync", flags)!.Invoke(app, null)!;
@@ -90,6 +95,7 @@ public class ControllerRetirementTests
             await ((Task)typeof(DictationController).GetProperty("DisposalCompletion", flags)!
                 .GetValue(controller)!).WaitAsync(TimeSpan.FromSeconds(5));
             ownerField.SetValue(app, null);
+            recoveryField.SetValue(app, previousRecovery);
             typeof(App).GetField("_recognitionBlocked", flags)!.SetValue(app, false);
         }
     }

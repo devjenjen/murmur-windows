@@ -168,19 +168,25 @@ public partial class DictationControllerTests
         public List<float> AcceptedSamples { get; } = [];
         public bool SessionActive { get; private set; }
         public int CancelCalls { get; private set; }
+        public Exception? AcceptFailure { get; set; }
+        private Action<Exception>? _onFailure;
+        public Action<Exception>? FailureCallback => _onFailure;
+        public void Fail(Exception failure) => _onFailure?.Invoke(failure);
 
         public FakeStreamingTranscriber(string finalText)
         {
             _finalText = finalText;
         }
 
-        public void BeginSession()
+        public void BeginSession(Action<Exception>? onFailure = null)
         {
+            _onFailure = onFailure;
             SessionActive = true;
         }
 
         public void AcceptAudio(ReadOnlyMemory<float> audioSamples)
         {
+            if (AcceptFailure != null) throw AcceptFailure;
             AcceptedSamples.AddRange(audioSamples.Span);
         }
 

@@ -516,6 +516,11 @@ public partial class App : Application
         finally
         {
             _recognitionBlocked |= owner?.RequiresRestart == true;
+            if (owner?.RequiresRestart == true && !string.IsNullOrWhiteSpace(owner.CurrentTranscript))
+            {
+                _recoveryTranscript = owner.CurrentTranscript;
+                _settingsWindow?.SetRecoveryTranscript(_recoveryTranscript);
+            }
             unsubscribe?.Invoke();
         }
         if (_recognitionBlocked) throw new InvalidOperationException(UiText.Text("RecognitionRestartRequired"));
@@ -539,7 +544,7 @@ public partial class App : Application
             Post(() =>
             {
                 AppLogger.Log($"StateChanged: {state.Status}");
-                if (state.Status == DictationStatus.Error && !string.IsNullOrWhiteSpace(text))
+                if (state.Status == DictationStatus.Error && state.Message != "RecordingDurationLimit" && !string.IsNullOrWhiteSpace(text))
                 {
                     _recoveryTranscript = text;
                     _settingsWindow?.SetRecoveryTranscript(text);
@@ -621,6 +626,9 @@ public partial class App : Application
             "TextTargetChanged" => UiText.TextTargetChanged,
             "TextModifierHeld" => UiText.TextModifierHeld,
             "RecognitionRestartRequired" => UiText.Text("RecognitionRestartRequired"),
+            "StreamingBacklogExceeded" => UiText.Text("StreamingBacklogExceeded"),
+            "StreamingRecognitionFailed" => UiText.Text("StreamingRecognitionFailed"),
+            "RecordingDurationLimit" => UiText.Text("RecordingDurationLimit"),
             _ => state.Message
         };
         return string.Equals(localized, state.Message, StringComparison.Ordinal)

@@ -20,6 +20,7 @@ public class NativeSessionLifetimeTests
         public AudioCaptureStats? LastSessionStats => null;
         public void Start() => IsRunning = true;
         public void Emit() => AudioChunkAvailable?.Invoke(new float[160]);
+        public void Emit(float[] samples) => AudioChunkAvailable?.Invoke(samples);
         public Task StopAsync(CancellationToken cancellationToken = default) { IsRunning = false; return Task.CompletedTask; }
         public void Dispose() { }
     }
@@ -39,6 +40,60 @@ public class NativeSessionLifetimeTests
         public TextInjectionTarget CaptureTarget() => new(1, 2);
         public void Insert(string text, TextInjectionTarget target, TextInsertionMode mode, bool restorePreviousWindow = false)
             => Insertions++;
+    }
+
+    [Fact]
+    public async Task BacklogStopsCaptureAndQuarantinesBlockedReaderWithoutInsertingPartial()
+    {
+        using var release = new ManualResetEventSlim();
+        var blocked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var partial = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var restart = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ready = false;
+        var chunks = 0;
+        var disposals = 0;
+        var native = new NemotronStreamingTranscriber(() => new(
+            _ => { chunks++; ready = true; }, () => ready,
+            () => { if (chunks == 2) { blocked.SetResult(); release.Wait(); } ready = false; },
+            () => "incomplete partial", () => { }, () => disposals++), () => { });
+        var audio = new Audio();
+        var keys = new Keys();
+        var injector = new Injector();
+        var controller = new DictationController(audio, keys, native, injector, "fake");
+        const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Instance;
+        Func<Task, TimeSpan, CancellationToken, Task> wait = (work, budget, cancellation) =>
+            blocked.Task.IsCompleted && budget == TimeSpan.FromSeconds(3)
+                ? Task.FromException(new TimeoutException()) : work.WaitAsync(cancellation);
+        typeof(DictationController).GetProperty("WaitForWorkAsync", flags)!.SetValue(controller, wait);
+        controller.TranscriptChanged += value => { if (value.Length > 0) partial.TrySetResult(); };
+        controller.StateChanged += state => { if (state.Message == "RecognitionRestartRequired") restart.TrySetResult(); };
+        try
+        {
+            controller.Start(); keys.Press(); audio.Emit();
+            await partial.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            audio.Emit();
+            await blocked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            audio.Emit(new float[144001]);
+            await restart.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            controller.RequiresRestart.ShouldBeTrue();
+            controller.CurrentTranscript.ShouldBe("incomplete partial");
+            injector.Insertions.ShouldBe(0);
+            await Should.ThrowAsync<TimeoutException>(() => controller.DisposeAsync().AsTask());
+            disposals.ShouldBe(0);
+            release.Set();
+            await ((Task)typeof(DictationController).GetProperty("DisposalCompletion", flags)!
+                .GetValue(controller)!).WaitAsync(TimeSpan.FromSeconds(5));
+            audio.IsRunning.ShouldBeFalse();
+            disposals.ShouldBe(1);
+            chunks.ShouldBe(2);
+        }
+        finally
+        {
+            release.Set();
+            try { await controller.DisposeAsync(); } catch (TimeoutException) { }
+            await ((Task)typeof(DictationController).GetProperty("DisposalCompletion", flags)!
+                .GetValue(controller)!).WaitAsync(TimeSpan.FromSeconds(5));
+        }
     }
 
     [Fact]
@@ -138,7 +193,7 @@ public class NativeSessionLifetimeTests
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             cancellation.Cancel();
             await Should.ThrowAsync<OperationCanceledException>(() => completion);
-            Should.Throw<InvalidOperationException>(transcriber.BeginSession);
+            Should.Throw<InvalidOperationException>(() => transcriber.BeginSession());
             var cancelled = transcriber.CancelSessionAsync();
             disposal = Task.Run(() => { disposalStarted.SetResult(); transcriber.Dispose(); });
             await disposalStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));

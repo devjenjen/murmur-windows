@@ -52,9 +52,10 @@ public partial class DictationControllerTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task DecodeDeadlineOrStopBudgetQuarantinesUntilRealCompletion(bool stopFirst)
+    [InlineData(false, 160, 60)]
+    [InlineData(true, 160, 60)]
+    [InlineData(false, 960000, 120)]
+    public async Task DecodeDeadlineOrStopBudgetQuarantinesUntilRealCompletion(bool stopFirst, int samples, int seconds)
     {
         var audio = new FakeAudioCapture();
         var hotkey = new FakeHotkeySource();
@@ -68,7 +69,7 @@ public partial class DictationControllerTests
         {
             controller.Start();
             hotkey.Press();
-            audio.EmitChunk(new float[160]);
+            audio.EmitChunk(new float[samples]);
             hotkey.Release();
             var inference = await deadlines.NextAsync();
             if (inference.Budget == TimeSpan.FromSeconds(3))
@@ -76,7 +77,7 @@ public partial class DictationControllerTests
                 await inference.Work.WaitAsync(TimeSpan.FromSeconds(5));
                 inference = await deadlines.NextAsync();
             }
-            inference.Budget.ShouldBe(TimeSpan.FromSeconds(60));
+            inference.Budget.ShouldBe(TimeSpan.FromSeconds(seconds));
             await transcriber.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             if (stopFirst)
             {

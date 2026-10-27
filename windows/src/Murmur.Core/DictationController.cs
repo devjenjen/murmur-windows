@@ -36,6 +36,7 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
         public long SampleCount { get; set; }
         public Task InFlight { get; set; } = Task.CompletedTask;
         public bool Ended { get; set; }
+        public bool DurationLimited { get; set; }
     }
 
     private readonly IAudioCapture _audioCapture;
@@ -51,6 +52,7 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
 
     private readonly List<float> _audioBuffer = [];
     private const int RetainedAudioCapacity = 16000 * 30;
+    private const int MaximumRecordingSamples = 16000 * 60 * 5;
     private readonly Lock _lock = new();
     private Task _sessionTask = Task.CompletedTask;
     private Task? _stopTask;
@@ -316,7 +318,13 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
         try
         {
             if (!IsCurrentSession(session)) return;
-            _streamingTranscriber?.BeginSession();
+            _streamingTranscriber?.BeginSession(ex =>
+            {
+                lock (_lock)
+                {
+                    if (IsCurrent(session)) BeginAbort(session, ex);
+                }
+            });
             _audioCapture.Start();
             lock (_lock)
             {
@@ -582,6 +590,7 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
                 LevelChanged?.Invoke(0);
                 error = _requiresRestart ? "RecognitionRestartRequired"
                     : session.Failure is { } failure ? GetErrorMessage(failure, "Microphone error") : error;
+                error ??= session.DurationLimited ? "RecordingDurationLimit" : null;
                 SetState(error == null ? DictationState.Idle : DictationState.ErrorState(error));
             }
             session.Ended = true;
@@ -593,10 +602,27 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
     {
         lock (_lock)
         {
-            if (_activeSessionState is not { } session || !IsCurrent(session) || !State.IsActive) return;
-            session.SampleCount += chunk.Length;
-            if (_streamingTranscriber is null) _audioBuffer.AddRange(chunk.Span);
-            _streamingTranscriber?.AcceptAudio(chunk);
+            if (_activeSessionState is not { } session || !IsCurrent(session) || !State.IsActive || session.DurationLimited) return;
+            try
+            {
+                var count = (int)Math.Min(chunk.Length, MaximumRecordingSamples - session.SampleCount);
+                var accepted = chunk[..count];
+                if (_streamingTranscriber is null) _audioBuffer.AddRange(accepted.Span);
+                else _streamingTranscriber.AcceptAudio(accepted);
+                session.SampleCount += count;
+                if (session.SampleCount == MaximumRecordingSamples)
+                {
+                    session.DurationLimited = true;
+                    if (!session.WorkStarted)
+                    {
+                        session.ReleasedAt = Stopwatch.GetTimestamp();
+                        session.WorkStarted = true;
+                        SetState(new DictationState(DictationStatus.Finishing, "RecordingDurationLimit"));
+                        _sessionTask = Task.Run(() => FinishSessionAsync(session, session.Cancellation.Token));
+                    }
+                }
+            }
+            catch (Exception ex) { BeginAbort(session, ex); }
         }
     }
 
@@ -637,7 +663,9 @@ public sealed class DictationController : IDisposable, IAsyncDisposable
             : TextInsertionMode.DocumentEnd;
 
     private static string GetErrorMessage(Exception exception, string fallbackPrefix) =>
-        exception is TextInjectionException injection
+        exception.Message is "StreamingBacklogExceeded" or "StreamingRecognitionFailed"
+            ? exception.Message
+            : exception is TextInjectionException injection
             ? injection.UserMessageKey
             : $"{fallbackPrefix}: {exception.Message}";
 
