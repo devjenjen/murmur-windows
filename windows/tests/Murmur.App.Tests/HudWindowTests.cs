@@ -280,6 +280,27 @@ public class HudWindowTests
     }
 
     [AvaloniaFact]
+    public void HudWindow_OnOpenedRunsAgainAfterHideAndShow()
+    {
+        var hud = new HudWindow();
+        var openCount = 0;
+        hud.Opened += (_, _) => openCount++;
+
+        try
+        {
+            hud.Show();
+            hud.Hide();
+            hud.Show();
+
+            openCount.ShouldBe(2);
+        }
+        finally
+        {
+            hud.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public void HudWindow_EntryUsesOrbSurfaceAndSeparateContentLayer()
     {
         var hud = new HudWindow();

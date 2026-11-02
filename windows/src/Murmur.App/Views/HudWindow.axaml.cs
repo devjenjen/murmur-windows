@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -6,6 +7,7 @@ using Avalonia.Media;
 using Avalonia.Media.Transformation;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using Murmur.App.Diagnostics;
 using Murmur.App.Localization;
 using Murmur.Core.Settings;
 using Murmur.Core.State;
@@ -92,6 +94,11 @@ public partial class HudWindow : Window
                 | Win32.WS_EX_TOOLWINDOW
                 | Win32.WS_EX_TRANSPARENT;
             Win32.SetWindowLongPtrW(handle.Value, Win32.GWL_EXSTYLE, updated);
+
+            if (!TrySetNativeTopmost(handle.Value, out var errorCode))
+            {
+                AppLogger.Log($"Failed to restore HUD topmost order (Win32 error {errorCode}).");
+            }
         }
 
         if (ActualTransparencyLevel == WindowTransparencyLevel.None)
@@ -104,6 +111,25 @@ public partial class HudWindow : Window
         }
 
         ApplyNativeRegion();
+    }
+
+    internal static bool TrySetNativeTopmost(nint handle, out int errorCode)
+    {
+        if (Win32.SetWindowPos(
+            handle,
+            Win32.HWND_TOPMOST,
+            0,
+            0,
+            0,
+            0,
+            Win32.SWP_NOACTIVATE | Win32.SWP_NOMOVE | Win32.SWP_NOSIZE))
+        {
+            errorCode = 0;
+            return true;
+        }
+
+        errorCode = Marshal.GetLastWin32Error();
+        return false;
     }
 
     /// <inheritdoc />

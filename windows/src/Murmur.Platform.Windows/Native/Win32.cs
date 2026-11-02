@@ -36,6 +36,10 @@ internal static class Win32
     public const int WS_EX_NOACTIVATE = 0x08000000;
     public const int WS_EX_TOOLWINDOW = 0x00000080;
     public const int WS_EX_TRANSPARENT = 0x00000020;
+    public static readonly nint HWND_TOPMOST = new(-1);
+    public const uint SWP_NOSIZE = 0x0001;
+    public const uint SWP_NOMOVE = 0x0002;
+    public const uint SWP_NOACTIVATE = 0x0010;
     public const int SW_RESTORE = 9;
 
     public delegate nint HookProc(int nCode, nint wParam, nint lParam);
@@ -166,6 +170,17 @@ internal static class Win32
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern nint GetWindowLongPtrW(nint hWnd, int nIndex);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowPos", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetWindowPos(
+        nint hWnd,
+        nint hWndInsertAfter,
+        int x,
+        int y,
+        int cx,
+        int cy,
+        uint flags);
 
     [DllImport("gdi32.dll", SetLastError = true)]
     public static extern nint CreateRoundRectRgn(
