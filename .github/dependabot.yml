@@ -5,6 +5,16 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # Each of these ships a managed package plus matching natives or siblings. Split across
+    # separate pull requests they merge one at a time and mismatch at runtime, where neither
+    # the compiler nor the Windows workflow catches it.
+    groups:
+      llamasharp:
+        patterns: ['LLamaSharp*']
+      sherpa-onnx:
+        patterns: ['org.k2fsa.sherpa.onnx*']
+      avalonia:
+        patterns: ['Avalonia*']
   - package-ecosystem: github-actions
     directory: /
     schedule:
