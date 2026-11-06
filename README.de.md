@@ -10,10 +10,10 @@ Murmur ist eine eigenständige, KI-unterstützte Windows-Anpassung, inspiriert v
 
 ## Download und erster Start
 
-Hier gibt es [Murmur 0.3.0 Beta](https://github.com/devjenjen/murmur-windows/releases/tag/v0.3.0) für Windows 11 x64:
+Hier gibt es [Murmur 0.3.2](https://github.com/devjenjen/murmur-windows/releases/tag/v0.3.2) für Windows 11 x64:
 
-- [Setup-EXE](https://github.com/devjenjen/murmur-windows/releases/download/v0.3.0/Murmur-Setup-v0.3.0.exe): installiert Murmur für das aktuelle Benutzerkonto.
-- [Portable-ZIP](https://github.com/devjenjen/murmur-windows/releases/download/v0.3.0/Murmur-0.3.0-win-x64.zip): Archiv entpacken und `Murmur.App.exe` starten; es wird nichts installiert.
+- [Setup-EXE](https://github.com/devjenjen/murmur-windows/releases/download/v0.3.2/Murmur-Setup-v0.3.2.exe): installiert Murmur für das aktuelle Benutzerkonto.
+- [Portable-ZIP](https://github.com/devjenjen/murmur-windows/releases/download/v0.3.2/Murmur-0.3.2-win-x64.zip): Archiv entpacken und `Murmur.App.exe` starten; es wird nichts installiert.
 - `build-info.json` enthält den Quellcode-Commit und Build-Angaben. `SHA256SUMS.txt` enthält die Prüfsummen der Downloads.
 
 Der Installer ist nicht signiert. Windows SmartScreen kann deshalb eine Warnung anzeigen. Beim ersten Start öffnet Murmur die Einrichtung. Mikrofon, Taste und Sprachmodell wählen, dann das gewählte Modell herunterladen. Nach der Einrichtung **rechte Strg-Taste** zum Sprechen gedrückt halten und zum Einfügen loslassen. Die Taste lässt sich in den Einstellungen ändern. Murmur bleibt im Infobereich der Taskleiste; über das Tray-Menü öffnest du die Einstellungen oder beendest das Programm.
