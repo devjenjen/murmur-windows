@@ -4,6 +4,16 @@ Newest release first.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-06
+
+### Fixed
+
+- Keep the recording overlay above other windows when it opens. It could end up behind the window you were dictating into.
+
+### Changed
+
+- Update NAudio to 2.4.0.
+
 ## [0.3.1] - 2026-10-27
 
 ### Improved
@@ -107,3 +117,4 @@ Newest release first.
 [0.2.2]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.2.2
 [0.3.0]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.3.0
 [0.3.1]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.3.1
+[0.3.2]: https://github.com/devjenjen/murmur-windows/releases/tag/v0.3.2

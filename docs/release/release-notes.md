@@ -1,8 +1,13 @@
-# Murmur 0.3.1
+# Murmur 0.3.2
 
 Windows 11 x64 release.
 
-## Changes in 0.3.1
+## Changes in 0.3.2
+
+- The recording overlay now stays above other windows when it opens. It could previously end up behind the window you were dictating into.
+- Updated NAudio to 2.4.0.
+
+## Also included from 0.3.1
 
 - Refreshed recording HUD with a pulsing red rim, responsive meter, finishing rainbow, and reduced-motion support.
 - Preserve original transcripts when AI repair cannot safely fit or finish within its token budget.
@@ -49,7 +54,7 @@ Hold Right Ctrl to speak and release it to insert the transcript. F8 switches be
 
 ## Assets
 
-- `Murmur-0.3.1-win-x64.zip`
-- `Murmur-Setup-v0.3.1.exe`
+- `Murmur-0.3.2-win-x64.zip`
+- `Murmur-Setup-v0.3.2.exe`
 - `build-info.json`
 - `SHA256SUMS.txt`
