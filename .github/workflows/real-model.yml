@@ -1,9 +1,14 @@
 name: Real-model smoke tests
 
+# Also runs on dependency bumps: the Windows workflow filters Category=RealModel out, so a
+# green PR there only proves the code compiles. Native runtime bumps (sherpa-onnx, LLamaSharp)
+# break at inference time instead, which only this job sees.
 on:
   workflow_dispatch:
   schedule:
     - cron: '17 2 * * *'
+  pull_request:
+    paths: ['windows/Directory.Packages.props', '.github/workflows/real-model.yml']
 
 permissions:
   contents: read

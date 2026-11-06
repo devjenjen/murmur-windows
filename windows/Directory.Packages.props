@@ -16,8 +16,8 @@
     <PackageVersion Include="LLamaSharp" Version="0.22.0" />
     <PackageVersion Include="LLamaSharp.Backend.Cpu" Version="0.22.0" />
 
-    <!-- Audio. PINNED TO 2.3.0 ON PURPOSE.
-         NAudio 3.x targets net9.0+ only and will not restore here. -->
+    <!-- Audio. Stay on the 2.x line until 3.x has been evaluated against WasapiAudioCapture.
+         WASAPI capture is only unit-tested here, so smoke-test dictation after bumping this. -->
     <PackageVersion Include="NAudio" Version="2.4.0" />
 
     <!-- UI. Avalonia provides the desktop UI and headless test support used here. -->
